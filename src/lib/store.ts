@@ -35,7 +35,10 @@ export function clearAuth() {
 
 // Pacientes
 export function getPacientes(): Paciente[] {
-  return get<Paciente>(KEYS.pacientes);
+  return get<Paciente>(KEYS.pacientes).map((p) => ({
+    ...p,
+    tags: p.tags || [],
+  }));
 }
 
 export function getPaciente(id: string): Paciente | undefined {

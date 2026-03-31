@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getPaciente, savePaciente } from "@/lib/store";
-import { Paciente } from "@/types";
+import { Paciente, TAGS_COMUNS } from "@/types";
 import { ArrowLeft } from "lucide-react";
 
 const PacienteForm = () => {
@@ -20,6 +21,7 @@ const PacienteForm = () => {
     dataNascimento: existing?.dataNascimento || "",
     diagnostico: existing?.diagnostico || "",
     status: existing?.status || "ativo" as "ativo" | "inativo",
+    tags: existing?.tags || [] as string[],
     respNome: existing?.responsavel.nome || "",
     respTelefone: existing?.responsavel.telefone || "",
     respEmail: existing?.responsavel.email || "",
@@ -34,6 +36,7 @@ const PacienteForm = () => {
       dataNascimento: form.dataNascimento,
       diagnostico: form.diagnostico,
       status: form.status,
+      tags: form.tags,
       responsavel: {
         nome: form.respNome,
         telefone: form.respTelefone,
@@ -47,6 +50,13 @@ const PacienteForm = () => {
   };
 
   const update = (field: string, value: string) => setForm((f) => ({ ...f, [field]: value }));
+
+  const toggleTag = (tag: string) => {
+    setForm((f) => ({
+      ...f,
+      tags: f.tags.includes(tag) ? f.tags.filter((t) => t !== tag) : [...f.tags, tag],
+    }));
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -88,6 +98,21 @@ const PacienteForm = () => {
             <div className="space-y-2">
               <Label>Diagnóstico</Label>
               <Textarea value={form.diagnostico} onChange={(e) => update("diagnostico", e.target.value)} placeholder="Ex: TEA, TDAH, atraso no desenvolvimento motor..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <div className="flex flex-wrap gap-2">
+                {TAGS_COMUNS.map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant={form.tags.includes(tag) ? "default" : "outline"}
+                    className="cursor-pointer py-1.5 px-3"
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

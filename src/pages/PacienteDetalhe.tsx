@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPaciente, getSessoes, getObjetivos, deleteObjetivo } from "@/lib/store";
-import { ArrowLeft, Plus, Pencil, Target, ClipboardList, TrendingUp, Trash2, CalendarDays, Play } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Target, ClipboardList, TrendingUp, Trash2, CalendarDays, Play, FileText } from "lucide-react";
 import { format, differenceInYears, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -88,8 +88,11 @@ const PacienteDetalhe = () => {
         <Link to={`/pacientes/${paciente.id}/sessao?modo=sessao`}>
           <Button size="sm" className="gap-2"><Play className="w-4 h-4" /> Iniciar sessão</Button>
         </Link>
+        <Link to={`/pacientes/${paciente.id}/relatorio`}>
+          <Button variant="outline" size="sm" className="gap-2"><FileText className="w-4 h-4" /> Relatório</Button>
+        </Link>
         <Link to={`/pacientes/${paciente.id}/editar`}>
-          <Button variant="outline" size="sm" className="gap-2"><Pencil className="w-4 h-4" /> Editar</Button>
+          <Button variant="ghost" size="sm" className="gap-2"><Pencil className="w-4 h-4" /> Editar</Button>
         </Link>
       </div>
 

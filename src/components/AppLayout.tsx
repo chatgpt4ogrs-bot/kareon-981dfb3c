@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   Heart,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,11 @@ const AppLayout = () => {
     navigate("/login");
   };
 
+  const isActive = (path: string) => {
+    if (path === "/") return location.pathname === "/";
+    return location.pathname.startsWith(path);
+  };
+
   return (
     <div className="min-h-screen flex bg-background">
       {/* Sidebar desktop */}
@@ -48,7 +54,7 @@ const AppLayout = () => {
               to={item.to}
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                location.pathname === item.to
+                isActive(item.to)
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               )}
@@ -96,7 +102,7 @@ const AppLayout = () => {
                 onClick={() => setMobileOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium",
-                  location.pathname === item.to
+                  isActive(item.to)
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground"
                 )}
