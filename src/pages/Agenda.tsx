@@ -2,11 +2,10 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { getSessoes, getPacientes } from "@/lib/store";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Agenda = () => {
@@ -64,17 +63,20 @@ const Agenda = () => {
                   {sessoesDia.map((s) => {
                     const pac = pacientes.find((p) => p.id === s.pacienteId);
                     return (
-                      <Link key={s.id} to={`/pacientes/${s.pacienteId}`}>
-                        <Card className="hover:shadow-sm transition-shadow">
-                          <CardContent className="p-3 flex items-center gap-3">
-                            <div className="w-1 h-10 rounded-full bg-primary shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">{pac?.nome || "Paciente"}</p>
-                              <p className="text-xs text-muted-foreground">{format(new Date(s.dataHora), "HH:mm")}</p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </Link>
+                      <Card key={s.id} className="hover:shadow-sm transition-shadow">
+                        <CardContent className="p-3 flex items-center gap-3">
+                          <div className="w-1 h-10 rounded-full bg-primary shrink-0" />
+                          <Link to={`/pacientes/${s.pacienteId}`} className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground">{pac?.nome || "Paciente"}</p>
+                            <p className="text-xs text-muted-foreground">{format(new Date(s.dataHora), "HH:mm")}</p>
+                          </Link>
+                          <Link to={`/pacientes/${s.pacienteId}/sessao?modo=sessao`}>
+                            <Button size="sm" className="gap-1.5 rounded-full h-8 px-3">
+                              <Play className="w-3.5 h-3.5" /> Iniciar
+                            </Button>
+                          </Link>
+                        </CardContent>
+                      </Card>
                     );
                   })}
                 </div>
