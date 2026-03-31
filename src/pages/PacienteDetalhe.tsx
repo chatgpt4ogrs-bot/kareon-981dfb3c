@@ -88,8 +88,11 @@ const PacienteDetalhe = () => {
         <Link to={`/pacientes/${paciente.id}/sessao?modo=sessao`}>
           <Button size="sm" className="gap-2"><Play className="w-4 h-4" /> Iniciar sessão</Button>
         </Link>
+        <Link to={`/pacientes/${paciente.id}/relatorio`}>
+          <Button variant="outline" size="sm" className="gap-2"><FileText className="w-4 h-4" /> Relatório</Button>
+        </Link>
         <Link to={`/pacientes/${paciente.id}/editar`}>
-          <Button variant="outline" size="sm" className="gap-2"><Pencil className="w-4 h-4" /> Editar</Button>
+          <Button variant="ghost" size="sm" className="gap-2"><Pencil className="w-4 h-4" /> Editar</Button>
         </Link>
       </div>
 
