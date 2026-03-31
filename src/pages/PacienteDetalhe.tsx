@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPaciente, getSessoes, getObjetivos, deleteObjetivo } from "@/lib/store";
-import { ArrowLeft, Plus, Pencil, Target, ClipboardList, TrendingUp, Trash2, CalendarDays, Play } from "lucide-react";
+import { ArrowLeft, Plus, Pencil, Target, ClipboardList, TrendingUp, Trash2, CalendarDays, Play, FileText } from "lucide-react";
 import { format, differenceInYears, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
