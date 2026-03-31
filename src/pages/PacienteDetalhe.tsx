@@ -6,9 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPaciente, getSessoes, getObjetivos, deleteObjetivo } from "@/lib/store";
-import { ArrowLeft, Plus, Pencil, Target, ClipboardList, TrendingUp, Trash2 } from "lucide-react";
-import { format, differenceInYears } from "date-fns";
+import { ArrowLeft, Plus, Pencil, Target, ClipboardList, TrendingUp, Trash2, CalendarDays, Play } from "lucide-react";
+import { format, differenceInYears, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const statusLabel: Record<string, string> = {
   nao_iniciado: "Não iniciado",
@@ -16,23 +17,23 @@ const statusLabel: Record<string, string> = {
   concluido: "Concluído",
 };
 
-const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-  nao_iniciado: "secondary",
-  em_andamento: "default",
-  concluido: "outline",
+const statusColor: Record<string, string> = {
+  nao_iniciado: "bg-muted text-muted-foreground",
+  em_andamento: "bg-primary/10 text-primary",
+  concluido: "bg-success/10 text-success",
 };
 
-const engajamentoLabel: Record<string, string> = {
-  baixo: "Baixo",
-  medio: "Médio",
-  alto: "Alto",
+const engajamentoLabel: Record<string, { label: string; emoji: string }> = {
+  baixo: { label: "Baixo", emoji: "😔" },
+  medio: { label: "Médio", emoji: "😐" },
+  alto: { label: "Alto", emoji: "😊" },
 };
 
-const progressoLabel: Record<string, string> = {
-  regressao: "Regressão",
-  manteve: "Manteve",
-  progresso_leve: "Progresso leve",
-  progresso_significativo: "Progresso significativo",
+const progressoLabel: Record<string, { label: string; emoji: string }> = {
+  regressao: { label: "Regressão", emoji: "📉" },
+  manteve: { label: "Manteve", emoji: "➡️" },
+  progresso_leve: { label: "Progresso leve", emoji: "📈" },
+  progresso_significativo: { label: "Progresso significativo", emoji: "🚀" },
 };
 
 const PacienteDetalhe = () => {
@@ -54,6 +55,18 @@ const PacienteDetalhe = () => {
   const objetivos = getObjetivos(paciente.id);
   const idade = differenceInYears(new Date(), new Date(paciente.dataNascimento));
 
+  // Frequency
+  const now = new Date();
+  const mesAtual = { start: startOfMonth(now), end: endOfMonth(now) };
+  const sessoesMes = sessoes.filter((s) => isWithinInterval(new Date(s.dataHora), mesAtual));
+
+  // Progress summary
+  const objetivosAtivos = objetivos.filter((o) => o.status === "em_andamento");
+  const objetivosConcluidos = objetivos.filter((o) => o.status === "concluido");
+  const progressoMedio = objetivos.length > 0
+    ? Math.round(objetivos.reduce((sum, o) => sum + o.progresso, 0) / objetivos.length)
+    : 0;
+
   const handleDeleteObjetivo = (objId: string) => {
     deleteObjetivo(objId);
     setRefresh((r) => r + 1);
@@ -72,9 +85,42 @@ const PacienteDetalhe = () => {
           </div>
           <p className="text-sm text-muted-foreground">{idade} anos · {paciente.diagnostico}</p>
         </div>
+        <Link to={`/pacientes/${paciente.id}/sessao?modo=sessao`}>
+          <Button size="sm" className="gap-2"><Play className="w-4 h-4" /> Iniciar sessão</Button>
+        </Link>
         <Link to={`/pacientes/${paciente.id}/editar`}>
           <Button variant="outline" size="sm" className="gap-2"><Pencil className="w-4 h-4" /> Editar</Button>
         </Link>
+      </div>
+
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-primary">{sessoesMes.length}</p>
+            <p className="text-xs text-muted-foreground">Sessões este mês</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-foreground">{sessoes.length}</p>
+            <p className="text-xs text-muted-foreground">Total de sessões</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-foreground">{objetivosAtivos.length}/{objetivos.length}</p>
+            <p className="text-xs text-muted-foreground">Objetivos ativos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-2xl font-bold text-primary">{progressoMedio}%</p>
+            </div>
+            <p className="text-xs text-muted-foreground">Progresso médio</p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -106,39 +152,43 @@ const PacienteDetalhe = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {sessoes.map((s) => (
-                <Card key={s.id}>
-                  <CardContent className="p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium text-foreground">
-                        {format(new Date(s.dataHora), "dd/MM/yyyy · HH:mm", { locale: ptBR })}
-                      </p>
-                      <div className="flex gap-2">
-                        <Badge variant="secondary">{engajamentoLabel[s.engajamento]}</Badge>
-                        <Badge variant="outline">{progressoLabel[s.progressoObservado]}</Badge>
+              {sessoes.map((s) => {
+                const eng = engajamentoLabel[s.engajamento];
+                const prog = progressoLabel[s.progressoObservado];
+                return (
+                  <Card key={s.id}>
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-foreground">
+                          {format(new Date(s.dataHora), "dd/MM/yyyy · HH:mm", { locale: ptBR })}
+                        </p>
+                        <div className="flex gap-2 items-center">
+                          <span className="text-sm">{eng.emoji}</span>
+                          <span className="text-sm">{prog.emoji}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {s.atividades.map((a) => (
-                        <Badge key={a} variant="secondary" className="text-xs font-normal">{a}</Badge>
-                      ))}
-                    </div>
-                    {s.comportamentos.length > 0 && (
-                      <p className="text-xs text-muted-foreground">Comportamento: {s.comportamentos.join(", ")}</p>
-                    )}
-                    {s.observacoes && (
-                      <p className="text-sm text-muted-foreground">{s.observacoes}</p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="flex flex-wrap gap-1">
+                        {s.atividades.map((a) => (
+                          <Badge key={a} variant="secondary" className="text-xs font-normal">{a}</Badge>
+                        ))}
+                      </div>
+                      {s.comportamentos.length > 0 && (
+                        <p className="text-xs text-muted-foreground">Comportamento: {s.comportamentos.join(", ")}</p>
+                      )}
+                      {s.observacoes && (
+                        <p className="text-sm text-muted-foreground">{s.observacoes}</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="objetivos" className="space-y-4 mt-4">
           <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">{objetivos.length} objetivos</p>
+            <p className="text-sm text-muted-foreground">{objetivos.length} objetivos · {objetivosConcluidos.length} concluídos</p>
             <Link to={`/pacientes/${paciente.id}/objetivo`}>
               <Button size="sm" className="gap-2"><Plus className="w-4 h-4" /> Novo objetivo</Button>
             </Link>
@@ -151,20 +201,22 @@ const PacienteDetalhe = () => {
           ) : (
             <div className="space-y-3">
               {objetivos.map((o) => (
-                <Card key={o.id}>
+                <Card key={o.id} className={cn(o.status === "concluido" && "opacity-60")}>
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <p className="text-sm font-medium text-foreground">{o.descricao}</p>
-                        <Badge variant={statusVariant[o.status]} className="mt-1 text-xs">{statusLabel[o.status]}</Badge>
+                        <span className={cn("inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium", statusColor[o.status])}>
+                          {statusLabel[o.status]}
+                        </span>
                       </div>
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => handleDeleteObjetivo(o.id)}>
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Progress value={o.progresso} className="flex-1 h-2" />
-                      <span className="text-xs font-medium text-muted-foreground">{o.progresso}%</span>
+                      <Progress value={o.progresso} className="flex-1 h-2.5" />
+                      <span className="text-sm font-semibold text-foreground w-12 text-right">{o.progresso}%</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -179,37 +231,63 @@ const PacienteDetalhe = () => {
               <p className="text-muted-foreground text-sm">Registre sessões e objetivos para ver a evolução</p>
             </div>
           ) : (
-            <div className="relative pl-6 space-y-6">
-              <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-border" />
-              {[...sessoes.map((s) => ({ tipo: "sessao" as const, data: s.dataHora, item: s })),
-                ...objetivos.map((o) => ({ tipo: "objetivo" as const, data: o.criadoEm, item: o })),
-              ]
-                .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
-                .map((evento, i) => (
-                  <div key={i} className="relative">
-                    <div className={`absolute -left-6 top-1 w-4 h-4 rounded-full border-2 ${
-                      evento.tipo === "sessao" ? "bg-primary border-primary" : "bg-accent border-accent"
-                    }`} />
-                    <div className="bg-card rounded-lg p-3 border border-border">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        {format(new Date(evento.data), "dd/MM/yyyy · HH:mm", { locale: ptBR })}
-                      </p>
-                      {evento.tipo === "sessao" ? (
-                        <>
-                          <p className="text-sm font-medium text-foreground">Sessão realizada</p>
-                          <p className="text-xs text-muted-foreground">
-                            Engajamento: {engajamentoLabel[(evento.item as any).engajamento]} · {progressoLabel[(evento.item as any).progressoObservado]}
-                          </p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-sm font-medium text-foreground">Objetivo criado</p>
-                          <p className="text-xs text-muted-foreground">{(evento.item as any).descricao}</p>
-                        </>
-                      )}
+            <div className="space-y-6">
+              {/* Progress summary bar */}
+              {objetivos.length > 0 && (
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="p-4">
+                    <p className="text-sm font-medium text-foreground mb-3">Progresso geral dos objetivos</p>
+                    <div className="flex items-center gap-3 mb-2">
+                      <Progress value={progressoMedio} className="flex-1 h-3" />
+                      <span className="text-lg font-bold text-primary">{progressoMedio}%</span>
                     </div>
-                  </div>
-                ))}
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span>{objetivosAtivos.length} em andamento</span>
+                      <span>{objetivosConcluidos.length} concluídos</span>
+                      <span>{objetivos.filter(o => o.status === "nao_iniciado").length} não iniciados</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Timeline */}
+              <div className="relative pl-6 space-y-6">
+                <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-border" />
+                {[...sessoes.map((s) => ({ tipo: "sessao" as const, data: s.dataHora, item: s })),
+                  ...objetivos.map((o) => ({ tipo: "objetivo" as const, data: o.criadoEm, item: o })),
+                ]
+                  .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                  .map((evento, i) => (
+                    <div key={i} className="relative">
+                      <div className={cn(
+                        "absolute -left-6 top-1 w-4 h-4 rounded-full border-2",
+                        evento.tipo === "sessao" ? "bg-primary border-primary" : "bg-accent border-accent"
+                      )} />
+                      <div className="bg-card rounded-lg p-3 border border-border">
+                        <p className="text-xs text-muted-foreground mb-1">
+                          {format(new Date(evento.data), "dd/MM/yyyy · HH:mm", { locale: ptBR })}
+                        </p>
+                        {evento.tipo === "sessao" ? (
+                          <>
+                            <p className="text-sm font-medium text-foreground">Sessão realizada</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span>{engajamentoLabel[(evento.item as any).engajamento].emoji}</span>
+                              <span className="text-xs text-muted-foreground">{engajamentoLabel[(evento.item as any).engajamento].label}</span>
+                              <span className="text-muted-foreground">·</span>
+                              <span>{progressoLabel[(evento.item as any).progressoObservado].emoji}</span>
+                              <span className="text-xs text-muted-foreground">{progressoLabel[(evento.item as any).progressoObservado].label}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm font-medium text-foreground">Objetivo criado</p>
+                            <p className="text-xs text-muted-foreground">{(evento.item as any).descricao}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
         </TabsContent>
