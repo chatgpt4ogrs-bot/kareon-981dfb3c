@@ -10,8 +10,10 @@ export interface Paciente {
   nome: string;
   dataNascimento: string;
   diagnostico: string;
+  tags: string[];
   responsavel: Responsavel;
   status: "ativo" | "inativo";
+  terapeutaId?: string;
   criadoEm: string;
 }
 
@@ -20,13 +22,26 @@ export interface ObjetivoTerapeutico {
   pacienteId: string;
   descricao: string;
   status: "nao_iniciado" | "em_andamento" | "concluido";
-  progresso: number; // 0-100
+  progresso: number;
   criadoEm: string;
   atualizadoEm: string;
 }
 
 export type NivelEngajamento = "baixo" | "medio" | "alto";
 export type ProgressoObservado = "regressao" | "manteve" | "progresso_leve" | "progresso_significativo";
+
+export const TAGS_COMUNS = [
+  "TEA",
+  "TDAH",
+  "Coordenação motora",
+  "Integração sensorial",
+  "Atraso motor",
+  "Paralisia cerebral",
+  "Síndrome de Down",
+  "Dificuldade de aprendizagem",
+  "Regulação emocional",
+  "AVD",
+] as const;
 
 export const COMPORTAMENTOS = [
   "Colaborativo",

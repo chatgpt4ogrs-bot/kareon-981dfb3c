@@ -5,19 +5,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { setAuth } from "@/lib/store";
+import { isDemoLogin, loadDemoData } from "@/lib/demo-data";
 import { Heart } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
-  const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [erro, setErro] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (nome && email) {
-      setAuth({ nome, email });
+    setErro("");
+
+    if (isDemoLogin(email, senha)) {
+      loadDemoData();
+      setAuth({ nome: "Dra. Camila Terapeuta", email });
       navigate("/");
+      return;
     }
+
+    // For now, any email+password works (localStorage auth)
+    if (email && senha.length >= 6) {
+      setAuth({ nome: email.split("@")[0], email });
+      navigate("/");
+    } else {
+      setErro("Email e senha (mín. 6 caracteres) são obrigatórios");
+    }
+  };
+
+  const fillDemo = () => {
+    setEmail("teste@clinica.com");
+    setSenha("123456");
   };
 
   return (
@@ -39,15 +58,26 @@ const Login = () => {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="nome">Nome</Label>
-                <Input id="nome" placeholder="Seu nome completo" value={nome} onChange={(e) => setNome(e.target.value)} required />
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input id="email" type="email" placeholder="seu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="senha">Senha</Label>
+                <Input id="senha" type="password" placeholder="••••••" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+              </div>
+              {erro && <p className="text-sm text-destructive">{erro}</p>}
               <Button type="submit" className="w-full">Entrar</Button>
             </form>
+
+            <div className="mt-6 pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground text-center mb-3">Acesso de demonstração</p>
+              <Button type="button" variant="outline" className="w-full text-sm" onClick={fillDemo}>
+                Usar login de teste
+              </Button>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                teste@clinica.com · 123456
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
