@@ -5,6 +5,7 @@ import { getPacientes, getSessoes, getObjetivos, getAuth } from "@/lib/store";
 import { Users, ClipboardList, Target, Plus, CalendarDays } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
   const auth = getAuth();
@@ -17,7 +18,7 @@ const Dashboard = () => {
     { label: "Pacientes ativos", value: pacientes.length, icon: Users, color: "text-primary" },
     { label: "Sessões hoje", value: sessoesHoje.length, icon: CalendarDays, color: "text-accent" },
     { label: "Total de sessões", value: sessoes.length, icon: ClipboardList, color: "text-primary" },
-    { label: "Objetivos ativos", value: objetivos.filter((o) => o.status === "em_andamento").length, icon: Target, color: "text-success" },
+    { label: "Objetivos ativos", value: objetivos.filter((o) => o.status === "em_andamento").length, icon: Target, color: "text-secondary" },
   ];
 
   const proximasSessoes = sessoes
@@ -32,9 +33,9 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-foreground">Olá, {auth?.nome?.split(" ")[0] || "Terapeuta"} 👋</h1>
           <p className="text-muted-foreground">{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</p>
         </div>
-        <Link to="/pacientes/novo">
+        <Link to="/agenda">
           <Button className="gap-2">
-            <Plus className="w-4 h-4" /> Nova sessão
+            <CalendarDays className="w-4 h-4" /> Ver agenda
           </Button>
         </Link>
       </div>
@@ -70,14 +71,14 @@ const Dashboard = () => {
                 {proximasSessoes.map((s) => {
                   const pac = getPacientes().find((p) => p.id === s.pacienteId);
                   return (
-                    <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <Link key={s.id} to={`/pacientes/${s.pacienteId}`} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                       <div>
                         <p className="text-sm font-medium text-foreground">{pac?.nome || "Paciente"}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(s.dataHora), "dd/MM · HH:mm")}
                         </p>
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -106,7 +107,7 @@ const Dashboard = () => {
                     <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
                       {p.nome.charAt(0)}
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground">{p.nome}</p>
                       <p className="text-xs text-muted-foreground">{p.diagnostico}</p>
                     </div>
@@ -120,9 +121,5 @@ const Dashboard = () => {
     </div>
   );
 };
-
-function cn(...classes: (string | undefined | false)[]) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default Dashboard;
