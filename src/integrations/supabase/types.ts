@@ -90,6 +90,7 @@ export type Database = {
           responsavel_telefone: string | null
           status: string
           tags: string[] | null
+          terapeuta_id: string | null
           updated_at: string
         }
         Insert: {
@@ -105,6 +106,7 @@ export type Database = {
           responsavel_telefone?: string | null
           status?: string
           tags?: string[] | null
+          terapeuta_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -120,6 +122,7 @@ export type Database = {
           responsavel_telefone?: string | null
           status?: string
           tags?: string[] | null
+          terapeuta_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -128,6 +131,13 @@ export type Database = {
             columns: ["clinica_id"]
             isOneToOne: false
             referencedRelation: "clinicas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pacientes_terapeuta_id_fkey"
+            columns: ["terapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -242,15 +252,41 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
       get_user_clinica_id: { Args: never; Returns: string }
+      get_user_profile_id: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "terapeuta"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -377,6 +413,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "terapeuta"],
+    },
   },
 } as const
