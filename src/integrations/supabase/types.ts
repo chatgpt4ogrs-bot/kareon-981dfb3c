@@ -14,13 +14,222 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clinicas: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      objetivos: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          paciente_id: string
+          progresso: number
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          paciente_id: string
+          progresso?: number
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          paciente_id?: string
+          progresso?: number
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "objetivos_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pacientes: {
+        Row: {
+          clinica_id: string
+          created_at: string
+          data_nascimento: string | null
+          id: string
+          nome: string
+          responsavel: string | null
+          tags: string[] | null
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          clinica_id: string
+          created_at?: string
+          data_nascimento?: string | null
+          id?: string
+          nome: string
+          responsavel?: string | null
+          tags?: string[] | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          clinica_id?: string
+          created_at?: string
+          data_nascimento?: string | null
+          id?: string
+          nome?: string
+          responsavel?: string | null
+          tags?: string[] | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pacientes_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "clinicas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          cargo: string | null
+          clinica_id: string | null
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cargo?: string | null
+          clinica_id?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          nome: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cargo?: string | null
+          clinica_id?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "clinicas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sessoes: {
+        Row: {
+          atividades: string | null
+          comportamento: string[] | null
+          created_at: string
+          data: string
+          engajamento: string | null
+          id: string
+          objetivo_sessao: string | null
+          objetivos_trabalhados: string[] | null
+          observacoes: string | null
+          paciente_id: string
+          progresso: string | null
+          terapeuta_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          atividades?: string | null
+          comportamento?: string[] | null
+          created_at?: string
+          data?: string
+          engajamento?: string | null
+          id?: string
+          objetivo_sessao?: string | null
+          objetivos_trabalhados?: string[] | null
+          observacoes?: string | null
+          paciente_id: string
+          progresso?: string | null
+          terapeuta_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          atividades?: string | null
+          comportamento?: string[] | null
+          created_at?: string
+          data?: string
+          engajamento?: string | null
+          id?: string
+          objetivo_sessao?: string | null
+          objetivos_trabalhados?: string[] | null
+          observacoes?: string | null
+          paciente_id?: string
+          progresso?: string | null
+          terapeuta_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessoes_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessoes_terapeuta_id_fkey"
+            columns: ["terapeuta_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_clinica_id: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
