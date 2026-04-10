@@ -72,6 +72,7 @@ export function useSavePaciente() {
         responsavel_parentesco: p.responsavel.parentesco,
         status: p.status,
         clinica_id: clinicaId,
+        terapeuta_id: p.terapeutaId || null,
       };
 
       if (p.existingId) {
