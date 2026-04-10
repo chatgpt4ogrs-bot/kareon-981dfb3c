@@ -81,33 +81,45 @@ export type Database = {
           clinica_id: string
           created_at: string
           data_nascimento: string | null
+          diagnostico: string | null
           id: string
           nome: string
-          responsavel: string | null
+          responsavel_email: string | null
+          responsavel_nome: string | null
+          responsavel_parentesco: string | null
+          responsavel_telefone: string | null
+          status: string
           tags: string[] | null
-          telefone: string | null
           updated_at: string
         }
         Insert: {
           clinica_id: string
           created_at?: string
           data_nascimento?: string | null
+          diagnostico?: string | null
           id?: string
           nome: string
-          responsavel?: string | null
+          responsavel_email?: string | null
+          responsavel_nome?: string | null
+          responsavel_parentesco?: string | null
+          responsavel_telefone?: string | null
+          status?: string
           tags?: string[] | null
-          telefone?: string | null
           updated_at?: string
         }
         Update: {
           clinica_id?: string
           created_at?: string
           data_nascimento?: string | null
+          diagnostico?: string | null
           id?: string
           nome?: string
-          responsavel?: string | null
+          responsavel_email?: string | null
+          responsavel_nome?: string | null
+          responsavel_parentesco?: string | null
+          responsavel_telefone?: string | null
+          status?: string
           tags?: string[] | null
-          telefone?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -164,46 +176,52 @@ export type Database = {
       sessoes: {
         Row: {
           atividades: string | null
-          comportamento: string[] | null
+          atividades_lista: string[] | null
+          comportamentos: string[] | null
           created_at: string
-          data: string
+          data_hora: string
           engajamento: string | null
           id: string
-          objetivo_sessao: string | null
+          objetivo_ids: string[] | null
+          objetivo_sessao_texto: string | null
           objetivos_trabalhados: string[] | null
           observacoes: string | null
           paciente_id: string
-          progresso: string | null
+          progresso_observado: string | null
           terapeuta_id: string | null
           updated_at: string
         }
         Insert: {
           atividades?: string | null
-          comportamento?: string[] | null
+          atividades_lista?: string[] | null
+          comportamentos?: string[] | null
           created_at?: string
-          data?: string
+          data_hora?: string
           engajamento?: string | null
           id?: string
-          objetivo_sessao?: string | null
+          objetivo_ids?: string[] | null
+          objetivo_sessao_texto?: string | null
           objetivos_trabalhados?: string[] | null
           observacoes?: string | null
           paciente_id: string
-          progresso?: string | null
+          progresso_observado?: string | null
           terapeuta_id?: string | null
           updated_at?: string
         }
         Update: {
           atividades?: string | null
-          comportamento?: string[] | null
+          atividades_lista?: string[] | null
+          comportamentos?: string[] | null
           created_at?: string
-          data?: string
+          data_hora?: string
           engajamento?: string | null
           id?: string
-          objetivo_sessao?: string | null
+          objetivo_ids?: string[] | null
+          objetivo_sessao_texto?: string | null
           objetivos_trabalhados?: string[] | null
           observacoes?: string | null
           paciente_id?: string
-          progresso?: string | null
+          progresso_observado?: string | null
           terapeuta_id?: string | null
           updated_at?: string
         }
