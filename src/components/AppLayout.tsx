@@ -22,7 +22,7 @@ const navItems = [
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, isAdmin } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -70,7 +70,9 @@ const AppLayout = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate text-foreground">{profile?.nome || "Terapeuta"}</p>
-              <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
+              <p className="text-xs text-muted-foreground truncate">
+                {isAdmin ? "Admin" : "Terapeuta"} · {profile?.email}
+              </p>
             </div>
           </div>
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleLogout}>

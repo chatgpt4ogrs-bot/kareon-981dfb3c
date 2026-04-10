@@ -17,6 +17,7 @@ function rowToPaciente(row: any): Paciente {
       parentesco: row.responsavel_parentesco || "",
     },
     status: row.status || "ativo",
+    terapeutaId: row.terapeuta_id || undefined,
     criadoEm: row.created_at,
   };
 }
@@ -72,6 +73,7 @@ export function useSavePaciente() {
         responsavel_parentesco: p.responsavel.parentesco,
         status: p.status,
         clinica_id: clinicaId,
+        terapeuta_id: p.terapeutaId || null,
       };
 
       if (p.existingId) {

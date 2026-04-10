@@ -60,6 +60,12 @@ Deno.serve(async (req) => {
         .from("profiles")
         .update({ clinica_id: clinicaId, nome: "Admin Kareon" })
         .eq("user_id", userId);
+
+      // Assign admin role
+      await admin.from("user_roles").upsert(
+        { user_id: userId, role: "admin" },
+        { onConflict: "user_id,role" }
+      );
     }
 
     // Check if data already seeded

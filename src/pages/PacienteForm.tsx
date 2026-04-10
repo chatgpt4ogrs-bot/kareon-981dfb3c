@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePaciente, useSavePaciente } from "@/hooks/use-pacientes";
+import { useTerapeutas } from "@/hooks/use-terapeutas";
+import { useAuth } from "@/contexts/AuthContext";
 import { Paciente, TAGS_COMUNS } from "@/types";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
@@ -15,17 +17,19 @@ const PacienteForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { data: existing, isLoading: loadingExisting } = usePaciente(id);
+  const { data: terapeutas = [] } = useTerapeutas();
+  const { isAdmin, profile } = useAuth();
   const saveMutation = useSavePaciente();
 
   const [form, setForm] = useState<any>(null);
 
-  // Initialize form when data loads
   const formData = form || (existing ? {
     nome: existing.nome,
     dataNascimento: existing.dataNascimento,
     diagnostico: existing.diagnostico,
     status: existing.status,
     tags: existing.tags,
+    terapeutaId: existing.terapeutaId || "",
     respNome: existing.responsavel.nome,
     respTelefone: existing.responsavel.telefone,
     respEmail: existing.responsavel.email,
@@ -36,6 +40,7 @@ const PacienteForm = () => {
     diagnostico: "",
     status: "ativo" as const,
     tags: [] as string[],
+    terapeutaId: profile?.id || "",
     respNome: "",
     respTelefone: "",
     respEmail: "",
@@ -56,6 +61,7 @@ const PacienteForm = () => {
       diagnostico: formData.diagnostico,
       status: formData.status,
       tags: formData.tags,
+      terapeutaId: formData.terapeutaId || undefined,
       responsavel: {
         nome: formData.respNome,
         telefone: formData.respTelefone,
@@ -126,6 +132,20 @@ const PacienteForm = () => {
                 ))}
               </div>
             </div>
+            {isAdmin && terapeutas.length > 1 && (
+              <div className="space-y-2">
+                <Label>Terapeuta responsável</Label>
+                <Select value={f.terapeutaId} onValueChange={(v) => update("terapeutaId", v)}>
+                  <SelectTrigger><SelectValue placeholder="Selecione um terapeuta" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sem terapeuta (visível para todos)</SelectItem>
+                    {terapeutas.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </CardContent>
         </Card>
 
