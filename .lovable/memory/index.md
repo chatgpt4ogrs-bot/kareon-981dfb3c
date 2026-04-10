@@ -2,8 +2,8 @@
 
 ## Core
 SaaS para terapeutas ocupacionais (pediatria). Nome do produto: **Kareon**. Lovable Cloud backend.
-3 interfaces separadas: painel web clínica + PWA terapeutas + PWA pais.
-Monetização: assinatura mensal por clínica. MVP: registro de sessões/evolução.
+Auth real via Supabase. Demo: admin@kareon.com / 206141.
+Dados persistidos no banco: clinicas, profiles, pacientes, objetivos, sessoes.
 Foco: simples, moderno, intuitivo, produtividade clínica.
 
 ## Memories

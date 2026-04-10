@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { clearAuth, getAuth } from "@/lib/store";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Users,
   CalendarDays,
@@ -10,7 +10,6 @@ import {
   Menu,
   X,
   Heart,
-  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,11 +22,11 @@ const navItems = [
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const auth = getAuth();
+  const { profile, signOut } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const handleLogout = () => {
-    clearAuth();
+  const handleLogout = async () => {
+    await signOut();
     navigate("/login");
   };
 
@@ -38,7 +37,6 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Sidebar desktop */}
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -68,11 +66,11 @@ const AppLayout = () => {
         <div className="p-4 border-t border-border">
           <div className="flex items-center gap-3 mb-3 px-2">
             <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
-              {auth?.nome?.charAt(0)?.toUpperCase() || "T"}
+              {profile?.nome?.charAt(0)?.toUpperCase() || "T"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-foreground">{auth?.nome || "Terapeuta"}</p>
-              <p className="text-xs text-muted-foreground truncate">{auth?.email}</p>
+              <p className="text-sm font-medium truncate text-foreground">{profile?.nome || "Terapeuta"}</p>
+              <p className="text-xs text-muted-foreground truncate">{profile?.email}</p>
             </div>
           </div>
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleLogout}>
@@ -81,7 +79,6 @@ const AppLayout = () => {
         </div>
       </aside>
 
-      {/* Mobile header */}
       <div className="flex-1 flex flex-col min-h-screen">
         <header className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card">
           <div className="flex items-center gap-2">
@@ -102,9 +99,7 @@ const AppLayout = () => {
                 onClick={() => setMobileOpen(false)}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium",
-                  isActive(item.to)
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground"
+                  isActive(item.to) ? "bg-primary/10 text-primary" : "text-muted-foreground"
                 )}
               >
                 <item.icon className="w-5 h-5" />

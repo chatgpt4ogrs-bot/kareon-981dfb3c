@@ -1,17 +1,22 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getPacientes, getSessoes, getObjetivos, getAuth } from "@/lib/store";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePacientes } from "@/hooks/use-pacientes";
+import { useSessoes } from "@/hooks/use-sessoes";
+import { useObjetivos } from "@/hooks/use-objetivos";
 import { Users, ClipboardList, Target, Plus, CalendarDays } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
-  const auth = getAuth();
-  const pacientes = getPacientes().filter((p) => p.status === "ativo");
-  const sessoes = getSessoes();
-  const objetivos = getObjetivos();
+  const { profile } = useAuth();
+  const { data: allPacientes = [] } = usePacientes();
+  const { data: sessoes = [] } = useSessoes();
+  const { data: objetivos = [] } = useObjetivos();
+
+  const pacientes = allPacientes.filter((p) => p.status === "ativo");
   const sessoesHoje = sessoes.filter((s) => isToday(new Date(s.dataHora)));
 
   const stats = [
@@ -30,7 +35,7 @@ const Dashboard = () => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Olá, {auth?.nome?.split(" ")[0] || "Terapeuta"} 👋</h1>
+          <h1 className="text-2xl font-bold text-foreground">Olá, {profile?.nome?.split(" ")[0] || "Terapeuta"} 👋</h1>
           <p className="text-muted-foreground">{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</p>
         </div>
         <Link to="/agenda">
@@ -69,14 +74,12 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-3">
                 {proximasSessoes.map((s) => {
-                  const pac = getPacientes().find((p) => p.id === s.pacienteId);
+                  const pac = allPacientes.find((p) => p.id === s.pacienteId);
                   return (
                     <Link key={s.id} to={`/pacientes/${s.pacienteId}`} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                       <div>
                         <p className="text-sm font-medium text-foreground">{pac?.nome || "Paciente"}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(s.dataHora), "dd/MM · HH:mm")}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{format(new Date(s.dataHora), "dd/MM · HH:mm")}</p>
                       </div>
                     </Link>
                   );
