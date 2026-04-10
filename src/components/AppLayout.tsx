@@ -44,7 +44,7 @@ const AppLayout = () => {
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Heart className="w-5 h-5 text-primary" />
           </div>
-          <span className="font-bold text-lg text-foreground">TerapiaKids</span>
+          <span className="font-bold text-lg text-foreground">Kareon</span>
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
@@ -86,7 +86,7 @@ const AppLayout = () => {
         <header className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card">
           <div className="flex items-center gap-2">
             <Heart className="w-5 h-5 text-primary" />
-            <span className="font-bold text-foreground">TerapiaKids</span>
+            <span className="font-bold text-foreground">Kareon</span>
           </div>
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
