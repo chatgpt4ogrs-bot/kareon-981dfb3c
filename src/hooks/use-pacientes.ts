@@ -17,6 +17,7 @@ function rowToPaciente(row: any): Paciente {
       parentesco: row.responsavel_parentesco || "",
     },
     status: row.status || "ativo",
+    terapeutaId: row.terapeuta_id || undefined,
     criadoEm: row.created_at,
   };
 }
