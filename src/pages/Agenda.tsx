@@ -2,21 +2,21 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { getSessoes, getPacientes } from "@/lib/store";
+import { useSessoes } from "@/hooks/use-sessoes";
+import { usePacientes } from "@/hooks/use-pacientes";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const Agenda = () => {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const sessoes = getSessoes();
-  const pacientes = getPacientes();
+  const { data: sessoes = [], isLoading } = useSessoes();
+  const { data: pacientes = [] } = usePacientes();
 
   const dias = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const prevWeek = () => setWeekStart(addDays(weekStart, -7));
-  const nextWeek = () => setWeekStart(addDays(weekStart, 7));
+  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
 
   return (
     <div className="space-y-6">
@@ -25,11 +25,9 @@ const Agenda = () => {
       </div>
 
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={prevWeek}><ChevronLeft className="w-5 h-5" /></Button>
-        <p className="text-sm font-medium text-foreground">
-          {format(dias[0], "dd MMM", { locale: ptBR })} — {format(dias[6], "dd MMM yyyy", { locale: ptBR })}
-        </p>
-        <Button variant="ghost" size="icon" onClick={nextWeek}><ChevronRight className="w-5 h-5" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft className="w-5 h-5" /></Button>
+        <p className="text-sm font-medium text-foreground">{format(dias[0], "dd MMM", { locale: ptBR })} — {format(dias[6], "dd MMM yyyy", { locale: ptBR })}</p>
+        <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight className="w-5 h-5" /></Button>
       </div>
 
       <div className="grid gap-4">
@@ -41,21 +39,10 @@ const Agenda = () => {
 
           return (
             <div key={dia.toISOString()}>
-              <div className={cn(
-                "flex items-center gap-2 mb-2 px-1",
-                isHoje && "text-primary"
-              )}>
-                <p className="text-xs font-medium uppercase">
-                  {format(dia, "EEEE", { locale: ptBR })}
-                </p>
-                <p className={cn(
-                  "text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center",
-                  isHoje && "bg-primary text-primary-foreground"
-                )}>
-                  {format(dia, "dd")}
-                </p>
+              <div className={cn("flex items-center gap-2 mb-2 px-1", isHoje && "text-primary")}>
+                <p className="text-xs font-medium uppercase">{format(dia, "EEEE", { locale: ptBR })}</p>
+                <p className={cn("text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center", isHoje && "bg-primary text-primary-foreground")}>{format(dia, "dd")}</p>
               </div>
-
               {sessoesDia.length === 0 ? (
                 <p className="text-xs text-muted-foreground pl-1">Sem sessões</p>
               ) : (
@@ -71,9 +58,7 @@ const Agenda = () => {
                             <p className="text-xs text-muted-foreground">{format(new Date(s.dataHora), "HH:mm")}</p>
                           </Link>
                           <Link to={`/pacientes/${s.pacienteId}/sessao?modo=sessao`}>
-                            <Button size="sm" className="gap-1.5 rounded-full h-8 px-3">
-                              <Play className="w-3.5 h-3.5" /> Iniciar
-                            </Button>
+                            <Button size="sm" className="gap-1.5 rounded-full h-8 px-3"><Play className="w-3.5 h-3.5" /> Iniciar</Button>
                           </Link>
                         </CardContent>
                       </Card>

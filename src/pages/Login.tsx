@@ -4,39 +4,56 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { setAuth } from "@/lib/store";
-import { isDemoLogin, loadDemoData } from "@/lib/demo-data";
-import { Heart } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { Heart, Loader2 } from "lucide-react";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro("");
+    setLoading(true);
 
-    if (isDemoLogin(email, senha)) {
-      loadDemoData();
-      setAuth({ nome: "Dra. Camila Terapeuta", email });
-      navigate("/");
-      return;
-    }
-
-    // For now, any email+password works (localStorage auth)
-    if (email && senha.length >= 6) {
-      setAuth({ nome: email.split("@")[0], email });
-      navigate("/");
-    } else {
-      setErro("Email e senha (mín. 6 caracteres) são obrigatórios");
+    try {
+      const { error } = await signIn(email, senha);
+      if (error) {
+        setErro(error.message);
+      } else {
+        navigate("/");
+      }
+    } catch {
+      setErro("Erro ao fazer login");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const fillDemo = () => {
-    setEmail("teste@clinica.com");
-    setSenha("123456");
+  const handleDemo = async () => {
+    setSeeding(true);
+    setErro("");
+    try {
+      // Seed demo data via edge function
+      await supabase.functions.invoke("seed-demo");
+      // Login as demo user
+      const { error } = await signIn("admin@kareon.com", "206141");
+      if (error) {
+        setErro(error.message);
+      } else {
+        navigate("/");
+      }
+    } catch {
+      setErro("Erro ao carregar dados de demonstração");
+    } finally {
+      setSeeding(false);
+    }
   };
 
   return (
@@ -66,16 +83,20 @@ const Login = () => {
                 <Input id="senha" type="password" placeholder="••••••" value={senha} onChange={(e) => setSenha(e.target.value)} required />
               </div>
               {erro && <p className="text-sm text-destructive">{erro}</p>}
-              <Button type="submit" className="w-full">Entrar</Button>
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Entrar
+              </Button>
             </form>
 
             <div className="mt-6 pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground text-center mb-3">Acesso de demonstração</p>
-              <Button type="button" variant="outline" className="w-full text-sm" onClick={fillDemo}>
-                Usar login de teste
+              <Button type="button" variant="outline" className="w-full text-sm" onClick={handleDemo} disabled={seeding}>
+                {seeding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Entrar com conta demo
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-2">
-                teste@clinica.com · 123456
+                admin@kareon.com · 206141
               </p>
             </div>
           </CardContent>
