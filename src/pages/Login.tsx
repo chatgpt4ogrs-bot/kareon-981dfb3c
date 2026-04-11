@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Heart, Loader2 } from "lucide-react";
 
 const Login = () => {
@@ -17,7 +16,6 @@ const Login = () => {
   const [erro, setErro] = useState("");
   const [emailNaoVerificado, setEmailNaoVerificado] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [seeding, setSeeding] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,25 +38,6 @@ const Login = () => {
       setErro("Erro ao fazer login");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDemo = async () => {
-    setSeeding(true);
-    setErro("");
-    setEmailNaoVerificado(false);
-    try {
-      await supabase.functions.invoke("seed-demo");
-      const { error } = await signIn("admin@kareon.com", "admin159");
-      if (error) {
-        setErro(error.message);
-      } else {
-        navigate("/");
-      }
-    } catch {
-      setErro("Erro ao carregar dados de demonstração");
-    } finally {
-      setSeeding(false);
     }
   };
 
@@ -108,17 +87,6 @@ const Login = () => {
             <div className="flex justify-between mt-4 text-sm">
               <Link to="/esqueci-senha" className="text-primary hover:underline">Esqueci minha senha</Link>
               <Link to="/cadastro" className="text-primary hover:underline">Criar conta</Link>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-border">
-              <p className="text-xs text-muted-foreground text-center mb-3">Acesso de demonstração</p>
-              <Button type="button" variant="outline" className="w-full text-sm" onClick={handleDemo} disabled={seeding}>
-                {seeding && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Entrar com conta demo
-              </Button>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                admin@kareon.com · admin159
-              </p>
             </div>
           </CardContent>
         </Card>
