@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     });
 
     const DEMO_EMAIL = "admin@kareon.com";
-    const DEMO_PASSWORD = "206141";
+    const DEMO_PASSWORD = "admin159";
 
     // Check if demo user exists
     const { data: existingUsers } = await admin.auth.admin.listUsers();
