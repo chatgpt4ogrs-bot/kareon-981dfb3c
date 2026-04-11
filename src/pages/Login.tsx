@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Heart, Loader2 } from "lucide-react";
@@ -14,18 +15,24 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState("");
+  const [emailNaoVerificado, setEmailNaoVerificado] = useState(false);
   const [loading, setLoading] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro("");
+    setEmailNaoVerificado(false);
     setLoading(true);
 
     try {
       const { error } = await signIn(email, senha);
       if (error) {
-        setErro(error.message);
+        if (error.message.includes("Email not confirmed")) {
+          setEmailNaoVerificado(true);
+        } else {
+          setErro(error.message);
+        }
       } else {
         navigate("/");
       }
@@ -39,11 +46,10 @@ const Login = () => {
   const handleDemo = async () => {
     setSeeding(true);
     setErro("");
+    setEmailNaoVerificado(false);
     try {
-      // Seed demo data via edge function
       await supabase.functions.invoke("seed-demo");
-      // Login as demo user
-      const { error } = await signIn("admin@kareon.com", "206141");
+      const { error } = await signIn("admin@kareon.com", "admin159");
       if (error) {
         setErro(error.message);
       } else {
@@ -82,12 +88,27 @@ const Login = () => {
                 <Label htmlFor="senha">Senha</Label>
                 <Input id="senha" type="password" placeholder="••••••" value={senha} onChange={(e) => setSenha(e.target.value)} required />
               </div>
+
+              {emailNaoVerificado && (
+                <Alert>
+                  <AlertDescription>
+                    Verifique seu email para acessar o sistema. Enviamos um link de verificação para o endereço cadastrado.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {erro && <p className="text-sm text-destructive">{erro}</p>}
+
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Entrar
               </Button>
             </form>
+
+            <div className="flex justify-between mt-4 text-sm">
+              <Link to="/esqueci-senha" className="text-primary hover:underline">Esqueci minha senha</Link>
+              <Link to="/cadastro" className="text-primary hover:underline">Criar conta</Link>
+            </div>
 
             <div className="mt-6 pt-4 border-t border-border">
               <p className="text-xs text-muted-foreground text-center mb-3">Acesso de demonstração</p>
@@ -96,7 +117,7 @@ const Login = () => {
                 Entrar com conta demo
               </Button>
               <p className="text-xs text-muted-foreground text-center mt-2">
-                admin@kareon.com · 206141
+                admin@kareon.com · admin159
               </p>
             </div>
           </CardContent>
