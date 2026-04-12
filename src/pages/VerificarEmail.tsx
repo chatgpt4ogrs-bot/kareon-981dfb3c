@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { supabase } from "@/integrations/supabase/client";
-import { Heart, Loader2, Mail } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 
 const VerificarEmail = () => {
   const navigate = useNavigate();
