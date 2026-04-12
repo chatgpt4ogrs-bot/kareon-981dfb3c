@@ -7,8 +7,10 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import Login from "@/pages/Login";
 import Cadastro from "@/pages/Cadastro";
+import VerificarEmail from "@/pages/VerificarEmail";
 import EsqueciSenha from "@/pages/EsqueciSenha";
 import RedefinirSenha from "@/pages/RedefinirSenha";
+import AlterarSenha from "@/pages/AlterarSenha";
 import Dashboard from "@/pages/Dashboard";
 import Pacientes from "@/pages/Pacientes";
 import PacienteForm from "@/pages/PacienteForm";
@@ -38,6 +40,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Cadastro />} />
+            <Route path="/verificar-email" element={<VerificarEmail />} />
             <Route path="/esqueci-senha" element={<EsqueciSenha />} />
             <Route path="/redefinir-senha" element={<RedefinirSenha />} />
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -50,6 +53,7 @@ const App = () => (
               <Route path="pacientes/:pacienteId/objetivo" element={<ObjetivoForm />} />
               <Route path="pacientes/:pacienteId/relatorio" element={<Relatorio />} />
               <Route path="agenda" element={<Agenda />} />
+              <Route path="alterar-senha" element={<AlterarSenha />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

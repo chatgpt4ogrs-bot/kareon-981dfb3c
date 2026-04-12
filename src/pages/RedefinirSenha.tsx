@@ -1,46 +1,36 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { supabase } from "@/integrations/supabase/client";
 import { Heart, Loader2 } from "lucide-react";
+import PasswordInput from "@/components/PasswordInput";
+import PasswordValidation, { isPasswordValid } from "@/components/PasswordValidation";
 
 const RedefinirSenha = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const emailFromState = (location.state as any)?.email || "";
+
+  const [email, setEmail] = useState(emailFromState);
+  const [code, setCode] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [erro, setErro] = useState("");
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    // Check for recovery event in hash
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setReady(true);
-    } else {
-      // Listen for PASSWORD_RECOVERY event
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-        if (event === "PASSWORD_RECOVERY") {
-          setReady(true);
-        }
-      });
-      // Also check current session
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) setReady(true);
-      });
-      return () => subscription.unsubscribe();
-    }
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro("");
 
-    if (senha.length < 6) {
-      setErro("A senha deve ter no mínimo 6 caracteres");
+    if (code.length !== 6) {
+      setErro("Insira o código de 6 dígitos");
+      return;
+    }
+    if (!isPasswordValid(senha)) {
+      setErro("A nova senha não atende aos requisitos");
       return;
     }
     if (senha !== confirmar) {
@@ -50,9 +40,19 @@ const RedefinirSenha = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({ password: senha });
-      if (error) {
-        setErro(error.message);
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: "recovery",
+      });
+      if (verifyError) {
+        setErro(verifyError.message);
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: senha });
+      if (updateError) {
+        setErro(updateError.message);
       } else {
         navigate("/login");
       }
@@ -62,14 +62,6 @@ const RedefinirSenha = () => {
       setLoading(false);
     }
   };
-
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <p className="text-muted-foreground">Verificando link de recuperação...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -85,24 +77,81 @@ const RedefinirSenha = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl">Redefinir senha</CardTitle>
-            <CardDescription>Escolha uma nova senha segura</CardDescription>
+            <CardDescription>Insira o código recebido por email e escolha sua nova senha</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {!emailFromState && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Código de verificação</Label>
+                <div className="flex justify-center">
+                  <InputOTP maxLength={6} value={code} onChange={setCode}>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                    </InputOTPGroup>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="senha">Nova senha</Label>
-                <Input id="senha" type="password" placeholder="Mínimo 6 caracteres" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+                <PasswordInput
+                  id="senha"
+                  placeholder="Crie uma senha segura"
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  required
+                />
+                <PasswordValidation password={senha} />
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="confirmar">Confirmar nova senha</Label>
-                <Input id="confirmar" type="password" placeholder="Repita a senha" value={confirmar} onChange={(e) => setConfirmar(e.target.value)} required />
+                <PasswordInput
+                  id="confirmar"
+                  placeholder="Repita a nova senha"
+                  value={confirmar}
+                  onChange={(e) => setConfirmar(e.target.value)}
+                  required
+                />
               </div>
+
               {erro && <p className="text-sm text-destructive">{erro}</p>}
-              <Button type="submit" className="w-full" disabled={loading}>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={loading || code.length !== 6 || !isPasswordValid(senha)}
+              >
                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 Redefinir senha
               </Button>
             </form>
+
+            <p className="text-sm text-muted-foreground text-center mt-4">
+              <Link to="/login" className="text-primary hover:underline">Voltar para o login</Link>
+            </p>
           </CardContent>
         </Card>
       </div>
