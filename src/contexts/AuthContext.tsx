@@ -10,12 +10,16 @@ interface Profile {
   cargo: string | null;
 }
 
+export type AppRole = "admin" | "clinica_admin" | "responsavel_clinica" | "terapeuta" | "familiar";
+
 interface AuthContextType {
   user: User | null;
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
+  roles: AppRole[];
+  hasRole: (role: AppRole) => boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -28,7 +32,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const hasRole = (role: AppRole) => roles.includes(role);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -38,12 +45,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .single();
     setProfile(data);
 
-    // Check admin role
-    const { data: roles } = await supabase
+    const { data: rolesData } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
-    setIsAdmin(roles?.some((r: any) => r.role === "admin") || false);
+    const userRoles = (rolesData?.map((r: any) => r.role) || []) as AppRole[];
+    setRoles(userRoles);
+    setIsAdmin(userRoles.includes("admin"));
   };
 
   useEffect(() => {
@@ -93,10 +101,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setSession(null);
     setProfile(null);
     setIsAdmin(false);
+    setRoles([]);
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, isAdmin, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, isAdmin, roles, hasRole, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
