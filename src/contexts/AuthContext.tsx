@@ -45,12 +45,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .single();
     setProfile(data);
 
-    // Check admin role
-    const { data: roles } = await supabase
+    const { data: rolesData } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
-    setIsAdmin(roles?.some((r: any) => r.role === "admin") || false);
+    const userRoles = (rolesData?.map((r: any) => r.role) || []) as AppRole[];
+    setRoles(userRoles);
+    setIsAdmin(userRoles.includes("admin"));
   };
 
   useEffect(() => {
