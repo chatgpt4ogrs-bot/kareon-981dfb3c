@@ -10,19 +10,16 @@ import {
   Menu,
   X,
   Heart,
+  Building2,
+  Shield,
+  Key,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Início" },
-  { to: "/pacientes", icon: Users, label: "Pacientes" },
-  { to: "/agenda", icon: CalendarDays, label: "Agenda" },
-];
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, signOut, isAdmin } = useAuth();
+  const { profile, signOut, isAdmin, hasRole } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -34,6 +31,31 @@ const AppLayout = () => {
     if (path === "/") return location.pathname === "/";
     return location.pathname.startsWith(path);
   };
+
+  const navItems = [
+    { to: "/", icon: LayoutDashboard, label: "Início" },
+    { to: "/pacientes", icon: Users, label: "Pacientes" },
+    { to: "/agenda", icon: CalendarDays, label: "Agenda" },
+  ];
+
+  const adminItems = isAdmin
+    ? [
+        { to: "/admin/clinicas", icon: Building2, label: "Clínicas" },
+        { to: "/admin/usuarios", icon: Shield, label: "Usuários" },
+      ]
+    : [];
+
+  const allItems = [...navItems, ...adminItems];
+
+  const roleLabel = isAdmin
+    ? "Admin Master"
+    : hasRole("clinica_admin")
+    ? "Admin Clínica"
+    : hasRole("responsavel_clinica")
+    ? "Responsável"
+    : hasRole("familiar")
+    ? "Familiar"
+    : "Terapeuta";
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -61,18 +83,51 @@ const AppLayout = () => {
               {item.label}
             </Link>
           ))}
+
+          {adminItems.length > 0 && (
+            <>
+              <div className="pt-4 pb-1 px-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Administração</p>
+              </div>
+              {adminItems.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                    isActive(item.to)
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <item.icon className="w-5 h-5" />
+                  {item.label}
+                </Link>
+              ))}
+            </>
+          )}
         </nav>
 
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 mb-3 px-2">
+        <div className="p-4 border-t border-border space-y-1">
+          <Link
+            to="/alterar-senha"
+            className={cn(
+              "flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
+              isActive("/alterar-senha")
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <Key className="w-4 h-4" />
+            Alterar senha
+          </Link>
+          <div className="flex items-center gap-3 mb-3 px-2 pt-2">
             <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
-              {profile?.nome?.charAt(0)?.toUpperCase() || "T"}
+              {profile?.nome?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-foreground">{profile?.nome || "Terapeuta"}</p>
-              <p className="text-xs text-muted-foreground truncate">
-                {isAdmin ? "Admin" : "Terapeuta"} · {profile?.email}
-              </p>
+              <p className="text-sm font-medium truncate text-foreground">{profile?.nome || "Usuário"}</p>
+              <p className="text-xs text-muted-foreground truncate">{roleLabel}</p>
             </div>
           </div>
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleLogout}>
@@ -94,7 +149,7 @@ const AppLayout = () => {
 
         {mobileOpen && (
           <div className="md:hidden bg-card border-b border-border p-3 space-y-1">
-            {navItems.map((item) => (
+            {allItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
