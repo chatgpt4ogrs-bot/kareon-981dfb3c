@@ -32,7 +32,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const hasRole = (role: AppRole) => roles.includes(role);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
