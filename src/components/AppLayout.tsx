@@ -13,6 +13,7 @@ import {
   Building2,
   Shield,
   Key,
+  Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,7 @@ const AppLayout = () => {
     { to: "/", icon: LayoutDashboard, label: "Início" },
     { to: "/pacientes", icon: Users, label: "Pacientes" },
     { to: "/agenda", icon: CalendarDays, label: "Agenda" },
+    { to: "#", icon: Camera, label: "Câmeras", disabled: true },
   ];
 
   const adminItems = isAdmin
@@ -68,21 +70,35 @@ const AppLayout = () => {
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                isActive(item.to)
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            if ((item as any).disabled) {
+              return (
+                <span
+                  key={item.label}
+                  className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground/50 cursor-not-allowed"
+                >
+                  <item.icon className="w-5 h-5" />
+                  {item.label}
+                  <span className="ml-auto text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded">Em breve</span>
+                </span>
+              );
+            }
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                  isActive(item.to)
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <item.icon className="w-5 h-5" />
+                {item.label}
+              </Link>
+            );
+          })}
 
           {adminItems.length > 0 && (
             <>
