@@ -37,7 +37,7 @@ const AppLayout = () => {
     { to: "/", icon: LayoutDashboard, label: "Início" },
     { to: "/pacientes", icon: Users, label: "Pacientes" },
     { to: "/agenda", icon: CalendarDays, label: "Agenda" },
-    { to: "#", icon: Camera, label: "Câmeras", disabled: true },
+    { to: "/cameras", icon: Camera, label: "Câmeras" },
   ];
 
   const adminItems = isAdmin
