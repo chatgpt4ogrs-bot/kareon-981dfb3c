@@ -23,6 +23,8 @@ import Relatorio from "@/pages/Relatorio";
 import Cameras from "@/pages/Cameras";
 import AdminClinicas from "@/pages/AdminClinicas";
 import AdminUsuarios from "@/pages/AdminUsuarios";
+import UsuariosClinica from "@/pages/UsuariosClinica";
+import AguardandoAprovacao from "@/pages/AguardandoAprovacao";
 import NotFound from "@/pages/NotFound";
 import { Loader2 } from "lucide-react";
 
@@ -36,9 +38,13 @@ const LoadingScreen = () => (
 );
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading, isAdmin } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
+  // Admins bypass approval; pending/blocked users see waiting screen
+  if (profile && profile.status !== "ativo" && !isAdmin) {
+    return <AguardandoAprovacao />;
+  }
   return <>{children}</>;
 };
 
@@ -86,6 +92,7 @@ const App = () => (
               <Route path="alterar-senha" element={<AlterarSenha />} />
               <Route path="admin/clinicas" element={<AdminRoute><AdminClinicas /></AdminRoute>} />
               <Route path="admin/usuarios" element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
+              <Route path="clinica/usuarios" element={<RoleRoute><UsuariosClinica /></RoleRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
