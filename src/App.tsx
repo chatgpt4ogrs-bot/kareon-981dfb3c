@@ -38,12 +38,11 @@ const LoadingScreen = () => (
 );
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, isAdmin } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
-  // If profile loaded and status is not ativo (and not admin), show pending page
-  if (profile && profile.status !== "ativo") {
-    // Check if user is admin (admins bypass approval)
+  // Admins bypass approval; pending/blocked users see waiting screen
+  if (profile && profile.status !== "ativo" && !isAdmin) {
     return <AguardandoAprovacao />;
   }
   return <>{children}</>;
