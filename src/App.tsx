@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { canAccessRoute } from "@/lib/permissions";
 import AppLayout from "@/components/AppLayout";
 import Login from "@/pages/Login";
 import Cadastro from "@/pages/Cadastro";
@@ -23,19 +24,37 @@ import Cameras from "@/pages/Cameras";
 import AdminClinicas from "@/pages/AdminClinicas";
 import AdminUsuarios from "@/pages/AdminUsuarios";
 import NotFound from "@/pages/NotFound";
+import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
+const LoadingScreen = () => (
+  <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    <p className="text-sm text-muted-foreground">Carregando...</p>
+  </div>
+);
+
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
+  if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
+
+const RoleRoute = ({ children }: { children: React.ReactNode }) => {
+  const { roles, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <LoadingScreen />;
+  if (!canAccessRoute(roles, location.pathname)) {
+    return <Navigate to="/" replace />;
+  }
   return <>{children}</>;
 };
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAdmin, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Carregando...</p></div>;
+  if (loading) return <LoadingScreen />;
   if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 };
@@ -55,15 +74,15 @@ const App = () => (
             <Route path="/redefinir-senha" element={<RedefinirSenha />} />
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />
-              <Route path="pacientes" element={<Pacientes />} />
-              <Route path="pacientes/novo" element={<PacienteForm />} />
-              <Route path="pacientes/:id" element={<PacienteDetalhe />} />
-              <Route path="pacientes/:id/editar" element={<PacienteForm />} />
-              <Route path="pacientes/:pacienteId/sessao" element={<SessaoForm />} />
-              <Route path="pacientes/:pacienteId/objetivo" element={<ObjetivoForm />} />
-              <Route path="pacientes/:pacienteId/relatorio" element={<Relatorio />} />
-              <Route path="agenda" element={<Agenda />} />
-              <Route path="cameras" element={<Cameras />} />
+              <Route path="pacientes" element={<RoleRoute><Pacientes /></RoleRoute>} />
+              <Route path="pacientes/novo" element={<RoleRoute><PacienteForm /></RoleRoute>} />
+              <Route path="pacientes/:id" element={<RoleRoute><PacienteDetalhe /></RoleRoute>} />
+              <Route path="pacientes/:id/editar" element={<RoleRoute><PacienteForm /></RoleRoute>} />
+              <Route path="pacientes/:pacienteId/sessao" element={<RoleRoute><SessaoForm /></RoleRoute>} />
+              <Route path="pacientes/:pacienteId/objetivo" element={<RoleRoute><ObjetivoForm /></RoleRoute>} />
+              <Route path="pacientes/:pacienteId/relatorio" element={<RoleRoute><Relatorio /></RoleRoute>} />
+              <Route path="agenda" element={<RoleRoute><Agenda /></RoleRoute>} />
+              <Route path="cameras" element={<RoleRoute><Cameras /></RoleRoute>} />
               <Route path="alterar-senha" element={<AlterarSenha />} />
               <Route path="admin/clinicas" element={<AdminRoute><AdminClinicas /></AdminRoute>} />
               <Route path="admin/usuarios" element={<AdminRoute><AdminUsuarios /></AdminRoute>} />

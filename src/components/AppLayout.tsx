@@ -16,11 +16,16 @@ import {
   Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getNavItems } from "@/lib/permissions";
+
+const iconMap: Record<string, React.ElementType> = {
+  LayoutDashboard, Users, CalendarDays, Camera, Building2, Shield,
+};
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, signOut, isAdmin, hasRole } = useAuth();
+  const { profile, signOut, isAdmin, hasRole, roles } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -33,21 +38,7 @@ const AppLayout = () => {
     return location.pathname.startsWith(path);
   };
 
-  const navItems = [
-    { to: "/", icon: LayoutDashboard, label: "Início" },
-    { to: "/pacientes", icon: Users, label: "Pacientes" },
-    { to: "/agenda", icon: CalendarDays, label: "Agenda" },
-    { to: "/cameras", icon: Camera, label: "Câmeras" },
-  ];
-
-  const adminItems = isAdmin
-    ? [
-        { to: "/admin/clinicas", icon: Building2, label: "Clínicas" },
-        { to: "/admin/usuarios", icon: Shield, label: "Usuários" },
-      ]
-    : [];
-
-  const allItems = [...navItems, ...adminItems];
+  const { main: navItems, admin: adminItems } = getNavItems(roles);
 
   const roleLabel = isAdmin
     ? "Admin Master"
@@ -58,6 +49,8 @@ const AppLayout = () => {
     : hasRole("familiar")
     ? "Familiar"
     : "Terapeuta";
+
+  const allItems = [...navItems, ...adminItems];
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -70,7 +63,9 @@ const AppLayout = () => {
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item) => (
+          {navItems.map((item) => {
+            const Icon = iconMap[item.icon] || LayoutDashboard;
+            return (
               <Link
                 key={item.to}
                 to={item.to}
@@ -81,31 +76,35 @@ const AppLayout = () => {
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
-                <item.icon className="w-5 h-5" />
+                <Icon className="w-5 h-5" />
                 {item.label}
               </Link>
-            ))}
+            );
+          })}
 
           {adminItems.length > 0 && (
             <>
               <div className="pt-4 pb-1 px-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Administração</p>
               </div>
-              {adminItems.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                    isActive(item.to)
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  )}
-                >
-                  <item.icon className="w-5 h-5" />
-                  {item.label}
-                </Link>
-              ))}
+              {adminItems.map((item) => {
+                const Icon = iconMap[item.icon] || Shield;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                      isActive(item.to)
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </>
           )}
         </nav>
@@ -151,20 +150,34 @@ const AppLayout = () => {
 
         {mobileOpen && (
           <div className="md:hidden bg-card border-b border-border p-3 space-y-1">
-            {allItems.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium",
-                  isActive(item.to) ? "bg-primary/10 text-primary" : "text-muted-foreground"
-                )}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </Link>
-            ))}
+            {allItems.map((item) => {
+              const Icon = iconMap[item.icon] || LayoutDashboard;
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium",
+                    isActive(item.to) ? "bg-primary/10 text-primary" : "text-muted-foreground"
+                  )}
+                >
+                  <Icon className="w-5 h-5" />
+                  {item.label}
+                </Link>
+              );
+            })}
+            <Link
+              to="/alterar-senha"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium",
+                isActive("/alterar-senha") ? "bg-primary/10 text-primary" : "text-muted-foreground"
+              )}
+            >
+              <Key className="w-4 h-4" />
+              Alterar senha
+            </Link>
             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground mt-2" onClick={handleLogout}>
               <LogOut className="w-4 h-4" /> Sair
             </Button>
