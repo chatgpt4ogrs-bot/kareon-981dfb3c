@@ -7,10 +7,11 @@ import { useSessoes } from "@/hooks/use-sessoes";
 import { useObjetivos } from "@/hooks/use-objetivos";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Users, ClipboardList, Target, Plus, CalendarDays, Building2, Shield } from "lucide-react";
+import { Users, ClipboardList, Target, Plus, CalendarDays, Building2, Shield, Loader2 } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import FamiliarDashboard from "@/pages/FamiliarDashboard";
 
 function useAdminMetrics() {
   return useQuery({
@@ -90,14 +91,18 @@ const AdminDashboard = ({ nome }: { nome: string }) => {
   );
 };
 
-const Dashboard = () => {
-  const { profile, isAdmin } = useAuth();
-  const { data: allPacientes = [] } = usePacientes();
-  const { data: sessoes = [] } = useSessoes();
+const ClinicDashboard = () => {
+  const { profile } = useAuth();
+  const { data: allPacientes = [], isLoading: loadingPac } = usePacientes();
+  const { data: sessoes = [], isLoading: loadingSes } = useSessoes();
   const { data: objetivos = [] } = useObjetivos();
 
-  if (isAdmin) {
-    return <AdminDashboard nome={profile?.nome || "Admin"} />;
+  if (loadingPac || loadingSes) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      </div>
+    );
   }
 
   const pacientes = allPacientes.filter((p) => p.status === "ativo");
@@ -207,6 +212,20 @@ const Dashboard = () => {
       </div>
     </div>
   );
+};
+
+const Dashboard = () => {
+  const { isAdmin, hasRole } = useAuth();
+
+  if (isAdmin) {
+    return <AdminDashboard nome="" />;
+  }
+
+  if (hasRole("familiar")) {
+    return <FamiliarDashboard />;
+  }
+
+  return <ClinicDashboard />;
 };
 
 export default Dashboard;
