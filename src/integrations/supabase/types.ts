@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      cameras: {
+        Row: {
+          clinica_id: string
+          created_at: string
+          id: string
+          localizacao: string | null
+          nome: string
+          status: string
+          stream_url: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          clinica_id: string
+          created_at?: string
+          id?: string
+          localizacao?: string | null
+          nome: string
+          status?: string
+          stream_url: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          clinica_id?: string
+          created_at?: string
+          id?: string
+          localizacao?: string | null
+          nome?: string
+          status?: string
+          stream_url?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cameras_clinica_id_fkey"
+            columns: ["clinica_id"]
+            isOneToOne: false
+            referencedRelation: "clinicas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinicas: {
         Row: {
           created_at: string

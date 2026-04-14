@@ -19,6 +19,7 @@ import SessaoForm from "@/pages/SessaoForm";
 import ObjetivoForm from "@/pages/ObjetivoForm";
 import Agenda from "@/pages/Agenda";
 import Relatorio from "@/pages/Relatorio";
+import Cameras from "@/pages/Cameras";
 import AdminClinicas from "@/pages/AdminClinicas";
 import AdminUsuarios from "@/pages/AdminUsuarios";
 import NotFound from "@/pages/NotFound";
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="pacientes/:pacienteId/objetivo" element={<ObjetivoForm />} />
               <Route path="pacientes/:pacienteId/relatorio" element={<Relatorio />} />
               <Route path="agenda" element={<Agenda />} />
+              <Route path="cameras" element={<Cameras />} />
               <Route path="alterar-senha" element={<AlterarSenha />} />
               <Route path="admin/clinicas" element={<AdminRoute><AdminClinicas /></AdminRoute>} />
               <Route path="admin/usuarios" element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
