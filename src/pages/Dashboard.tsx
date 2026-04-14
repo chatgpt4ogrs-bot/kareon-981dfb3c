@@ -5,16 +5,100 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePacientes } from "@/hooks/use-pacientes";
 import { useSessoes } from "@/hooks/use-sessoes";
 import { useObjetivos } from "@/hooks/use-objetivos";
-import { Users, ClipboardList, Target, Plus, CalendarDays } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { Users, ClipboardList, Target, Plus, CalendarDays, Building2, Shield } from "lucide-react";
 import { format, isToday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
+function useAdminMetrics() {
+  return useQuery({
+    queryKey: ["admin-metrics"],
+    queryFn: async () => {
+      const [clinicas, profiles, pacientes, sessoes] = await Promise.all([
+        supabase.from("clinicas").select("id", { count: "exact", head: true }),
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
+        supabase.from("pacientes").select("id", { count: "exact", head: true }),
+        supabase.from("sessoes").select("id", { count: "exact", head: true }),
+      ]);
+      return {
+        clinicas: clinicas.count ?? 0,
+        usuarios: profiles.count ?? 0,
+        pacientes: pacientes.count ?? 0,
+        sessoes: sessoes.count ?? 0,
+      };
+    },
+  });
+}
+
+const AdminDashboard = ({ nome }: { nome: string }) => {
+  const { data: metrics } = useAdminMetrics();
+
+  const adminStats = [
+    { label: "Clínicas", value: metrics?.clinicas ?? 0, icon: Building2, color: "text-primary" },
+    { label: "Usuários", value: metrics?.usuarios ?? 0, icon: Shield, color: "text-accent" },
+    { label: "Pacientes", value: metrics?.pacientes ?? 0, icon: Users, color: "text-primary" },
+    { label: "Sessões", value: metrics?.sessoes ?? 0, icon: ClipboardList, color: "text-secondary" },
+  ];
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Painel Administrativo 🛡️</h1>
+        <p className="text-muted-foreground">{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</p>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {adminStats.map((stat) => (
+          <Card key={stat.label}>
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                  <stat.icon className={cn("w-5 h-5", stat.color)} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Acesso rápido</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Link to="/admin/clinicas">
+              <Button variant="outline" className="w-full justify-start gap-2">
+                <Building2 className="w-4 h-4" /> Gerenciar clínicas
+              </Button>
+            </Link>
+            <Link to="/admin/usuarios">
+              <Button variant="outline" className="w-full justify-start gap-2">
+                <Shield className="w-4 h-4" /> Gerenciar usuários
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
 const Dashboard = () => {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
   const { data: allPacientes = [] } = usePacientes();
   const { data: sessoes = [] } = useSessoes();
   const { data: objetivos = [] } = useObjetivos();
+
+  if (isAdmin) {
+    return <AdminDashboard nome={profile?.nome || "Admin"} />;
+  }
 
   const pacientes = allPacientes.filter((p) => p.status === "ativo");
   const sessoesHoje = sessoes.filter((s) => isToday(new Date(s.dataHora)));
