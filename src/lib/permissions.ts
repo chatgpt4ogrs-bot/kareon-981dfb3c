@@ -20,7 +20,7 @@ const ROLE_ROUTES: Record<AppRole, string[]> = {
     "/", "/pacientes", "/agenda", "/alterar-senha",
   ],
   familiar: [
-    "/", "/alterar-senha",
+    "/", "/cameras", "/alterar-senha",
   ],
 };
 
