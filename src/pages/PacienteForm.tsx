@@ -61,7 +61,7 @@ const PacienteForm = () => {
       diagnostico: formData.diagnostico,
       status: formData.status,
       tags: formData.tags,
-      terapeutaId: formData.terapeutaId || undefined,
+      terapeutaId: formData.terapeutaId === "none" ? undefined : formData.terapeutaId || undefined,
       responsavel: {
         nome: formData.respNome,
         telefone: formData.respTelefone,
