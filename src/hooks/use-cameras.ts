@@ -8,7 +8,7 @@ export interface Camera {
   nome: string;
   localizacao: string | null;
   stream_url: string;
-  tipo: "hls" | "mjpeg";
+  tipo: "hls" | "mjpeg" | "rtsp";
   status: "ativa" | "inativa";
   created_at: string;
   updated_at: string;
