@@ -61,7 +61,7 @@ const PacienteForm = () => {
       diagnostico: formData.diagnostico,
       status: formData.status,
       tags: formData.tags,
-      terapeutaId: formData.terapeutaId || undefined,
+      terapeutaId: formData.terapeutaId === "none" ? undefined : formData.terapeutaId || undefined,
       responsavel: {
         nome: formData.respNome,
         telefone: formData.respTelefone,
@@ -138,7 +138,7 @@ const PacienteForm = () => {
                 <Select value={f.terapeutaId} onValueChange={(v) => update("terapeutaId", v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione um terapeuta" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sem terapeuta (visível para todos)</SelectItem>
+                    <SelectItem value="none">Sem terapeuta (visível para todos)</SelectItem>
                     {terapeutas.map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.nome}</SelectItem>
                     ))}
