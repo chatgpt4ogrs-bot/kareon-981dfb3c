@@ -110,6 +110,7 @@ const Cameras = () => {
                     <SelectContent>
                       <SelectItem value="hls">HLS (m3u8)</SelectItem>
                       <SelectItem value="mjpeg">MJPEG</SelectItem>
+                      <SelectItem value="rtsp">RTSP</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

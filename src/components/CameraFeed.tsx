@@ -1,7 +1,7 @@
 import HlsPlayer from "./HlsPlayer";
 import type { Camera } from "@/hooks/use-cameras";
 import { Badge } from "@/components/ui/badge";
-import { MapPin } from "lucide-react";
+import { MapPin, Video } from "lucide-react";
 
 interface CameraFeedProps {
   camera: Camera;
@@ -14,6 +14,18 @@ const CameraFeed = ({ camera }: CameraFeedProps) => {
         {camera.status === "inativa" ? (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
             <p className="text-sm">Câmera inativa</p>
+          </div>
+        ) : camera.tipo === "rtsp" ? (
+          <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-2 p-4">
+            <Video className="w-8 h-8" />
+            <p className="text-xs text-center">Stream RTSP — abra em um player externo (VLC)</p>
+            <button
+              onClick={() => { navigator.clipboard.writeText(camera.stream_url); }}
+              className="text-[11px] bg-muted px-3 py-1.5 rounded-md hover:bg-muted/80 transition-colors font-mono max-w-full truncate"
+              title={camera.stream_url}
+            >
+              📋 Copiar URL
+            </button>
           </div>
         ) : camera.tipo === "mjpeg" ? (
           <img
