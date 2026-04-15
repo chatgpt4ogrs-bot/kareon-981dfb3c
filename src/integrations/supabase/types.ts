@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      camera_usuarios: {
+        Row: {
+          camera_id: string
+          created_at: string
+          id: string
+          profile_id: string
+        }
+        Insert: {
+          camera_id: string
+          created_at?: string
+          id?: string
+          profile_id: string
+        }
+        Update: {
+          camera_id?: string
+          created_at?: string
+          id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "camera_usuarios_camera_id_fkey"
+            columns: ["camera_id"]
+            isOneToOne: false
+            referencedRelation: "cameras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "camera_usuarios_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cameras: {
         Row: {
           clinica_id: string
@@ -116,6 +152,45 @@ export type Database = {
             columns: ["paciente_id"]
             isOneToOne: false
             referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      paciente_usuarios: {
+        Row: {
+          created_at: string
+          id: string
+          paciente_id: string
+          profile_id: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          paciente_id: string
+          profile_id: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          paciente_id?: string
+          profile_id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "paciente_usuarios_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "paciente_usuarios_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
