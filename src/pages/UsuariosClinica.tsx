@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Users, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Users, CheckCircle2, XCircle, Loader2, Camera } from "lucide-react";
 import { format } from "date-fns";
+import CameraFamiliarModal from "@/components/cameras/CameraFamiliarModal";
 
 const statusLabels: Record<string, string> = {
   pendente: "Pendente",
@@ -24,6 +26,9 @@ const statusBadge = (status: string) => {
 const UsuariosClinica = () => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const [cameraModal, setCameraModal] = useState<{ open: boolean; profileId: string; nome: string }>({
+    open: false, profileId: "", nome: "",
+  });
 
   const { data: usuarios = [], isLoading } = useQuery({
     queryKey: ["clinica-usuarios", profile?.clinica_id],
@@ -39,6 +44,27 @@ const UsuariosClinica = () => {
     },
     enabled: !!profile?.clinica_id,
   });
+
+  // Fetch roles for clinic users
+  const userIds = usuarios.map((u) => u.user_id);
+  const { data: userRoles = [] } = useQuery({
+    queryKey: ["clinica-user-roles", userIds],
+    queryFn: async () => {
+      if (userIds.length === 0) return [];
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("user_id, role")
+        .in("user_id", userIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: userIds.length > 0,
+  });
+
+  const getUserRoles = (userId: string) =>
+    userRoles.filter((r) => r.user_id === userId).map((r) => r.role);
+
+  const isFamiliar = (userId: string) => getUserRoles(userId).includes("familiar");
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -137,7 +163,7 @@ const UsuariosClinica = () => {
                   <TableHead>Cargo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Cadastro</TableHead>
-                  <TableHead className="w-28">Ações</TableHead>
+                  <TableHead className="w-36">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -155,27 +181,39 @@ const UsuariosClinica = () => {
                       {format(new Date(u.created_at), "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell>
-                      {u.status === "bloqueado" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateStatusMutation.mutate({ id: u.id, status: "ativo" })}
-                          disabled={updateStatusMutation.isPending}
-                        >
-                          Reativar
-                        </Button>
-                      )}
-                      {u.status === "ativo" && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-destructive"
-                          onClick={() => updateStatusMutation.mutate({ id: u.id, status: "bloqueado" })}
-                          disabled={updateStatusMutation.isPending}
-                        >
-                          Bloquear
-                        </Button>
-                      )}
+                      <div className="flex gap-1">
+                        {isFamiliar(u.user_id) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1"
+                            onClick={() => setCameraModal({ open: true, profileId: u.id, nome: u.nome })}
+                          >
+                            <Camera className="w-3.5 h-3.5" /> Câmeras
+                          </Button>
+                        )}
+                        {u.status === "bloqueado" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateStatusMutation.mutate({ id: u.id, status: "ativo" })}
+                            disabled={updateStatusMutation.isPending}
+                          >
+                            Reativar
+                          </Button>
+                        )}
+                        {u.status === "ativo" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-destructive"
+                            onClick={() => updateStatusMutation.mutate({ id: u.id, status: "bloqueado" })}
+                            disabled={updateStatusMutation.isPending}
+                          >
+                            Bloquear
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -184,6 +222,16 @@ const UsuariosClinica = () => {
           )}
         </CardContent>
       </Card>
+
+      {profile?.clinica_id && (
+        <CameraFamiliarModal
+          open={cameraModal.open}
+          onOpenChange={(open) => setCameraModal((prev) => ({ ...prev, open }))}
+          profileId={cameraModal.profileId}
+          profileNome={cameraModal.nome}
+          clinicaId={profile.clinica_id}
+        />
+      )}
     </div>
   );
 };
