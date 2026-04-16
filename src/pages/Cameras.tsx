@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Trash2, Pencil, Camera, Video, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const Cameras = () => {
   const { data: cameras = [], isLoading } = useCameras();
@@ -22,32 +24,66 @@ const Cameras = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", localizacao: "", stream_url: "", tipo: "hls" });
+  const [form, setForm] = useState({ nome: "", localizacao: "", stream_url: "", tipo: "hls", clinica_id: "" });
+
+  // Fetch clinicas for admin
+  const { data: clinicas = [] } = useQuery({
+    queryKey: ["clinicas-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clinicas").select("id, nome").order("nome");
+      if (error) throw error;
+      return data;
+    },
+    enabled: isAdmin,
+  });
 
   const activeCameras = cameras.filter((c) => c.status === "ativa");
 
   const resetForm = () => {
-    setForm({ nome: "", localizacao: "", stream_url: "", tipo: "hls" });
+    setForm({ nome: "", localizacao: "", stream_url: "", tipo: "hls", clinica_id: "" });
     setEditingId(null);
   };
 
   const openEdit = (cam: typeof cameras[0]) => {
-    setForm({ nome: cam.nome, localizacao: cam.localizacao || "", stream_url: cam.stream_url, tipo: cam.tipo });
+    setForm({
+      nome: cam.nome,
+      localizacao: cam.localizacao || "",
+      stream_url: cam.stream_url,
+      tipo: cam.tipo,
+      clinica_id: cam.clinica_id,
+    });
     setEditingId(cam.id);
     setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
+    const clinicaId = isAdmin ? form.clinica_id : profile?.clinica_id;
     if (!form.nome || !form.stream_url) {
       toast({ title: "Preencha nome e URL do stream", variant: "destructive" });
       return;
     }
+    if (!clinicaId) {
+      toast({ title: "Selecione uma clínica", variant: "destructive" });
+      return;
+    }
     try {
       if (editingId) {
-        await update.mutateAsync({ id: editingId, ...form });
+        await update.mutateAsync({
+          id: editingId,
+          nome: form.nome,
+          localizacao: form.localizacao,
+          stream_url: form.stream_url,
+          tipo: form.tipo,
+        });
         toast({ title: "Câmera atualizada" });
       } else {
-        await create.mutateAsync({ ...form, clinica_id: profile!.clinica_id! });
+        await create.mutateAsync({
+          nome: form.nome,
+          localizacao: form.localizacao,
+          stream_url: form.stream_url,
+          tipo: form.tipo,
+          clinica_id: clinicaId,
+        });
         toast({ title: "Câmera adicionada" });
       }
       setDialogOpen(false);
@@ -114,6 +150,19 @@ const Cameras = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {isAdmin && !editingId && (
+                  <div>
+                    <Label>Clínica</Label>
+                    <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione a clínica" /></SelectTrigger>
+                      <SelectContent>
+                        {clinicas.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button className="w-full" onClick={handleSubmit} disabled={create.isPending || update.isPending}>
                   {editingId ? "Salvar" : "Adicionar"}
                 </Button>

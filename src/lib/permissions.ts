@@ -11,16 +11,16 @@ export interface NavItem {
 const ROLE_ROUTES: Record<AppRole, string[]> = {
   admin: ["*"], // access to everything
   clinica_admin: [
-    "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha", "/clinica/usuarios",
+    "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha", "/clinica/usuarios", "/perfil",
   ],
   responsavel_clinica: [
-    "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha",
+    "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha", "/perfil",
   ],
   terapeuta: [
-    "/", "/pacientes", "/agenda", "/alterar-senha",
+    "/", "/pacientes", "/agenda", "/alterar-senha", "/perfil",
   ],
   familiar: [
-    "/", "/cameras", "/alterar-senha",
+    "/", "/cameras", "/alterar-senha", "/perfil",
   ],
 };
 
