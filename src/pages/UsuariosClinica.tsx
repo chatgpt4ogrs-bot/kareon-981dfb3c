@@ -45,7 +45,6 @@ const UsuariosClinica = () => {
     enabled: !!profile?.clinica_id,
   });
 
-  // Fetch roles for clinic users
   const userIds = usuarios.map((u) => u.user_id);
   const { data: userRoles = [] } = useQuery({
     queryKey: ["clinica-user-roles", userIds],
@@ -74,17 +73,27 @@ const UsuariosClinica = () => {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: (_, { status }) => {
-      queryClient.invalidateQueries({ queryKey: ["clinica-usuarios"] });
+    onMutate: async ({ id, status }) => {
+      const qk = ["clinica-usuarios", profile?.clinica_id];
+      await queryClient.cancelQueries({ queryKey: qk });
+      const prev = queryClient.getQueryData(qk);
+      queryClient.setQueryData(qk, (old: any[]) =>
+        old?.map((u) => u.id === id ? { ...u, status } : u)
+      );
       toast({
         title: status === "ativo" ? "Usuário aprovado!" : "Usuário bloqueado",
         description: status === "ativo"
           ? "O usuário agora pode acessar o sistema."
           : "O acesso do usuário foi bloqueado.",
       });
+      return { prev, qk };
     },
-    onError: (err: any) => {
+    onError: (err: any, _, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(ctx.qk, ctx.prev);
       toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["clinica-usuarios"] });
     },
   });
 

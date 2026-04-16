@@ -68,23 +68,45 @@ const AdminUsuarios = () => {
       const { error } = await supabase.from("profiles").update({ clinica_id: clinicaId }).eq("id", profileId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+    onMutate: async ({ profileId, clinicaId }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-profiles"] });
+      const prev = queryClient.getQueryData(["admin-profiles"]);
+      queryClient.setQueryData(["admin-profiles"], (old: any[]) =>
+        old?.map((p) => p.id === profileId ? { ...p, clinica_id: clinicaId } : p)
+      );
+      if (editUser?.id === profileId) setEditUser((u: any) => ({ ...u, clinica_id: clinicaId }));
       toast({ title: "Clínica atualizada" });
+      return { prev };
     },
-    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+    onError: (err: any, _, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["admin-profiles"], ctx.prev);
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin-profiles"] }),
   });
 
   const addRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: role as any });
+      const { data, error } = await supabase.from("user_roles").insert({ user_id: userId, role: role as any }).select().single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-all-roles"] });
+    onMutate: async ({ userId, role }) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-all-roles"] });
+      const prev = queryClient.getQueryData(["admin-all-roles"]);
+      const tempId = `temp-${Date.now()}`;
+      queryClient.setQueryData(["admin-all-roles"], (old: any[]) => [
+        ...(old || []),
+        { id: tempId, user_id: userId, role },
+      ]);
       toast({ title: "Permissão adicionada" });
+      return { prev };
     },
-    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+    onError: (err: any, _, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["admin-all-roles"], ctx.prev);
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin-all-roles"] }),
   });
 
   const removeRoleMutation = useMutation({
@@ -92,11 +114,20 @@ const AdminUsuarios = () => {
       const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-all-roles"] });
+    onMutate: async (roleId) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-all-roles"] });
+      const prev = queryClient.getQueryData(["admin-all-roles"]);
+      queryClient.setQueryData(["admin-all-roles"], (old: any[]) =>
+        old?.filter((r) => r.id !== roleId)
+      );
       toast({ title: "Permissão removida" });
+      return { prev };
     },
-    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+    onError: (err: any, _, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["admin-all-roles"], ctx.prev);
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin-all-roles"] }),
   });
 
   const openEdit = (profile: any) => {
