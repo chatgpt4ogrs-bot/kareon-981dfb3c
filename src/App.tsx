@@ -21,6 +21,7 @@ import ObjetivoForm from "@/pages/ObjetivoForm";
 import Agenda from "@/pages/Agenda";
 import Relatorio from "@/pages/Relatorio";
 import Cameras from "@/pages/Cameras";
+import Perfil from "@/pages/Perfil";
 import AdminClinicas from "@/pages/AdminClinicas";
 import AdminUsuarios from "@/pages/AdminUsuarios";
 import UsuariosClinica from "@/pages/UsuariosClinica";
@@ -89,6 +90,7 @@ const App = () => (
               <Route path="pacientes/:pacienteId/relatorio" element={<RoleRoute><Relatorio /></RoleRoute>} />
               <Route path="agenda" element={<RoleRoute><Agenda /></RoleRoute>} />
               <Route path="cameras" element={<RoleRoute><Cameras /></RoleRoute>} />
+              <Route path="perfil" element={<Perfil />} />
               <Route path="alterar-senha" element={<AlterarSenha />} />
               <Route path="admin/clinicas" element={<AdminRoute><AdminClinicas /></AdminRoute>} />
               <Route path="admin/usuarios" element={<AdminRoute><AdminUsuarios /></AdminRoute>} />

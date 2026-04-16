@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Users,
@@ -52,14 +53,30 @@ const AppLayout = () => {
 
   const allItems = [...navItems, ...adminItems];
 
+  const initials = profile?.nome
+    ?.split(" ")
+    .map((n) => n[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "U";
+
   return (
     <div className="min-h-screen flex bg-background">
       <aside className="hidden md:flex w-64 flex-col border-r border-border bg-card">
-        <div className="p-6 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Heart className="w-5 h-5 text-primary" />
+        <div className="p-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Heart className="w-5 h-5 text-primary" />
+            </div>
+            <span className="font-bold text-lg text-foreground">Kareon</span>
           </div>
-          <span className="font-bold text-lg text-foreground">Kareon</span>
+          <Link to="/perfil" title="Meu Perfil">
+            <Avatar className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+              <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
         </div>
 
         <nav className="flex-1 px-3 space-y-1">
@@ -122,15 +139,15 @@ const AppLayout = () => {
             <Key className="w-4 h-4" />
             Alterar senha
           </Link>
-          <div className="flex items-center gap-3 mb-3 px-2 pt-2">
+          <Link to="/perfil" className="flex items-center gap-3 mb-3 px-2 pt-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
             <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
-              {profile?.nome?.charAt(0)?.toUpperCase() || "U"}
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate text-foreground">{profile?.nome || "Usuário"}</p>
               <p className="text-xs text-muted-foreground truncate">{roleLabel}</p>
             </div>
-          </div>
+          </Link>
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground" onClick={handleLogout}>
             <LogOut className="w-4 h-4" /> Sair
           </Button>
@@ -143,9 +160,18 @@ const AppLayout = () => {
             <Heart className="w-5 h-5 text-primary" />
             <span className="font-bold text-foreground">Kareon</span>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link to="/perfil">
+              <Avatar className="w-8 h-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
+                <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+            <Button variant="ghost" size="icon" onClick={() => setMobileOpen(!mobileOpen)}>
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+          </div>
         </header>
 
         {mobileOpen && (
