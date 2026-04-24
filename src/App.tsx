@@ -6,30 +6,42 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { canAccessRoute } from "@/lib/permissions";
 import AppLayout from "@/components/AppLayout";
-import Login from "@/pages/Login";
-import Cadastro from "@/pages/Cadastro";
-import VerificarEmail from "@/pages/VerificarEmail";
-import EsqueciSenha from "@/pages/EsqueciSenha";
-import RedefinirSenha from "@/pages/RedefinirSenha";
-import AlterarSenha from "@/pages/AlterarSenha";
-import Dashboard from "@/pages/Dashboard";
-import Pacientes from "@/pages/Pacientes";
-import PacienteForm from "@/pages/PacienteForm";
-import PacienteDetalhe from "@/pages/PacienteDetalhe";
-import SessaoForm from "@/pages/SessaoForm";
-import ObjetivoForm from "@/pages/ObjetivoForm";
-import Agenda from "@/pages/Agenda";
-import Relatorio from "@/pages/Relatorio";
-import Cameras from "@/pages/Cameras";
-import Perfil from "@/pages/Perfil";
-import AdminClinicas from "@/pages/AdminClinicas";
-import AdminUsuarios from "@/pages/AdminUsuarios";
-import UsuariosClinica from "@/pages/UsuariosClinica";
+import { lazy, Suspense } from "react";
 import AguardandoAprovacao from "@/pages/AguardandoAprovacao";
-import NotFound from "@/pages/NotFound";
+
+const Login = lazy(() => import("@/pages/Login"));
+const Cadastro = lazy(() => import("@/pages/Cadastro"));
+const VerificarEmail = lazy(() => import("@/pages/VerificarEmail"));
+const EsqueciSenha = lazy(() => import("@/pages/EsqueciSenha"));
+const RedefinirSenha = lazy(() => import("@/pages/RedefinirSenha"));
+const AlterarSenha = lazy(() => import("@/pages/AlterarSenha"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
+const Pacientes = lazy(() => import("@/pages/Pacientes"));
+const PacienteForm = lazy(() => import("@/pages/PacienteForm"));
+const PacienteDetalhe = lazy(() => import("@/pages/PacienteDetalhe"));
+const SessaoForm = lazy(() => import("@/pages/SessaoForm"));
+const ObjetivoForm = lazy(() => import("@/pages/ObjetivoForm"));
+const Agenda = lazy(() => import("@/pages/Agenda"));
+const Relatorio = lazy(() => import("@/pages/Relatorio"));
+const Cameras = lazy(() => import("@/pages/Cameras"));
+const Perfil = lazy(() => import("@/pages/Perfil"));
+const AdminClinicas = lazy(() => import("@/pages/AdminClinicas"));
+const AdminUsuarios = lazy(() => import("@/pages/AdminUsuarios"));
+const UsuariosClinica = lazy(() => import("@/pages/UsuariosClinica"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutos — evita refetch ao voltar para uma página
+      gcTime: 1000 * 60 * 30,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      retry: 1,
+    },
+  },
+});
 
 const LoadingScreen = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
@@ -38,7 +50,7 @@ const LoadingScreen = () => (
   </div>
 );
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, isAdmin } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
@@ -47,9 +59,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <AguardandoAprovacao />;
   }
   return <>{children}</>;
-};
+}
 
-const RoleRoute = ({ children }: { children: React.ReactNode }) => {
+function RoleRoute({ children }: { children: React.ReactNode }) {
   const { roles, loading } = useAuth();
   const location = useLocation();
   if (loading) return <LoadingScreen />;
@@ -57,14 +69,14 @@ const RoleRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
-};
+}
 
-const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, loading } = useAuth();
   if (loading) return <LoadingScreen />;
   if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
-};
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -73,7 +85,8 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
+          <Suspense fallback={<LoadingScreen />}>
+            <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro" element={<Cadastro />} />
             <Route path="/verificar-email" element={<VerificarEmail />} />
@@ -97,7 +110,8 @@ const App = () => (
               <Route path="clinica/usuarios" element={<RoleRoute><UsuariosClinica /></RoleRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>
