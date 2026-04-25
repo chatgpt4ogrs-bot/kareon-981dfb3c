@@ -15,6 +15,7 @@ export interface Evento {
   categoria: EventoCategoria;
   cor: string;
   paciente_id: string | null;
+  terapeuta_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -28,6 +29,7 @@ export interface EventoInput {
   categoria: EventoCategoria;
   cor: string;
   paciente_id?: string | null;
+  terapeuta_id?: string | null;
 }
 
 export const CATEGORIAS: { value: EventoCategoria; label: string; cor: string }[] = [
@@ -75,6 +77,7 @@ export function useSaveEvento() {
             categoria: input.categoria,
             cor: input.cor,
             paciente_id: input.paciente_id ?? null,
+            terapeuta_id: input.terapeuta_id ?? null,
           })
           .eq("id", input.id);
         if (error) throw error;
@@ -92,6 +95,7 @@ export function useSaveEvento() {
           categoria: input.categoria,
           cor: input.cor,
           paciente_id: input.paciente_id ?? null,
+          terapeuta_id: input.terapeuta_id ?? null,
         })
         .select("id")
         .single();

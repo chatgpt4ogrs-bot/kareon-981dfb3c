@@ -127,6 +127,7 @@ export type Database = {
           descricao: string | null
           id: string
           paciente_id: string | null
+          terapeuta_id: string | null
           titulo: string
           updated_at: string
         }
@@ -141,6 +142,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           paciente_id?: string | null
+          terapeuta_id?: string | null
           titulo: string
           updated_at?: string
         }
@@ -155,6 +157,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           paciente_id?: string | null
+          terapeuta_id?: string | null
           titulo?: string
           updated_at?: string
         }

@@ -25,10 +25,12 @@ import {
   Loader2,
   Plus,
   Search,
+  User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CATEGORIAS, Evento, EventoCategoria, useEventos } from "@/hooks/use-eventos";
 import { EventoModal } from "@/components/agenda/EventoModal";
+import { useTerapeutas } from "@/hooks/use-terapeutas";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -42,6 +44,12 @@ type Visao = "dia" | "semana" | "mes";
 
 const Agenda = () => {
   const { data: eventos = [], isLoading } = useEventos();
+  const { data: terapeutas = [] } = useTerapeutas();
+  const terapeutaMap = useMemo(() => {
+    const m = new Map<string, string>();
+    terapeutas.forEach((t) => m.set(t.id, t.nome));
+    return m;
+  }, [terapeutas]);
   const [visao, setVisao] = useState<Visao>("semana");
   const [cursor, setCursor] = useState<Date>(new Date());
   const [search, setSearch] = useState("");
@@ -229,9 +237,9 @@ const Agenda = () => {
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : visao === "dia" ? (
-        <VisaoDia data={cursor} eventos={eventosDoDia(cursor)} onNew={() => abrirNovo(cursor)} onOpen={abrirEvento} />
+        <VisaoDia data={cursor} eventos={eventosDoDia(cursor)} onNew={() => abrirNovo(cursor)} onOpen={abrirEvento} terapeutaMap={terapeutaMap} />
       ) : visao === "semana" ? (
-        <VisaoSemana inicio={periodo.inicio} eventosDoDia={eventosDoDia} onNew={abrirNovo} onOpen={abrirEvento} />
+        <VisaoSemana inicio={periodo.inicio} eventosDoDia={eventosDoDia} onNew={abrirNovo} onOpen={abrirEvento} terapeutaMap={terapeutaMap} />
       ) : (
         <VisaoMes cursor={cursor} eventosDoDia={eventosDoDia} onNew={abrirNovo} onOpen={abrirEvento} />
       )}
@@ -248,9 +256,10 @@ const Agenda = () => {
 
 /* ---------- Subcomponentes de visão ---------- */
 
-function EventoCard({ evento, onOpen }: { evento: Evento; onOpen: (e: Evento) => void }) {
+function EventoCard({ evento, onOpen, terapeutaMap }: { evento: Evento; onOpen: (e: Evento) => void; terapeutaMap?: Map<string, string> }) {
   const ini = new Date(evento.data_inicio);
   const fim = evento.data_fim ? new Date(evento.data_fim) : null;
+  const terapeutaNome = evento.terapeuta_id ? terapeutaMap?.get(evento.terapeuta_id) : null;
   return (
     <button
       onClick={() => onOpen(evento)}
@@ -270,6 +279,12 @@ function EventoCard({ evento, onOpen }: { evento: Evento; onOpen: (e: Evento) =>
             {format(ini, "HH:mm")}
             {fim && ` — ${format(fim, "HH:mm")}`}
           </div>
+          {terapeutaNome && (
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <User className="h-3 w-3" />
+              <span className="truncate">{terapeutaNome}</span>
+            </div>
+          )}
         </div>
       </div>
     </button>
@@ -282,12 +297,14 @@ function ColunaDia({
   destaque,
   onNew,
   onOpen,
+  terapeutaMap,
 }: {
   data: Date;
   eventos: Evento[];
   destaque?: boolean;
   onNew: (d: Date) => void;
   onOpen: (e: Evento) => void;
+  terapeutaMap?: Map<string, string>;
 }) {
   const hoje = isSameDay(data, new Date());
   return (
@@ -338,7 +355,7 @@ function ColunaDia({
             Sem sessões
           </button>
         ) : (
-          eventos.map((ev) => <EventoCard key={ev.id} evento={ev} onOpen={onOpen} />)
+          eventos.map((ev) => <EventoCard key={ev.id} evento={ev} onOpen={onOpen} terapeutaMap={terapeutaMap} />)
         )}
       </div>
     </div>
@@ -350,11 +367,13 @@ function VisaoDia({
   eventos,
   onNew,
   onOpen,
+  terapeutaMap,
 }: {
   data: Date;
   eventos: Evento[];
   onNew: () => void;
   onOpen: (e: Evento) => void;
+  terapeutaMap?: Map<string, string>;
 }) {
   return (
     <div className="grid gap-4 md:grid-cols-[260px_1fr]">
@@ -389,7 +408,7 @@ function VisaoDia({
             </CardContent>
           </Card>
         ) : (
-          eventos.map((ev) => <EventoCard key={ev.id} evento={ev} onOpen={onOpen} />)
+          eventos.map((ev) => <EventoCard key={ev.id} evento={ev} onOpen={onOpen} terapeutaMap={terapeutaMap} />)
         )}
       </div>
     </div>
@@ -401,11 +420,13 @@ function VisaoSemana({
   eventosDoDia,
   onNew,
   onOpen,
+  terapeutaMap,
 }: {
   inicio: Date;
   eventosDoDia: (d: Date) => Evento[];
   onNew: (d: Date) => void;
   onOpen: (e: Evento) => void;
+  terapeutaMap?: Map<string, string>;
 }) {
   const dias = Array.from({ length: 7 }, (_, i) => addDays(inicio, i));
   return (
@@ -419,6 +440,7 @@ function VisaoSemana({
             eventos={eventosDoDia(d)}
             onNew={onNew}
             onOpen={onOpen}
+            terapeutaMap={terapeutaMap}
           />
         ))}
       </div>
@@ -431,6 +453,7 @@ function VisaoSemana({
             eventos={eventosDoDia(d)}
             onNew={onNew}
             onOpen={onOpen}
+            terapeutaMap={terapeutaMap}
           />
         ))}
       </div>
