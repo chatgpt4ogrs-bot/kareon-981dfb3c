@@ -1,77 +1,530 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useSessoes } from "@/hooks/use-sessoes";
-import { usePacientes } from "@/hooks/use-pacientes";
-import { format, startOfWeek, addDays, isSameDay } from "date-fns";
+import { Input } from "@/components/ui/input";
+import {
+  addDays,
+  addMonths,
+  addWeeks,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
+  subWeeks,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Play, Loader2 } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Filter,
+  Loader2,
+  Plus,
+  Search,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CATEGORIAS, Evento, EventoCategoria, useEventos } from "@/hooks/use-eventos";
+import { EventoModal } from "@/components/agenda/EventoModal";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+type Visao = "dia" | "semana" | "mes";
 
 const Agenda = () => {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const { data: sessoes = [], isLoading } = useSessoes();
-  const { data: pacientes = [] } = usePacientes();
+  const { data: eventos = [], isLoading } = useEventos();
+  const [visao, setVisao] = useState<Visao>("semana");
+  const [cursor, setCursor] = useState<Date>(new Date());
+  const [search, setSearch] = useState("");
+  const [filtros, setFiltros] = useState<EventoCategoria[]>(
+    CATEGORIAS.map((c) => c.value)
+  );
 
-  const dias = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const [modalOpen, setModalOpen] = useState(false);
+  const [eventoSel, setEventoSel] = useState<Evento | null>(null);
+  const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
 
-  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  const eventosFiltrados = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return eventos.filter((e) => {
+      if (!filtros.includes(e.categoria as EventoCategoria)) return false;
+      if (q && !e.titulo.toLowerCase().includes(q) && !(e.descricao || "").toLowerCase().includes(q))
+        return false;
+      return true;
+    });
+  }, [eventos, filtros, search]);
+
+  const periodo = useMemo(() => {
+    if (visao === "dia") return { inicio: cursor, fim: cursor };
+    if (visao === "semana") {
+      const ini = startOfWeek(cursor, { weekStartsOn: 1 });
+      return { inicio: ini, fim: addDays(ini, 6) };
+    }
+    return { inicio: startOfMonth(cursor), fim: endOfMonth(cursor) };
+  }, [cursor, visao]);
+
+  const labelPeriodo = useMemo(() => {
+    if (visao === "dia") return format(cursor, "dd 'de' MMMM yyyy", { locale: ptBR });
+    if (visao === "semana")
+      return `${format(periodo.inicio, "dd MMM", { locale: ptBR })} — ${format(periodo.fim, "dd MMM yyyy", { locale: ptBR })}`;
+    return format(cursor, "MMMM yyyy", { locale: ptBR });
+  }, [cursor, visao, periodo]);
+
+  const navegar = (dir: -1 | 1) => {
+    if (visao === "dia") setCursor(addDays(cursor, dir));
+    else if (visao === "semana") setCursor(dir > 0 ? addWeeks(cursor, 1) : subWeeks(cursor, 1));
+    else setCursor(addMonths(cursor, dir));
+  };
+
+  const abrirNovo = (data?: Date) => {
+    setEventoSel(null);
+    setDefaultDate(data ?? cursor);
+    setModalOpen(true);
+  };
+  const abrirEvento = (e: Evento) => {
+    setEventoSel(e);
+    setDefaultDate(undefined);
+    setModalOpen(true);
+  };
+
+  const eventosDoDia = (dia: Date) =>
+    eventosFiltrados
+      .filter((e) => isSameDay(new Date(e.data_inicio), dia))
+      .sort(
+        (a, b) => new Date(a.data_inicio).getTime() - new Date(b.data_inicio).getTime()
+      );
+
+  const toggleFiltro = (cat: EventoCategoria) => {
+    setFiltros((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Agenda</h1>
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <CalendarDays className="h-5 w-5" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Agenda</h1>
+            <p className="text-sm text-muted-foreground">
+              Organize sessões, avaliações e compromissos
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar evento..."
+              className="h-10 w-56 rounded-xl pl-9"
+            />
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10 rounded-xl gap-2">
+                <Filter className="h-4 w-4" />
+                Filtros
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>Categorias</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {CATEGORIAS.map((c) => (
+                <DropdownMenuCheckboxItem
+                  key={c.value}
+                  checked={filtros.includes(c.value)}
+                  onCheckedChange={() => toggleFiltro(c.value)}
+                >
+                  <span
+                    className="mr-2 inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: c.cor }}
+                  />
+                  {c.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            onClick={() => abrirNovo()}
+            className="h-10 rounded-xl gap-1.5 bg-primary shadow-sm hover:shadow-md transition-shadow"
+          >
+            <Plus className="h-4 w-4" />
+            Novo Evento
+          </Button>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft className="w-5 h-5" /></Button>
-        <p className="text-sm font-medium text-foreground">{format(dias[0], "dd MMM", { locale: ptBR })} — {format(dias[6], "dd MMM yyyy", { locale: ptBR })}</p>
-        <Button variant="ghost" size="icon" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight className="w-5 h-5" /></Button>
-      </div>
+      {/* Toolbar de navegação + visão */}
+      <Card className="rounded-2xl border-border/60 shadow-sm">
+        <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-lg"
+              onClick={() => navegar(-1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="h-9 rounded-lg px-3 text-sm font-medium"
+              onClick={() => setCursor(new Date())}
+            >
+              Hoje
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 rounded-lg"
+              onClick={() => navegar(1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <p className="ml-2 text-base font-semibold text-foreground capitalize">
+              {labelPeriodo}
+            </p>
+          </div>
 
-      <div className="grid gap-4">
-        {dias.map((dia) => {
-          const sessoesDia = sessoes
-            .filter((s) => isSameDay(new Date(s.dataHora), dia))
-            .sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime());
-          const isHoje = isSameDay(dia, new Date());
+          <div className="inline-flex rounded-xl bg-muted/60 p-1">
+            {(["dia", "semana", "mes"] as Visao[]).map((v) => (
+              <button
+                key={v}
+                onClick={() => setVisao(v)}
+                className={cn(
+                  "rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-all",
+                  visao === v
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {v === "mes" ? "Mês" : v}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-          return (
-            <div key={dia.toISOString()}>
-              <div className={cn("flex items-center gap-2 mb-2 px-1", isHoje && "text-primary")}>
-                <p className="text-xs font-medium uppercase">{format(dia, "EEEE", { locale: ptBR })}</p>
-                <p className={cn("text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center", isHoje && "bg-primary text-primary-foreground")}>{format(dia, "dd")}</p>
-              </div>
-              {sessoesDia.length === 0 ? (
-                <p className="text-xs text-muted-foreground pl-1">Sem sessões</p>
-              ) : (
-                <div className="space-y-2">
-                  {sessoesDia.map((s) => {
-                    const pac = pacientes.find((p) => p.id === s.pacienteId);
-                    return (
-                      <Card key={s.id} className="hover:shadow-sm transition-shadow">
-                        <CardContent className="p-3 flex items-center gap-3">
-                          <div className="w-1 h-10 rounded-full bg-primary shrink-0" />
-                          <Link to={`/pacientes/${s.pacienteId}`} className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground">{pac?.nome || "Paciente"}</p>
-                            <p className="text-xs text-muted-foreground">{format(new Date(s.dataHora), "HH:mm")}</p>
-                          </Link>
-                          <Link to={`/pacientes/${s.pacienteId}/sessao?modo=sessao`}>
-                            <Button size="sm" className="gap-1.5 rounded-full h-8 px-3"><Play className="w-3.5 h-3.5" /> Iniciar</Button>
-                          </Link>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {/* Conteúdo */}
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : visao === "dia" ? (
+        <VisaoDia data={cursor} eventos={eventosDoDia(cursor)} onNew={() => abrirNovo(cursor)} onOpen={abrirEvento} />
+      ) : visao === "semana" ? (
+        <VisaoSemana inicio={periodo.inicio} eventosDoDia={eventosDoDia} onNew={abrirNovo} onOpen={abrirEvento} />
+      ) : (
+        <VisaoMes cursor={cursor} eventosDoDia={eventosDoDia} onNew={abrirNovo} onOpen={abrirEvento} />
+      )}
+
+      <EventoModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        evento={eventoSel}
+        defaultDate={defaultDate}
+      />
     </div>
   );
 };
+
+/* ---------- Subcomponentes de visão ---------- */
+
+function EventoCard({ evento, onOpen }: { evento: Evento; onOpen: (e: Evento) => void }) {
+  const ini = new Date(evento.data_inicio);
+  const fim = evento.data_fim ? new Date(evento.data_fim) : null;
+  return (
+    <button
+      onClick={() => onOpen(evento)}
+      className="group w-full text-left rounded-xl border border-border/60 bg-card p-3 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5 hover:border-border"
+    >
+      <div className="flex items-start gap-2.5">
+        <div
+          className="mt-1 h-full min-h-[28px] w-1 shrink-0 rounded-full"
+          style={{ backgroundColor: evento.cor }}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {evento.titulo}
+          </p>
+          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {format(ini, "HH:mm")}
+            {fim && ` — ${format(fim, "HH:mm")}`}
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function ColunaDia({
+  data,
+  eventos,
+  destaque,
+  onNew,
+  onOpen,
+}: {
+  data: Date;
+  eventos: Evento[];
+  destaque?: boolean;
+  onNew: (d: Date) => void;
+  onOpen: (e: Evento) => void;
+}) {
+  const hoje = isSameDay(data, new Date());
+  return (
+    <div
+      className={cn(
+        "flex flex-col rounded-2xl border border-border/60 bg-card p-3 transition-all",
+        hoje && "border-primary/40 bg-primary/5",
+        destaque && "ring-2 ring-primary/20"
+      )}
+    >
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p
+            className={cn(
+              "text-[11px] font-semibold uppercase tracking-wide text-muted-foreground",
+              hoje && "text-primary"
+            )}
+          >
+            {format(data, "EEE", { locale: ptBR })}
+          </p>
+          <p
+            className={cn(
+              "text-2xl font-bold leading-none text-foreground mt-1",
+              hoje && "text-primary"
+            )}
+          >
+            {format(data, "dd")}
+          </p>
+        </div>
+        {eventos.length > 0 && (
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+              hoje ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+            )}
+          >
+            {eventos.length}
+          </span>
+        )}
+      </div>
+
+      <div className="flex-1 space-y-2 min-h-[120px]">
+        {eventos.length === 0 ? (
+          <button
+            onClick={() => onNew(data)}
+            className="flex h-full min-h-[80px] w-full items-center justify-center rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground transition-all hover:border-primary/40 hover:text-primary hover:bg-primary/5"
+          >
+            Sem sessões
+          </button>
+        ) : (
+          eventos.map((ev) => <EventoCard key={ev.id} evento={ev} onOpen={onOpen} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VisaoDia({
+  data,
+  eventos,
+  onNew,
+  onOpen,
+}: {
+  data: Date;
+  eventos: Evento[];
+  onNew: () => void;
+  onOpen: (e: Evento) => void;
+}) {
+  return (
+    <div className="grid gap-4 md:grid-cols-[260px_1fr]">
+      <Card className="rounded-2xl shadow-sm h-fit">
+        <CardContent className="p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {format(data, "EEEE", { locale: ptBR })}
+          </p>
+          <p className="mt-1 text-5xl font-bold text-foreground">{format(data, "dd")}</p>
+          <p className="text-sm text-muted-foreground">
+            {format(data, "MMMM yyyy", { locale: ptBR })}
+          </p>
+          <div className="mt-4 rounded-lg bg-muted/50 p-3 text-sm">
+            <span className="font-semibold text-foreground">{eventos.length}</span>{" "}
+            <span className="text-muted-foreground">
+              {eventos.length === 1 ? "evento" : "eventos"}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-2">
+        {eventos.length === 0 ? (
+          <Card className="rounded-2xl border-dashed shadow-none">
+            <CardContent className="flex flex-col items-center justify-center gap-3 py-16">
+              <CalendarDays className="h-8 w-8 text-muted-foreground/60" />
+              <p className="text-sm text-muted-foreground">Nenhum evento neste dia</p>
+              <Button onClick={onNew} variant="outline" className="rounded-xl gap-1.5">
+                <Plus className="h-4 w-4" />
+                Adicionar evento
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          eventos.map((ev) => <EventoCard key={ev.id} evento={ev} onOpen={onOpen} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VisaoSemana({
+  inicio,
+  eventosDoDia,
+  onNew,
+  onOpen,
+}: {
+  inicio: Date;
+  eventosDoDia: (d: Date) => Evento[];
+  onNew: (d: Date) => void;
+  onOpen: (e: Evento) => void;
+}) {
+  const dias = Array.from({ length: 7 }, (_, i) => addDays(inicio, i));
+  return (
+    <>
+      {/* Desktop: grid de 7 colunas */}
+      <div className="hidden md:grid md:grid-cols-7 md:gap-3">
+        {dias.map((d) => (
+          <ColunaDia
+            key={d.toISOString()}
+            data={d}
+            eventos={eventosDoDia(d)}
+            onNew={onNew}
+            onOpen={onOpen}
+          />
+        ))}
+      </div>
+      {/* Mobile: lista vertical */}
+      <div className="space-y-3 md:hidden">
+        {dias.map((d) => (
+          <ColunaDia
+            key={d.toISOString()}
+            data={d}
+            eventos={eventosDoDia(d)}
+            onNew={onNew}
+            onOpen={onOpen}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function VisaoMes({
+  cursor,
+  eventosDoDia,
+  onNew,
+  onOpen,
+}: {
+  cursor: Date;
+  eventosDoDia: (d: Date) => Evento[];
+  onNew: (d: Date) => void;
+  onOpen: (e: Evento) => void;
+}) {
+  const inicio = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
+  const fim = endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 });
+  const dias: Date[] = [];
+  let cur = inicio;
+  while (cur <= fim) {
+    dias.push(cur);
+    cur = addDays(cur, 1);
+  }
+  const semanas: Date[][] = [];
+  for (let i = 0; i < dias.length; i += 7) semanas.push(dias.slice(i, i + 7));
+  const labels = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"];
+
+  return (
+    <Card className="rounded-2xl shadow-sm overflow-hidden">
+      <div className="grid grid-cols-7 border-b bg-muted/30">
+        {labels.map((l) => (
+          <div
+            key={l}
+            className="px-3 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            {l}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7">
+        {dias.map((d) => {
+          const evs = eventosDoDia(d);
+          const hoje = isSameDay(d, new Date());
+          const noMes = isSameMonth(d, cursor);
+          return (
+            <button
+              key={d.toISOString()}
+              onClick={() => (evs[0] ? onOpen(evs[0]) : onNew(d))}
+              className={cn(
+                "min-h-[100px] border-b border-r p-2 text-left transition-colors hover:bg-muted/40",
+                !noMes && "bg-muted/10 text-muted-foreground/60",
+                hoje && "bg-primary/5"
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={cn(
+                    "inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+                    hoje && "bg-primary text-primary-foreground"
+                  )}
+                >
+                  {format(d, "d")}
+                </span>
+                {evs.length > 0 && (
+                  <span className="text-[10px] font-semibold text-muted-foreground">
+                    {evs.length}
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 space-y-1">
+                {evs.slice(0, 3).map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium text-white"
+                    style={{ backgroundColor: ev.cor }}
+                  >
+                    {format(new Date(ev.data_inicio), "HH:mm")} {ev.titulo}
+                  </div>
+                ))}
+                {evs.length > 3 && (
+                  <p className="text-[10px] text-muted-foreground">
+                    +{evs.length - 3} mais
+                  </p>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
 
 export default Agenda;
