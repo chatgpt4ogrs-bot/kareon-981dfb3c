@@ -115,6 +115,51 @@ export type Database = {
         }
         Relationships: []
       }
+      eventos: {
+        Row: {
+          categoria: string
+          clinica_id: string
+          cor: string
+          created_at: string
+          criado_por: string
+          data_fim: string | null
+          data_inicio: string
+          descricao: string | null
+          id: string
+          paciente_id: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string
+          clinica_id: string
+          cor?: string
+          created_at?: string
+          criado_por: string
+          data_fim?: string | null
+          data_inicio: string
+          descricao?: string | null
+          id?: string
+          paciente_id?: string | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          clinica_id?: string
+          cor?: string
+          created_at?: string
+          criado_por?: string
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string | null
+          id?: string
+          paciente_id?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       objetivos: {
         Row: {
           created_at: string
