@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CATEGORIAS, Evento, EventoCategoria, getCategoriaInfo, useDeleteEvento, useSaveEvento } from "@/hooks/use-eventos";
+import { useTerapeutas } from "@/hooks/use-terapeutas";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
@@ -27,6 +29,7 @@ function toTimeInput(d: Date) {
 export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) {
   const save = useSaveEvento();
   const del = useDeleteEvento();
+  const { data: terapeutas = [] } = useTerapeutas();
 
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
@@ -34,6 +37,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
   const [horaInicio, setHoraInicio] = useState("09:00");
   const [horaFim, setHoraFim] = useState("10:00");
   const [categoria, setCategoria] = useState<EventoCategoria>("sessao");
+  const [terapeutaId, setTerapeutaId] = useState<string>("none");
 
   useEffect(() => {
     if (!open) return;
@@ -46,6 +50,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
       setHoraInicio(toTimeInput(ini));
       setHoraFim(fim ? toTimeInput(fim) : toTimeInput(new Date(ini.getTime() + 60 * 60 * 1000)));
       setCategoria(evento.categoria as EventoCategoria);
+      setTerapeutaId(evento.terapeuta_id || "none");
     } else {
       const base = defaultDate ?? new Date();
       setTitulo("");
@@ -54,6 +59,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
       setHoraInicio("09:00");
       setHoraFim("10:00");
       setCategoria("sessao");
+      setTerapeutaId("none");
     }
   }, [open, evento, defaultDate]);
 
@@ -79,6 +85,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
         data_fim: fim ? fim.toISOString() : null,
         categoria,
         cor: cat.cor,
+        terapeuta_id: terapeutaId === "none" ? null : terapeutaId,
       });
       toast.success(evento ? "Evento atualizado" : "Evento criado");
       onOpenChange(false);
@@ -159,6 +166,23 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
                 );
               })}
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>Terapeuta responsável</Label>
+            <Select value={terapeutaId} onValueChange={setTerapeutaId}>
+              <SelectTrigger className="rounded-md">
+                <SelectValue placeholder="Selecione um terapeuta" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                <SelectItem value="none">Sem terapeuta</SelectItem>
+                {terapeutas.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-1.5">
