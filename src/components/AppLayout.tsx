@@ -13,7 +13,6 @@ import {
   Heart,
   Building2,
   Shield,
-  Key,
   Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -127,18 +126,6 @@ const AppLayout = () => {
         </nav>
 
         <div className="p-4 border-t border-border space-y-1">
-          <Link
-            to="/alterar-senha"
-            className={cn(
-              "flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium transition-colors",
-              isActive("/alterar-senha")
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <Key className="w-4 h-4" />
-            Alterar senha
-          </Link>
           <Link to="/perfil" className="flex items-center gap-3 mb-3 px-2 pt-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer">
             <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
               {initials}
@@ -193,17 +180,6 @@ const AppLayout = () => {
                 </Link>
               );
             })}
-            <Link
-              to="/alterar-senha"
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium",
-                isActive("/alterar-senha") ? "bg-primary/10 text-primary" : "text-muted-foreground"
-              )}
-            >
-              <Key className="w-4 h-4" />
-              Alterar senha
-            </Link>
             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-muted-foreground mt-2" onClick={handleLogout}>
               <LogOut className="w-4 h-4" /> Sair
             </Button>
