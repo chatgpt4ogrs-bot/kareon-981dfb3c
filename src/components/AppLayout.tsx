@@ -13,7 +13,6 @@ import {
   Heart,
   Building2,
   Shield,
-  Key,
   Camera,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
