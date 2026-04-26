@@ -177,7 +177,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
           </div>
 
           <div className="space-y-1.5">
-            <Label>Terapeutas responsáveis</Label>
+            <Label>Responsáveis</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -188,7 +188,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
                   <span className="flex items-center gap-2 text-sm">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     {terapeutaIds.length === 0
-                      ? "Selecione um ou mais terapeutas"
+                      ? "Selecione um ou mais"
                       : `${terapeutaIds.length} selecionado${terapeutaIds.length > 1 ? "s" : ""}`}
                   </span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
