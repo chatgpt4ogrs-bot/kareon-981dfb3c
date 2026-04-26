@@ -115,6 +115,35 @@ export type Database = {
         }
         Relationships: []
       }
+      evento_terapeutas: {
+        Row: {
+          created_at: string
+          evento_id: string
+          id: string
+          terapeuta_id: string
+        }
+        Insert: {
+          created_at?: string
+          evento_id: string
+          id?: string
+          terapeuta_id: string
+        }
+        Update: {
+          created_at?: string
+          evento_id?: string
+          id?: string
+          terapeuta_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evento_terapeutas_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "eventos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eventos: {
         Row: {
           categoria: string

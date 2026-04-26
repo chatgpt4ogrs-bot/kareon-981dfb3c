@@ -259,7 +259,21 @@ const Agenda = () => {
 function EventoCard({ evento, onOpen, terapeutaMap }: { evento: Evento; onOpen: (e: Evento) => void; terapeutaMap?: Map<string, string> }) {
   const ini = new Date(evento.data_inicio);
   const fim = evento.data_fim ? new Date(evento.data_fim) : null;
-  const terapeutaNome = evento.terapeuta_id ? terapeutaMap?.get(evento.terapeuta_id) : null;
+  const ids =
+    evento.terapeuta_ids && evento.terapeuta_ids.length > 0
+      ? evento.terapeuta_ids
+      : evento.terapeuta_id
+      ? [evento.terapeuta_id]
+      : [];
+  const nomes = ids
+    .map((id) => terapeutaMap?.get(id))
+    .filter((n): n is string => Boolean(n));
+  const label =
+    nomes.length === 0
+      ? null
+      : nomes.length <= 2
+      ? nomes.join(", ")
+      : `${nomes[0]} +${nomes.length - 1}`;
   return (
     <button
       onClick={() => onOpen(evento)}
@@ -279,10 +293,12 @@ function EventoCard({ evento, onOpen, terapeutaMap }: { evento: Evento; onOpen: 
             {format(ini, "HH:mm")}
             {fim && ` — ${format(fim, "HH:mm")}`}
           </div>
-          {terapeutaNome && (
+          {label && (
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <User className="h-3 w-3" />
-              <span className="truncate">{terapeutaNome}</span>
+              <span className="truncate" title={nomes.join(", ")}>
+                {label}
+              </span>
             </div>
           )}
         </div>

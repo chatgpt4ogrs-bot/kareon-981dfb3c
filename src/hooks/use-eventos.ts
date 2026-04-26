@@ -16,6 +16,7 @@ export interface Evento {
   cor: string;
   paciente_id: string | null;
   terapeuta_id: string | null;
+  terapeuta_ids?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +31,7 @@ export interface EventoInput {
   cor: string;
   paciente_id?: string | null;
   terapeuta_id?: string | null;
+  terapeuta_ids?: string[];
 }
 
 export const CATEGORIAS: { value: EventoCategoria; label: string; cor: string }[] = [
@@ -52,7 +54,28 @@ export function useEventos() {
         .select("*")
         .order("data_inicio", { ascending: true });
       if (error) throw error;
-      return (data || []) as Evento[];
+      const eventos = (data || []) as Evento[];
+
+      const ids = eventos.map((e) => e.id);
+      if (ids.length === 0) return eventos;
+
+      const { data: links, error: linkErr } = await supabase
+        .from("evento_terapeutas")
+        .select("evento_id, terapeuta_id")
+        .in("evento_id", ids);
+      if (linkErr) throw linkErr;
+
+      const map = new Map<string, string[]>();
+      (links || []).forEach((l: any) => {
+        const arr = map.get(l.evento_id) || [];
+        arr.push(l.terapeuta_id);
+        map.set(l.evento_id, arr);
+      });
+
+      return eventos.map((e) => ({
+        ...e,
+        terapeuta_ids: map.get(e.id) || (e.terapeuta_id ? [e.terapeuta_id] : []),
+      }));
     },
   });
 }
@@ -66,6 +89,9 @@ export function useSaveEvento() {
       if (!profile?.clinica_id || !profile?.id) {
         throw new Error("Perfil sem clínica vinculada");
       }
+      const terapeutaIds = (input.terapeuta_ids ?? []).filter(Boolean);
+      const primario = terapeutaIds[0] ?? null;
+      let eventoId: string;
       if (input.id) {
         const { error } = await supabase
           .from("eventos")
@@ -77,13 +103,13 @@ export function useSaveEvento() {
             categoria: input.categoria,
             cor: input.cor,
             paciente_id: input.paciente_id ?? null,
-            terapeuta_id: input.terapeuta_id ?? null,
+            terapeuta_id: primario,
           })
           .eq("id", input.id);
         if (error) throw error;
-        return input.id;
-      }
-      const { data, error } = await supabase
+        eventoId = input.id;
+      } else {
+        const { data, error } = await supabase
         .from("eventos")
         .insert({
           clinica_id: profile.clinica_id,
@@ -95,12 +121,31 @@ export function useSaveEvento() {
           categoria: input.categoria,
           cor: input.cor,
           paciente_id: input.paciente_id ?? null,
-          terapeuta_id: input.terapeuta_id ?? null,
+          terapeuta_id: primario,
         })
         .select("id")
         .single();
-      if (error) throw error;
-      return data.id as string;
+        if (error) throw error;
+        eventoId = data.id as string;
+      }
+
+      // Sincroniza terapeutas vinculados
+      const { error: delErr } = await supabase
+        .from("evento_terapeutas")
+        .delete()
+        .eq("evento_id", eventoId);
+      if (delErr) throw delErr;
+
+      if (terapeutaIds.length > 0) {
+        const rows = terapeutaIds.map((tid) => ({
+          evento_id: eventoId,
+          terapeuta_id: tid,
+        }));
+        const { error: insErr } = await supabase.from("evento_terapeutas").insert(rows);
+        if (insErr) throw insErr;
+      }
+
+      return eventoId;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["eventos"] });
