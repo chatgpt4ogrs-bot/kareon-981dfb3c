@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { CATEGORIAS, Evento, EventoCategoria, getCategoriaInfo, useDeleteEvento, useSaveEvento } from "@/hooks/use-eventos";
 import { useTerapeutas } from "@/hooks/use-terapeutas";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Loader2, Trash2 } from "lucide-react";
+import { Loader2, Trash2, Users, X, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -37,7 +39,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
   const [horaInicio, setHoraInicio] = useState("09:00");
   const [horaFim, setHoraFim] = useState("10:00");
   const [categoria, setCategoria] = useState<EventoCategoria>("sessao");
-  const [terapeutaId, setTerapeutaId] = useState<string>("none");
+  const [terapeutaIds, setTerapeutaIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -50,7 +52,13 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
       setHoraInicio(toTimeInput(ini));
       setHoraFim(fim ? toTimeInput(fim) : toTimeInput(new Date(ini.getTime() + 60 * 60 * 1000)));
       setCategoria(evento.categoria as EventoCategoria);
-      setTerapeutaId(evento.terapeuta_id || "none");
+      setTerapeutaIds(
+        evento.terapeuta_ids && evento.terapeuta_ids.length > 0
+          ? evento.terapeuta_ids
+          : evento.terapeuta_id
+          ? [evento.terapeuta_id]
+          : []
+      );
     } else {
       const base = defaultDate ?? new Date();
       setTitulo("");
@@ -59,7 +67,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
       setHoraInicio("09:00");
       setHoraFim("10:00");
       setCategoria("sessao");
-      setTerapeutaId("none");
+      setTerapeutaIds([]);
     }
   }, [open, evento, defaultDate]);
 
@@ -85,7 +93,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
         data_fim: fim ? fim.toISOString() : null,
         categoria,
         cor: cat.cor,
-        terapeuta_id: terapeutaId === "none" ? null : terapeutaId,
+        terapeuta_ids: terapeutaIds,
       });
       toast.success(evento ? "Evento atualizado" : "Evento criado");
       onOpenChange(false);
@@ -169,20 +177,88 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
           </div>
 
           <div className="space-y-1.5">
-            <Label>Terapeuta responsável</Label>
-            <Select value={terapeutaId} onValueChange={setTerapeutaId}>
-              <SelectTrigger className="rounded-md">
-                <SelectValue placeholder="Selecione um terapeuta" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50">
-                <SelectItem value="none">Sem terapeuta</SelectItem>
-                {terapeutas.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Terapeutas responsáveis</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between rounded-md font-normal"
+                >
+                  <span className="flex items-center gap-2 text-sm">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    {terapeutaIds.length === 0
+                      ? "Selecione um ou mais terapeutas"
+                      : `${terapeutaIds.length} selecionado${terapeutaIds.length > 1 ? "s" : ""}`}
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-[--radix-popover-trigger-width] p-0 bg-background z-50"
+              >
+                <div className="max-h-64 overflow-y-auto p-1">
+                  {terapeutas.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-muted-foreground text-center">
+                      Nenhum terapeuta cadastrado
+                    </p>
+                  ) : (
+                    terapeutas.map((t) => {
+                      const checked = terapeutaIds.includes(t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() =>
+                            setTerapeutaIds((prev) =>
+                              prev.includes(t.id)
+                                ? prev.filter((id) => id !== t.id)
+                                : [...prev, t.id]
+                            )
+                          }
+                          className="flex w-full items-center gap-2.5 rounded-sm px-2 py-2 text-sm text-left hover:bg-muted transition-colors"
+                        >
+                          <Checkbox checked={checked} className="pointer-events-none" />
+                          <span className="flex-1 truncate">{t.nome}</span>
+                          {t.cargo && (
+                            <span className="text-xs text-muted-foreground">{t.cargo}</span>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {terapeutaIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {terapeutaIds.map((id) => {
+                  const t = terapeutas.find((x) => x.id === id);
+                  if (!t) return null;
+                  return (
+                    <Badge
+                      key={id}
+                      variant="secondary"
+                      className="gap-1 rounded-full pl-2.5 pr-1 py-0.5"
+                    >
+                      {t.nome}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setTerapeutaIds((prev) => prev.filter((x) => x !== id))
+                        }
+                        className="rounded-full p-0.5 hover:bg-background/60 transition-colors"
+                        aria-label={`Remover ${t.nome}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">
