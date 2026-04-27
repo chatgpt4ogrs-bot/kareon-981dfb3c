@@ -9,7 +9,10 @@ export interface NavItem {
 
 /** Routes each role can access */
 const ROLE_ROUTES: Record<AppRole, string[]> = {
-  admin: ["*"], // access to everything
+  admin: [
+    "/", "/agenda", "/cameras", "/alterar-senha", "/perfil",
+    "/admin/clinicas", "/admin/usuarios",
+  ],
   clinica_admin: [
     "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha", "/clinica/usuarios", "/perfil",
   ],
@@ -27,7 +30,6 @@ const ROLE_ROUTES: Record<AppRole, string[]> = {
 /** Check if a role set allows access to a given path */
 export function canAccessRoute(roles: AppRole[], path: string): boolean {
   if (roles.length === 0) return false;
-  if (roles.includes("admin")) return true;
 
   return roles.some((role) => {
     const allowed = ROLE_ROUTES[role];
@@ -62,7 +64,7 @@ export function getNavItems(roles: AppRole[]): {
   main.push({ to: "/", icon: "LayoutDashboard", label: "Início" });
 
   // Pacientes - visible to all except familiar (familiar has their own view)
-  if (isAdmin || isClinicaAdmin || isResponsavel || isTerapeuta) {
+  if (isClinicaAdmin || isResponsavel || isTerapeuta) {
     main.push({ to: "/pacientes", icon: "Users", label: "Pacientes" });
   }
 

@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Shield, Users, ClipboardList, Loader2 } from "lucide-react";
+import { Building2, Shield, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -15,17 +15,13 @@ function useAdminMetrics() {
   return useQuery({
     queryKey: ["admin-metrics"],
     queryFn: async () => {
-      const [clinicas, profiles, pacientes, sessoes] = await Promise.all([
+      const [clinicas, profiles] = await Promise.all([
         supabase.from("clinicas").select("id", { count: "exact", head: true }),
         supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("pacientes").select("id", { count: "exact", head: true }),
-        supabase.from("sessoes").select("id", { count: "exact", head: true }),
       ]);
       return {
         clinicas: clinicas.count ?? 0,
         usuarios: profiles.count ?? 0,
-        pacientes: pacientes.count ?? 0,
-        sessoes: sessoes.count ?? 0,
       };
     },
   });
@@ -93,8 +89,6 @@ const AdminMasterDashboard = () => {
   const stats = [
     { label: "Clínicas", value: metrics?.clinicas ?? 0, icon: Building2, color: "text-primary" },
     { label: "Usuários", value: metrics?.usuarios ?? 0, icon: Shield, color: "text-accent" },
-    { label: "Pacientes", value: metrics?.pacientes ?? 0, icon: Users, color: "text-primary" },
-    { label: "Sessões", value: metrics?.sessoes ?? 0, icon: ClipboardList, color: "text-secondary" },
   ];
 
   return (
@@ -104,7 +98,7 @@ const AdminMasterDashboard = () => {
         <p className="text-muted-foreground">{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         {stats.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-5">
