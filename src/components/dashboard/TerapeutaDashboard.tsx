@@ -58,14 +58,14 @@ const TerapeutaDashboard = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat) => (
           <Card key={stat.label}>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                  <stat.icon className={cn("w-5 h-5", stat.color)} />
-                </div>
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{stat.label}</p>
+                  <p className="text-3xl font-semibold text-foreground mt-2 tracking-tight">{stat.value}</p>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-primary/8 flex items-center justify-center">
+                  <stat.icon className={cn("w-[18px] h-[18px]", stat.color)} strokeWidth={1.85} />
                 </div>
               </div>
             </CardContent>
