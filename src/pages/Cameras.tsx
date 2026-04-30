@@ -24,7 +24,25 @@ const Cameras = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", localizacao: "", stream_url: "", tipo: "hls", clinica_id: "" });
+  const [form, setForm] = useState({
+    nome: "",
+    localizacao: "",
+    stream_url: "",
+    tipo: "hls" as "hls" | "mjpeg" | "rtsp",
+    clinica_id: "",
+    fabricante: "intelbras",
+    modo_conexao: "ip",
+    cloud_id: "",
+    ip_principal: "",
+    ip_alternativo: "",
+    dominio_ddns: "",
+    registro_auto_id: "",
+    porta_servico: "37777",
+    porta_web: "80",
+    usuario: "admin",
+    senha: "",
+    canal: "1",
+  });
 
   // Fetch clinicas for admin
   const { data: clinicas = [] } = useQuery({
@@ -40,7 +58,25 @@ const Cameras = () => {
   const activeCameras = cameras.filter((c) => c.status === "ativa");
 
   const resetForm = () => {
-    setForm({ nome: "", localizacao: "", stream_url: "", tipo: "hls", clinica_id: "" });
+    setForm({
+      nome: "",
+      localizacao: "",
+      stream_url: "",
+      tipo: "hls",
+      clinica_id: "",
+      fabricante: "intelbras",
+      modo_conexao: "ip",
+      cloud_id: "",
+      ip_principal: "",
+      ip_alternativo: "",
+      dominio_ddns: "",
+      registro_auto_id: "",
+      porta_servico: "37777",
+      porta_web: "80",
+      usuario: "admin",
+      senha: "",
+      canal: "1",
+    });
     setEditingId(null);
   };
 
@@ -48,9 +84,21 @@ const Cameras = () => {
     setForm({
       nome: cam.nome,
       localizacao: cam.localizacao || "",
-      stream_url: cam.stream_url,
+      stream_url: cam.stream_url || "",
       tipo: cam.tipo,
       clinica_id: cam.clinica_id,
+      fabricante: cam.fabricante || "intelbras",
+      modo_conexao: cam.modo_conexao || "ip",
+      cloud_id: cam.cloud_id || "",
+      ip_principal: cam.ip_principal || "",
+      ip_alternativo: cam.ip_alternativo || "",
+      dominio_ddns: cam.dominio_ddns || "",
+      registro_auto_id: cam.registro_auto_id || "",
+      porta_servico: cam.porta_servico?.toString() || "37777",
+      porta_web: cam.porta_web?.toString() || "80",
+      usuario: cam.usuario || "admin",
+      senha: cam.senha || "",
+      canal: cam.canal?.toString() || "1",
     });
     setEditingId(cam.id);
     setDialogOpen(true);
@@ -58,32 +106,38 @@ const Cameras = () => {
 
   const handleSubmit = async () => {
     const clinicaId = isAdmin ? form.clinica_id : profile?.clinica_id;
-    if (!form.nome || !form.stream_url) {
-      toast({ title: "Preencha nome e URL do stream", variant: "destructive" });
+    if (!form.nome) {
+      toast({ title: "Informe o nome do dispositivo", variant: "destructive" });
       return;
     }
     if (!clinicaId) {
       toast({ title: "Selecione uma clínica", variant: "destructive" });
       return;
     }
+    const payload = {
+      nome: form.nome,
+      localizacao: form.localizacao || null,
+      stream_url: form.stream_url || null,
+      tipo: form.tipo,
+      fabricante: form.fabricante || null,
+      modo_conexao: form.modo_conexao || null,
+      cloud_id: form.cloud_id || null,
+      ip_principal: form.ip_principal || null,
+      ip_alternativo: form.ip_alternativo || null,
+      dominio_ddns: form.dominio_ddns || null,
+      registro_auto_id: form.registro_auto_id || null,
+      porta_servico: form.porta_servico ? parseInt(form.porta_servico, 10) : null,
+      porta_web: form.porta_web ? parseInt(form.porta_web, 10) : null,
+      usuario: form.usuario || null,
+      senha: form.senha || null,
+      canal: form.canal ? parseInt(form.canal, 10) : null,
+    };
     try {
       if (editingId) {
-        await update.mutateAsync({
-          id: editingId,
-          nome: form.nome,
-          localizacao: form.localizacao,
-          stream_url: form.stream_url,
-          tipo: form.tipo,
-        });
+        await update.mutateAsync({ id: editingId, ...payload });
         toast({ title: "Câmera atualizada" });
       } else {
-        await create.mutateAsync({
-          nome: form.nome,
-          localizacao: form.localizacao,
-          stream_url: form.stream_url,
-          tipo: form.tipo,
-          clinica_id: clinicaId,
-        });
+        await create.mutateAsync({ ...payload, clinica_id: clinicaId });
         toast({ title: "Câmera adicionada" });
       }
       setDialogOpen(false);
@@ -103,7 +157,7 @@ const Cameras = () => {
   };
 
   const handleToggleStatus = async (cam: typeof cameras[0]) => {
-    await update.mutateAsync({ id: cam.id, status: cam.status === "ativa" ? "inativa" : "ativa" });
+    await update.mutateAsync({ id: cam.id, status: (cam.status === "ativa" ? "inativa" : "ativa") as "ativa" | "inativa" });
   };
 
   if (isLoading) {
@@ -122,48 +176,161 @@ const Cameras = () => {
             <DialogTrigger asChild>
               <Button className="gap-2"><Plus className="w-4 h-4" /> Adicionar câmera</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingId ? "Editar câmera" : "Nova câmera"}</DialogTitle>
+                <DialogTitle>{editingId ? "Editar dispositivo" : "Novo dispositivo"}</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label>Nome</Label>
-                  <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Sala 1" />
-                </div>
-                <div>
-                  <Label>Localização</Label>
-                  <Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Sala de terapia A" />
-                </div>
-                <div>
-                  <Label>URL do Stream</Label>
-                  <Input value={form.stream_url} onChange={(e) => setForm({ ...form, stream_url: e.target.value })} placeholder="https://..." />
-                </div>
-                <div>
-                  <Label>Tipo</Label>
-                  <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hls">HLS (m3u8)</SelectItem>
-                      <SelectItem value="mjpeg">MJPEG</SelectItem>
-                      <SelectItem value="rtsp">RTSP</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {isAdmin && !editingId && (
+              <Tabs defaultValue="conexao" className="mt-2">
+                <TabsList className="grid grid-cols-2 w-full">
+                  <TabsTrigger value="conexao">Conexão</TabsTrigger>
+                  <TabsTrigger value="stream">Stream / Avançado</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="conexao" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Nome do dispositivo *</Label>
+                      <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Sala 1" />
+                    </div>
+                    <div>
+                      <Label>Localização</Label>
+                      <Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Sala de terapia A" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Fabricante</Label>
+                      <Select value={form.fabricante} onValueChange={(v) => setForm({ ...form, fabricante: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="intelbras">Intelbras</SelectItem>
+                          <SelectItem value="hikvision">Hikvision</SelectItem>
+                          <SelectItem value="dahua">Dahua</SelectItem>
+                          <SelectItem value="generico">Genérico / ONVIF</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Modo de conexão</Label>
+                      <Select value={form.modo_conexao} onValueChange={(v) => setForm({ ...form, modo_conexao: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ip">IP</SelectItem>
+                          <SelectItem value="registro_auto">Registro Automático</SelectItem>
+                          <SelectItem value="ddns">Domínio DDNS</SelectItem>
+                          <SelectItem value="ip_alternativo">IP Alternativo</SelectItem>
+                          <SelectItem value="cloud">Intelbras Cloud</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {form.modo_conexao === "ip" && (
+                    <div>
+                      <Label>IP Principal</Label>
+                      <Input value={form.ip_principal} onChange={(e) => setForm({ ...form, ip_principal: e.target.value })} placeholder="192.168.1.108" />
+                    </div>
+                  )}
+
+                  {form.modo_conexao === "registro_auto" && (
+                    <div>
+                      <Label>ID Registro Automático</Label>
+                      <Input value={form.registro_auto_id} onChange={(e) => setForm({ ...form, registro_auto_id: e.target.value })} />
+                    </div>
+                  )}
+
+                  {form.modo_conexao === "ddns" && (
+                    <div>
+                      <Label>Domínio DDNS</Label>
+                      <Input value={form.dominio_ddns} onChange={(e) => setForm({ ...form, dominio_ddns: e.target.value })} placeholder="meudvr.ddns.net" />
+                    </div>
+                  )}
+
+                  {form.modo_conexao === "ip_alternativo" && (
+                    <div>
+                      <Label>IP Alternativo</Label>
+                      <Input value={form.ip_alternativo} onChange={(e) => setForm({ ...form, ip_alternativo: e.target.value })} />
+                    </div>
+                  )}
+
+                  {form.modo_conexao === "cloud" && (
+                    <div>
+                      <Label>ID (Cloud)</Label>
+                      <Input value={form.cloud_id} onChange={(e) => setForm({ ...form, cloud_id: e.target.value })} placeholder="Número de série do dispositivo" />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label>Porta de Serviço *</Label>
+                      <Input type="number" value={form.porta_servico} onChange={(e) => setForm({ ...form, porta_servico: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Porta Web</Label>
+                      <Input type="number" value={form.porta_web} onChange={(e) => setForm({ ...form, porta_web: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Canal</Label>
+                      <Input type="number" value={form.canal} onChange={(e) => setForm({ ...form, canal: e.target.value })} placeholder="1" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Usuário *</Label>
+                      <Input value={form.usuario} onChange={(e) => setForm({ ...form, usuario: e.target.value })} placeholder="admin" />
+                    </div>
+                    <div>
+                      <Label>Senha *</Label>
+                      <Input type="password" value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
+                    </div>
+                  </div>
+
+                  {isAdmin && !editingId && (
+                    <div>
+                      <Label>Clínica</Label>
+                      <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })}>
+                        <SelectTrigger><SelectValue placeholder="Selecione a clínica" /></SelectTrigger>
+                        <SelectContent>
+                          {clinicas.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="stream" className="space-y-4 mt-4">
                   <div>
-                    <Label>Clínica</Label>
-                    <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })}>
-                      <SelectTrigger><SelectValue placeholder="Selecione a clínica" /></SelectTrigger>
+                    <Label>Tipo de stream</Label>
+                    <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as "hls" | "mjpeg" | "rtsp" })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {clinicas.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                        ))}
+                        <SelectItem value="hls">HLS (m3u8)</SelectItem>
+                        <SelectItem value="mjpeg">MJPEG</SelectItem>
+                        <SelectItem value="rtsp">RTSP</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
-                <Button className="w-full" onClick={handleSubmit} disabled={create.isPending || update.isPending}>
+                  <div>
+                    <Label>URL do Stream (opcional)</Label>
+                    <Input
+                      value={form.stream_url}
+                      onChange={(e) => setForm({ ...form, stream_url: e.target.value })}
+                      placeholder="rtsp://usuario:senha@ip:porta/cam/realmonitor?channel=1&subtype=0"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Se preenchida, será usada diretamente. Caso contrário, pode ser montada a partir das informações da aba Conexão.
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              <div className="flex justify-end gap-2 pt-4 border-t mt-4">
+                <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancelar</Button>
+                <Button onClick={handleSubmit} disabled={create.isPending || update.isPending}>
                   {editingId ? "Salvar" : "Adicionar"}
                 </Button>
               </div>
