@@ -52,37 +52,73 @@ export type Database = {
       }
       cameras: {
         Row: {
+          canal: number | null
           clinica_id: string
+          cloud_id: string | null
           created_at: string
+          dominio_ddns: string | null
+          fabricante: string | null
           id: string
+          ip_alternativo: string | null
+          ip_principal: string | null
           localizacao: string | null
+          modo_conexao: string | null
           nome: string
+          porta_servico: number | null
+          porta_web: number | null
+          registro_auto_id: string | null
+          senha: string | null
           status: string
-          stream_url: string
+          stream_url: string | null
           tipo: string
           updated_at: string
+          usuario: string | null
         }
         Insert: {
+          canal?: number | null
           clinica_id: string
+          cloud_id?: string | null
           created_at?: string
+          dominio_ddns?: string | null
+          fabricante?: string | null
           id?: string
+          ip_alternativo?: string | null
+          ip_principal?: string | null
           localizacao?: string | null
+          modo_conexao?: string | null
           nome: string
+          porta_servico?: number | null
+          porta_web?: number | null
+          registro_auto_id?: string | null
+          senha?: string | null
           status?: string
-          stream_url: string
+          stream_url?: string | null
           tipo?: string
           updated_at?: string
+          usuario?: string | null
         }
         Update: {
+          canal?: number | null
           clinica_id?: string
+          cloud_id?: string | null
           created_at?: string
+          dominio_ddns?: string | null
+          fabricante?: string | null
           id?: string
+          ip_alternativo?: string | null
+          ip_principal?: string | null
           localizacao?: string | null
+          modo_conexao?: string | null
           nome?: string
+          porta_servico?: number | null
+          porta_web?: number | null
+          registro_auto_id?: string | null
+          senha?: string | null
           status?: string
-          stream_url?: string
+          stream_url?: string | null
           tipo?: string
           updated_at?: string
+          usuario?: string | null
         }
         Relationships: [
           {
