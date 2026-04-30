@@ -174,7 +174,7 @@ const Cameras = () => {
         {canManage && (
           <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild>
-              <Button className="gap-2"><Plus className="w-4 h-4" /> Adicionar câmera</Button>
+              <Button className="gap-2"><Plus className="w-4 h-4" /> Novo</Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
