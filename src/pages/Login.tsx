@@ -49,7 +49,7 @@ const Login = () => {
             <Heart className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Kareon</h1>
-          <p className="text-muted-foreground">Gestão completa de atendimentos terapêuticos</p>
+          <p className="text-muted-foreground">Gestão completa para a sua clínica</p>
         </div>
 
         <Card>
