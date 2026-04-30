@@ -24,7 +24,25 @@ const Cameras = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", localizacao: "", stream_url: "", tipo: "hls", clinica_id: "" });
+  const [form, setForm] = useState({
+    nome: "",
+    localizacao: "",
+    stream_url: "",
+    tipo: "hls" as "hls" | "mjpeg" | "rtsp",
+    clinica_id: "",
+    fabricante: "intelbras",
+    modo_conexao: "ip",
+    cloud_id: "",
+    ip_principal: "",
+    ip_alternativo: "",
+    dominio_ddns: "",
+    registro_auto_id: "",
+    porta_servico: "37777",
+    porta_web: "80",
+    usuario: "admin",
+    senha: "",
+    canal: "1",
+  });
 
   // Fetch clinicas for admin
   const { data: clinicas = [] } = useQuery({
@@ -40,7 +58,25 @@ const Cameras = () => {
   const activeCameras = cameras.filter((c) => c.status === "ativa");
 
   const resetForm = () => {
-    setForm({ nome: "", localizacao: "", stream_url: "", tipo: "hls", clinica_id: "" });
+    setForm({
+      nome: "",
+      localizacao: "",
+      stream_url: "",
+      tipo: "hls",
+      clinica_id: "",
+      fabricante: "intelbras",
+      modo_conexao: "ip",
+      cloud_id: "",
+      ip_principal: "",
+      ip_alternativo: "",
+      dominio_ddns: "",
+      registro_auto_id: "",
+      porta_servico: "37777",
+      porta_web: "80",
+      usuario: "admin",
+      senha: "",
+      canal: "1",
+    });
     setEditingId(null);
   };
 
@@ -48,9 +84,21 @@ const Cameras = () => {
     setForm({
       nome: cam.nome,
       localizacao: cam.localizacao || "",
-      stream_url: cam.stream_url,
+      stream_url: cam.stream_url || "",
       tipo: cam.tipo,
       clinica_id: cam.clinica_id,
+      fabricante: cam.fabricante || "intelbras",
+      modo_conexao: cam.modo_conexao || "ip",
+      cloud_id: cam.cloud_id || "",
+      ip_principal: cam.ip_principal || "",
+      ip_alternativo: cam.ip_alternativo || "",
+      dominio_ddns: cam.dominio_ddns || "",
+      registro_auto_id: cam.registro_auto_id || "",
+      porta_servico: cam.porta_servico?.toString() || "37777",
+      porta_web: cam.porta_web?.toString() || "80",
+      usuario: cam.usuario || "admin",
+      senha: cam.senha || "",
+      canal: cam.canal?.toString() || "1",
     });
     setEditingId(cam.id);
     setDialogOpen(true);
@@ -58,32 +106,38 @@ const Cameras = () => {
 
   const handleSubmit = async () => {
     const clinicaId = isAdmin ? form.clinica_id : profile?.clinica_id;
-    if (!form.nome || !form.stream_url) {
-      toast({ title: "Preencha nome e URL do stream", variant: "destructive" });
+    if (!form.nome) {
+      toast({ title: "Informe o nome do dispositivo", variant: "destructive" });
       return;
     }
     if (!clinicaId) {
       toast({ title: "Selecione uma clínica", variant: "destructive" });
       return;
     }
+    const payload = {
+      nome: form.nome,
+      localizacao: form.localizacao || null,
+      stream_url: form.stream_url || null,
+      tipo: form.tipo,
+      fabricante: form.fabricante || null,
+      modo_conexao: form.modo_conexao || null,
+      cloud_id: form.cloud_id || null,
+      ip_principal: form.ip_principal || null,
+      ip_alternativo: form.ip_alternativo || null,
+      dominio_ddns: form.dominio_ddns || null,
+      registro_auto_id: form.registro_auto_id || null,
+      porta_servico: form.porta_servico ? parseInt(form.porta_servico, 10) : null,
+      porta_web: form.porta_web ? parseInt(form.porta_web, 10) : null,
+      usuario: form.usuario || null,
+      senha: form.senha || null,
+      canal: form.canal ? parseInt(form.canal, 10) : null,
+    };
     try {
       if (editingId) {
-        await update.mutateAsync({
-          id: editingId,
-          nome: form.nome,
-          localizacao: form.localizacao,
-          stream_url: form.stream_url,
-          tipo: form.tipo,
-        });
+        await update.mutateAsync({ id: editingId, ...payload });
         toast({ title: "Câmera atualizada" });
       } else {
-        await create.mutateAsync({
-          nome: form.nome,
-          localizacao: form.localizacao,
-          stream_url: form.stream_url,
-          tipo: form.tipo,
-          clinica_id: clinicaId,
-        });
+        await create.mutateAsync({ ...payload, clinica_id: clinicaId });
         toast({ title: "Câmera adicionada" });
       }
       setDialogOpen(false);
@@ -103,7 +157,7 @@ const Cameras = () => {
   };
 
   const handleToggleStatus = async (cam: typeof cameras[0]) => {
-    await update.mutateAsync({ id: cam.id, status: cam.status === "ativa" ? "inativa" : "ativa" });
+    await update.mutateAsync({ id: cam.id, status: (cam.status === "ativa" ? "inativa" : "ativa") as "ativa" | "inativa" });
   };
 
   if (isLoading) {
