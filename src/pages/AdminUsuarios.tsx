@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Users, Settings2 } from "lucide-react";
+import { Users, Settings2, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import type { AppRole } from "@/contexts/AuthContext";
 
@@ -29,6 +30,7 @@ const roleBadgeVariant = (role: string) => {
 
 const AdminUsuarios = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [editUser, setEditUser] = useState<any>(null);
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedClinica, setSelectedClinica] = useState<string>("");
@@ -186,7 +188,7 @@ const AdminUsuarios = () => {
                 {profiles.map((p) => {
                   const roles = getUserRoles(p.user_id);
                   return (
-                    <TableRow key={p.id}>
+                    <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/admin/usuarios/${p.id}`)}>
                       <TableCell className="font-medium">{p.nome}</TableCell>
                       <TableCell className="text-muted-foreground">{p.email}</TableCell>
                       <TableCell className="text-muted-foreground">{getClinicaNome(p.clinica_id)}</TableCell>
@@ -204,10 +206,15 @@ const AdminUsuarios = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{format(new Date(p.created_at), "dd/MM/yyyy")}</TableCell>
-                      <TableCell>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                          <Settings2 className="w-4 h-4" />
-                        </Button>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/usuarios/${p.id}`)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
+                            <Settings2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

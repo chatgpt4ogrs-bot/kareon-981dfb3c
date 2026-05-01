@@ -132,21 +132,36 @@ export type Database = {
       }
       clinicas: {
         Row: {
+          cnpj: string | null
           created_at: string
+          email: string | null
+          endereco: string | null
           id: string
           nome: string
+          status: string
+          telefone: string | null
           updated_at: string
         }
         Insert: {
+          cnpj?: string | null
           created_at?: string
+          email?: string | null
+          endereco?: string | null
           id?: string
           nome: string
+          status?: string
+          telefone?: string | null
           updated_at?: string
         }
         Update: {
+          cnpj?: string | null
           created_at?: string
+          email?: string | null
+          endereco?: string | null
           id?: string
           nome?: string
+          status?: string
+          telefone?: string | null
           updated_at?: string
         }
         Relationships: []
