@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Building2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Building2, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 
 const AdminClinicas = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
@@ -121,11 +123,14 @@ const AdminClinicas = () => {
               </TableHeader>
               <TableBody>
                 {clinicas.map((c) => (
-                  <TableRow key={c.id}>
+                  <TableRow key={c.id} className="cursor-pointer" onClick={() => navigate(`/admin/clinicas/${c.id}`)}>
                     <TableCell className="font-medium">{c.nome}</TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yyyy")}</TableCell>
-                    <TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/clinicas/${c.id}`)}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
                           <Pencil className="w-4 h-4" />
                         </Button>
