@@ -27,6 +27,7 @@ const Cameras = lazy(() => import("@/pages/Cameras"));
 const Perfil = lazy(() => import("@/pages/Perfil"));
 const AdminClinicas = lazy(() => import("@/pages/AdminClinicas"));
 const AdminUsuarios = lazy(() => import("@/pages/AdminUsuarios"));
+const PainelAdministrativo = lazy(() => import("@/pages/PainelAdministrativo"));
 const UsuariosClinica = lazy(() => import("@/pages/UsuariosClinica"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 import { Loader2 } from "lucide-react";
@@ -105,6 +106,7 @@ const App = () => (
               <Route path="cameras" element={<RoleRoute><Cameras /></RoleRoute>} />
               <Route path="perfil" element={<Perfil />} />
               <Route path="alterar-senha" element={<AlterarSenha />} />
+              <Route path="admin" element={<AdminRoute><PainelAdministrativo /></AdminRoute>} />
               <Route path="admin/clinicas" element={<AdminRoute><AdminClinicas /></AdminRoute>} />
               <Route path="admin/usuarios" element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
               <Route path="clinica/usuarios" element={<RoleRoute><UsuariosClinica /></RoleRoute>} />
