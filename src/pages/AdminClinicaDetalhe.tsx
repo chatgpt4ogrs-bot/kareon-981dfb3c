@@ -154,7 +154,7 @@ const AdminClinicaDetalhe = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Pacientes</CardTitle></CardHeader>
-          <CardContent><p className="text-3xl font-bold">{pacientes?.total || 0}</p></CardContent>
+          <CardContent><p className="text-3xl font-bold">{(pacientes as any)?.total || 0}</p></CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Status</CardTitle></CardHeader>
