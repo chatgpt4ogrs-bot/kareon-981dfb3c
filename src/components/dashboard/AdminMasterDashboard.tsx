@@ -154,12 +154,12 @@ const AdminMasterDashboard = () => {
             <CardTitle className="text-lg">Acesso rápido</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Link to="/admin/clinicas">
+            <Link to="/admin?tab=clinicas">
               <Button variant="outline" className="w-full justify-start gap-2">
                 <Building2 className="w-4 h-4" /> Gerenciar clínicas
               </Button>
             </Link>
-            <Link to="/admin/usuarios">
+            <Link to="/admin?tab=usuarios">
               <Button variant="outline" className="w-full justify-start gap-2">
                 <Shield className="w-4 h-4" /> Gerenciar usuários
               </Button>
