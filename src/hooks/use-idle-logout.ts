@@ -30,21 +30,15 @@ export function useIdleLogout(timeoutMs: number = 30 * 60 * 1000) {
       timerRef.current = window.setTimeout(handleLogout, timeoutMs);
     };
 
-    const events: (keyof WindowEventMap)[] = [
-      "mousemove",
-      "mousedown",
-      "keydown",
-      "touchstart",
-      "scroll",
-      "visibilitychange",
-    ];
-
+    const events = ["mousemove", "mousedown", "keydown", "touchstart", "scroll"] as const;
     events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    document.addEventListener("visibilitychange", reset);
     reset();
 
     return () => {
       if (timerRef.current) window.clearTimeout(timerRef.current);
       events.forEach((e) => window.removeEventListener(e, reset));
+      document.removeEventListener("visibilitychange", reset);
     };
   }, [user, signOut, navigate, timeoutMs]);
 }
