@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getNavItems } from "@/lib/permissions";
+import { useIdleLogout } from "@/hooks/use-idle-logout";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +37,9 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const { profile, signOut, isAdmin, hasRole, roles } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Auto-logout após 30 min de inatividade
+  useIdleLogout(30 * 60 * 1000);
 
   const handleLogout = async () => {
     await signOut();
