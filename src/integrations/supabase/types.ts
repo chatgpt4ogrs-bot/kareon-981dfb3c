@@ -555,18 +555,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      can_manage_clinica: { Args: never; Returns: boolean }
-      get_user_clinica_id: { Args: never; Returns: string }
-      get_user_profile_id: { Args: never; Returns: string }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_admin_master: { Args: never; Returns: boolean }
-      is_clinica_staff: { Args: never; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
       app_role:
