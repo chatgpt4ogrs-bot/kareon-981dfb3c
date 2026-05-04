@@ -1,69 +1,137 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
+import { useAuth, type AppRole } from "@/contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { Users, Settings2, Eye } from "lucide-react";
+import { Shield, Search, AlertTriangle, Plus, Minus, Save, RotateCcw, Loader2, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { format } from "date-fns";
-import type { AppRole } from "@/contexts/AuthContext";
 
-const roleLabels: Record<string, string> = {
+const ALL_ROLES: AppRole[] = ["admin", "clinica_admin", "responsavel_clinica", "terapeuta", "familiar"];
+const roleLabels: Record<AppRole, string> = {
   admin: "Admin Master",
   clinica_admin: "Admin Clínica",
   responsavel_clinica: "Responsável",
   terapeuta: "Terapeuta",
   familiar: "Familiar",
 };
-
-const roleBadgeVariant = (role: string) => {
-  if (role === "admin") return "destructive" as const;
-  if (role === "clinica_admin") return "default" as const;
-  return "secondary" as const;
+const roleDescriptions: Record<AppRole, string> = {
+  admin: "Acesso total ao sistema, todas as clínicas.",
+  clinica_admin: "Gerencia configurações, usuários e dados da clínica.",
+  responsavel_clinica: "Gestão operacional da clínica (pacientes, agenda, câmeras).",
+  terapeuta: "Atende pacientes designados, registra sessões e objetivos.",
+  familiar: "Visualiza informações e câmeras dos pacientes vinculados.",
 };
+const rolePermissions: Record<AppRole, string[]> = {
+  admin: ["Painel administrativo", "Todas as clínicas", "Gerenciar permissões"],
+  clinica_admin: ["Pacientes", "Agenda", "Câmeras", "Usuários da clínica"],
+  responsavel_clinica: ["Pacientes", "Agenda", "Câmeras"],
+  terapeuta: ["Pacientes designados", "Agenda", "Sessões e objetivos"],
+  familiar: ["Câmeras vinculadas", "Visualização do paciente"],
+};
+const roleVariant = (r: string) => r === "admin" ? "destructive" as const : r === "clinica_admin" ? "default" as const : "secondary" as const;
+
+type StagedChange = { userId: string; role: AppRole; action: "add" | "remove" };
 
 const AdminUsuarios = () => {
-  const queryClient = useQueryClient();
+  const { isAdmin, profile } = useAuth();
+  const qc = useQueryClient();
   const navigate = useNavigate();
-  const [editUser, setEditUser] = useState<any>(null);
-  const [selectedRole, setSelectedRole] = useState<string>("");
-  const [selectedClinica, setSelectedClinica] = useState<string>("");
-
-  const { data: profiles = [], isLoading } = useQuery({
-    queryKey: ["admin-profiles"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").order("nome");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const { data: allRoles = [] } = useQuery({
-    queryKey: ["admin-all-roles"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("*");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const [search, setSearch] = useState("");
+  const [clinicaFilter, setClinicaFilter] = useState<string>(isAdmin ? "all" : (profile?.clinica_id || "all"));
+  const [staged, setStaged] = useState<StagedChange[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: clinicas = [] } = useQuery({
-    queryKey: ["admin-clinicas"],
+    queryKey: ["admin-usuarios-clinicas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinicas").select("*").order("nome");
+      const { data, error } = await supabase.from("clinicas").select("id, nome").order("nome");
       if (error) throw error;
       return data;
     },
   });
 
-  const getUserRoles = (userId: string) => allRoles.filter((r) => r.user_id === userId);
-  const getClinicaNome = (clinicaId: string | null) => clinicas.find((c) => c.id === clinicaId)?.nome || "—";
+  const { data: profiles = [], isLoading } = useQuery({
+    queryKey: ["admin-usuarios-profiles", isAdmin, profile?.clinica_id],
+    queryFn: async () => {
+      let q = supabase.from("profiles").select("id, user_id, nome, email, clinica_id, status").order("nome");
+      if (!isAdmin && profile?.clinica_id) q = q.eq("clinica_id", profile.clinica_id);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const userIds = profiles.map((p) => p.user_id);
+  const { data: roles = [] } = useQuery({
+    queryKey: ["admin-usuarios-roles", userIds],
+    queryFn: async () => {
+      if (userIds.length === 0) return [];
+      const { data, error } = await supabase.from("user_roles").select("id, user_id, role").in("user_id", userIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: userIds.length > 0,
+  });
+
+  const filtered = useMemo(() => {
+    return profiles.filter((p) => {
+      if (isAdmin && clinicaFilter !== "all" && p.clinica_id !== clinicaFilter) return false;
+      if (search && !`${p.nome} ${p.email}`.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [profiles, search, clinicaFilter, isAdmin]);
+
+  const getClinicaNome = (id: string | null) => clinicas.find((c) => c.id === id)?.nome || "—";
+  const currentRolesOf = (userId: string) => roles.filter((r) => r.user_id === userId).map((r) => r.role as AppRole);
+
+  const isRoleAssignable = (role: AppRole) => {
+    if (isAdmin) return true;
+    return role !== "admin";
+  };
+
+  const toggleRole = (userId: string, role: AppRole, currentlyHas: boolean) => {
+    if (!isRoleAssignable(role)) {
+      toast({ title: "Permissão não autorizada", description: "Apenas Admin Master pode atribuir esta role.", variant: "destructive" });
+      return;
+    }
+    setStaged((prev) => {
+      const without = prev.filter((s) => !(s.userId === userId && s.role === role));
+      const wasStaged = prev.find((s) => s.userId === userId && s.role === role);
+      if (wasStaged) return without;
+      const desiredAction: "add" | "remove" = currentlyHas ? "remove" : "add";
+      return [...without, { userId, role, action: desiredAction }];
+    });
+  };
+
+  const effectiveRolesOf = (userId: string): AppRole[] => {
+    const base = new Set(currentRolesOf(userId));
+    staged.filter((s) => s.userId === userId).forEach((s) => {
+      if (s.action === "add") base.add(s.role);
+      else base.delete(s.role);
+    });
+    return Array.from(base);
+  };
+
+  const stagedChangesByUser = useMemo(() => {
+    const map = new Map<string, StagedChange[]>();
+    staged.forEach((s) => {
+      const arr = map.get(s.userId) || [];
+      arr.push(s);
+      map.set(s.userId, arr);
+    });
+    return map;
+  }, [staged]);
 
   const updateClinicaMutation = useMutation({
     mutationFn: async ({ profileId, clinicaId }: { profileId: string; clinicaId: string | null }) => {
@@ -71,150 +139,181 @@ const AdminUsuarios = () => {
       if (error) throw error;
     },
     onMutate: async ({ profileId, clinicaId }) => {
-      await queryClient.cancelQueries({ queryKey: ["admin-profiles"] });
-      const prev = queryClient.getQueryData(["admin-profiles"]);
-      queryClient.setQueryData(["admin-profiles"], (old: any[]) =>
+      await qc.cancelQueries({ queryKey: ["admin-usuarios-profiles"] });
+      const prev = qc.getQueryData(["admin-usuarios-profiles", isAdmin, profile?.clinica_id]);
+      qc.setQueryData(["admin-usuarios-profiles", isAdmin, profile?.clinica_id], (old: any[]) =>
         old?.map((p) => p.id === profileId ? { ...p, clinica_id: clinicaId } : p)
       );
-      if (editUser?.id === profileId) setEditUser((u: any) => ({ ...u, clinica_id: clinicaId }));
-      toast({ title: "Clínica atualizada" });
       return { prev };
     },
-    onError: (err: any, _, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["admin-profiles"], ctx.prev);
+    onError: (err: any, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["admin-usuarios-profiles", isAdmin, profile?.clinica_id], ctx.prev);
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin-profiles"] }),
+    onSuccess: () => toast({ title: "Clínica atualizada" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["admin-usuarios-profiles"] }),
   });
 
-  const addRoleMutation = useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      const { data, error } = await supabase.from("user_roles").insert({ user_id: userId, role: role as any }).select().single();
-      if (error) throw error;
-      return data;
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const adds = staged.filter((s) => s.action === "add");
+      const removes = staged.filter((s) => s.action === "remove");
+      if (adds.length > 0) {
+        const { error } = await supabase.from("user_roles").insert(
+          adds.map((a) => ({ user_id: a.userId, role: a.role as any }))
+        );
+        if (error) throw error;
+      }
+      for (const r of removes) {
+        const row = roles.find((x) => x.user_id === r.userId && x.role === r.role);
+        if (row) {
+          const { error } = await supabase.from("user_roles").delete().eq("id", row.id);
+          if (error) throw error;
+        }
+      }
     },
-    onMutate: async ({ userId, role }) => {
-      await queryClient.cancelQueries({ queryKey: ["admin-all-roles"] });
-      const prev = queryClient.getQueryData(["admin-all-roles"]);
-      const tempId = `temp-${Date.now()}`;
-      queryClient.setQueryData(["admin-all-roles"], (old: any[]) => [
-        ...(old || []),
-        { id: tempId, user_id: userId, role },
-      ]);
-      toast({ title: "Permissão adicionada" });
-      return { prev };
+    onSuccess: () => {
+      toast({ title: "Permissões atualizadas", description: `${staged.length} alteração(ões) aplicada(s).` });
+      setStaged([]);
+      setConfirmOpen(false);
+      qc.invalidateQueries({ queryKey: ["admin-usuarios-roles"] });
     },
-    onError: (err: any, _, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["admin-all-roles"], ctx.prev);
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin-all-roles"] }),
+    onError: (e: any) => toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" }),
   });
 
-  const removeRoleMutation = useMutation({
-    mutationFn: async (roleId: string) => {
-      const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
-      if (error) throw error;
-    },
-    onMutate: async (roleId) => {
-      await queryClient.cancelQueries({ queryKey: ["admin-all-roles"] });
-      const prev = queryClient.getQueryData(["admin-all-roles"]);
-      queryClient.setQueryData(["admin-all-roles"], (old: any[]) =>
-        old?.filter((r) => r.id !== roleId)
-      );
-      toast({ title: "Permissão removida" });
-      return { prev };
-    },
-    onError: (err: any, _, ctx) => {
-      if (ctx?.prev) queryClient.setQueryData(["admin-all-roles"], ctx.prev);
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["admin-all-roles"] }),
-  });
-
-  const openEdit = (profile: any) => {
-    setEditUser(profile);
-    setSelectedClinica(profile.clinica_id || "none");
-    setSelectedRole("");
-  };
-
-  const handleSaveClinica = () => {
-    updateClinicaMutation.mutate({
-      profileId: editUser.id,
-      clinicaId: selectedClinica === "none" ? null : selectedClinica,
-    });
-  };
-
-  const handleAddRole = () => {
-    if (!selectedRole || !editUser) return;
-    addRoleMutation.mutate({ userId: editUser.user_id, role: selectedRole });
-    setSelectedRole("");
-  };
-
-  const userRoles = editUser ? getUserRoles(editUser.user_id) : [];
-  const availableRoles = Object.keys(roleLabels).filter(
-    (r) => !userRoles.some((ur) => ur.role === r)
-  );
+  const hasChanges = staged.length > 0;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Usuários</h1>
-        <p className="text-muted-foreground">Gerencie todos os usuários e suas permissões</p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Shield className="w-6 h-6" /> Usuários e permissões
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Gerencie clínicas vinculadas e atribua roles. Alterações de permissão são revisadas antes de salvar.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {hasChanges && (
+            <Button variant="outline" onClick={() => setStaged([])} className="gap-2">
+              <RotateCcw className="w-4 h-4" /> Descartar
+            </Button>
+          )}
+          <Button onClick={() => setConfirmOpen(true)} disabled={!hasChanges} className="gap-2">
+            <Save className="w-4 h-4" /> Revisar e salvar ({staged.length})
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <p className="p-6 text-muted-foreground">Carregando...</p>
-          ) : profiles.length === 0 ? (
-            <div className="p-12 text-center">
-              <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-muted-foreground">Nenhum usuário cadastrado</p>
+      {hasChanges && (
+        <Card className="border-amber-300 bg-amber-50/40">
+          <CardContent className="p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-foreground">
+              Você tem <strong>{staged.length} alteração(ões) pendente(s)</strong> de permissão. Revise antes de salvar — mudanças afetam imediatamente o que cada usuário vê e pode fazer.
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="p-4 grid gap-3 md:grid-cols-[1fr_220px]">
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-9" placeholder="Buscar por nome ou email" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
+          {isAdmin && (
+            <Select value={clinicaFilter} onValueChange={setClinicaFilter}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas as clínicas</SelectItem>
+                {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="p-0 overflow-x-auto">
+          {isLoading ? (
+            <div className="flex justify-center p-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+          ) : filtered.length === 0 ? (
+            <p className="p-12 text-center text-muted-foreground">Nenhum usuário encontrado.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Clínica</TableHead>
-                  <TableHead>Permissões</TableHead>
-                  <TableHead>Cadastro</TableHead>
-                  <TableHead className="w-20">Ações</TableHead>
+                  <TableHead>Usuário</TableHead>
+                  {isAdmin && <TableHead className="min-w-[180px]">Clínica</TableHead>}
+                  {ALL_ROLES.map((r) => (
+                    <TableHead key={r} className="text-center min-w-[100px]">
+                      <span className="text-xs font-medium">{roleLabels[r]}</span>
+                    </TableHead>
+                  ))}
+                  <TableHead className="w-16 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {profiles.map((p) => {
-                  const roles = getUserRoles(p.user_id);
+                {filtered.map((p) => {
+                  const userChanges = stagedChangesByUser.get(p.user_id) || [];
                   return (
-                    <TableRow key={p.id} className="cursor-pointer" onClick={() => navigate(`/admin/usuarios/${p.id}`)}>
-                      <TableCell className="font-medium">{p.nome}</TableCell>
-                      <TableCell className="text-muted-foreground">{p.email}</TableCell>
-                      <TableCell className="text-muted-foreground">{getClinicaNome(p.clinica_id)}</TableCell>
+                    <TableRow key={p.id} className={userChanges.length > 0 ? "bg-amber-50/30" : ""}>
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {roles.length === 0 ? (
-                            <span className="text-xs text-muted-foreground">Sem permissão</span>
-                          ) : (
-                            roles.map((r) => (
-                              <Badge key={r.id} variant={roleBadgeVariant(r.role)}>
-                                {roleLabels[r.role] || r.role}
-                              </Badge>
-                            ))
+                        <div>
+                          <p className="font-medium text-foreground">{p.nome}</p>
+                          <p className="text-xs text-muted-foreground">{p.email}</p>
+                          {userChanges.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {userChanges.map((c, i) => (
+                                <Badge key={i} variant="outline" className="text-[10px] gap-1">
+                                  {c.action === "add" ? <Plus className="w-2.5 h-2.5 text-green-600" /> : <Minus className="w-2.5 h-2.5 text-red-600" />}
+                                  {roleLabels[c.role]}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{format(new Date(p.created_at), "dd/MM/yyyy")}</TableCell>
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/usuarios/${p.id}`)}>
+                      {isAdmin && (
+                        <TableCell>
+                          <Select
+                            value={p.clinica_id || "none"}
+                            onValueChange={(v) => updateClinicaMutation.mutate({ profileId: p.id, clinicaId: v === "none" ? null : v })}
+                          >
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Nenhuma</SelectItem>
+                              {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      )}
+                      {ALL_ROLES.map((r) => {
+                        const has = currentRolesOf(p.user_id).includes(r);
+                        const willHave = effectiveRolesOf(p.user_id).includes(r);
+                        const changed = has !== willHave;
+                        const disabled = !isRoleAssignable(r);
+                        return (
+                          <TableCell key={r} className="text-center">
+                            <div className="flex items-center justify-center">
+                              <Checkbox
+                                checked={willHave}
+                                disabled={disabled}
+                                onCheckedChange={() => toggleRole(p.user_id, r, has)}
+                                className={changed ? "ring-2 ring-amber-400" : ""}
+                              />
+                            </div>
+                          </TableCell>
+                        );
+                      })}
+                      <TableCell className="text-right">
+                        {isAdmin && (
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/usuarios/${p.id}`)} title="Ver detalhes">
                             <Eye className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(p)}>
-                            <Settings2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -225,72 +324,78 @@ const AdminUsuarios = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Gerenciar usuário</DialogTitle>
-          </DialogHeader>
-          {editUser && (
-            <div className="space-y-6">
-              <div>
-                <p className="font-medium text-foreground">{editUser.nome}</p>
-                <p className="text-sm text-muted-foreground">{editUser.email}</p>
+      <Card>
+        <CardHeader><CardTitle className="text-base">Referência de roles</CardTitle></CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          {ALL_ROLES.map((r) => (
+            <div key={r} className="border border-border rounded-md p-3">
+              <div className="flex items-center gap-2 mb-1">
+                <Badge variant={roleVariant(r)}>{roleLabels[r]}</Badge>
               </div>
-
-              <div className="space-y-2">
-                <Label>Clínica vinculada</Label>
-                <div className="flex gap-2">
-                  <Select value={selectedClinica} onValueChange={setSelectedClinica}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {clinicas.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button size="sm" onClick={handleSaveClinica} disabled={updateClinicaMutation.isPending}>
-                    Salvar
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Permissões</Label>
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {userRoles.map((r) => (
-                    <Badge key={r.id} variant={roleBadgeVariant(r.role)} className="gap-1 cursor-pointer" onClick={() => {
-                      if (confirm(`Remover permissão "${roleLabels[r.role]}"?`)) removeRoleMutation.mutate(r.id);
-                    }}>
-                      {roleLabels[r.role] || r.role} ×
-                    </Badge>
-                  ))}
-                  {userRoles.length === 0 && <span className="text-sm text-muted-foreground">Sem permissões</span>}
-                </div>
-                {availableRoles.length > 0 && (
-                  <div className="flex gap-2">
-                    <Select value={selectedRole} onValueChange={setSelectedRole}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Adicionar permissão..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableRoles.map((r) => (
-                          <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button size="sm" onClick={handleAddRole} disabled={!selectedRole || addRoleMutation.isPending}>
-                      Adicionar
-                    </Button>
-                  </div>
-                )}
+              <p className="text-xs text-muted-foreground mb-2">{roleDescriptions[r]}</p>
+              <div className="flex flex-wrap gap-1">
+                {rolePermissions[r].map((perm) => (
+                  <span key={perm} className="text-[10px] bg-muted px-2 py-0.5 rounded">{perm}</span>
+                ))}
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          ))}
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar alterações de permissões</AlertDialogTitle>
+            <AlertDialogDescription>
+              As mudanças abaixo serão aplicadas imediatamente. Os usuários afetados podem ganhar ou perder acesso a áreas do sistema.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="max-h-[50vh] overflow-y-auto space-y-3">
+            {Array.from(stagedChangesByUser.entries()).map(([uid, changes]) => {
+              const user = profiles.find((p) => p.user_id === uid);
+              const before = currentRolesOf(uid);
+              const after = effectiveRolesOf(uid);
+              const gained = after.filter((r) => !before.includes(r));
+              const lost = before.filter((r) => !after.includes(r));
+              return (
+                <div key={uid} className="border border-border rounded-md p-3">
+                  <p className="font-medium text-sm text-foreground">{user?.nome}</p>
+                  <p className="text-xs text-muted-foreground mb-2">{user?.email}</p>
+                  {gained.length > 0 && (
+                    <div className="text-xs mb-1">
+                      <span className="text-green-700 font-medium">+ Ganha:</span>{" "}
+                      {gained.map((r) => roleLabels[r]).join(", ")}
+                      <div className="text-[11px] text-muted-foreground mt-0.5 ml-3">
+                        Acesso a: {gained.flatMap((r) => rolePermissions[r]).join(", ")}
+                      </div>
+                    </div>
+                  )}
+                  {lost.length > 0 && (
+                    <div className="text-xs">
+                      <span className="text-red-700 font-medium">− Perde:</span>{" "}
+                      {lost.map((r) => roleLabels[r]).join(", ")}
+                    </div>
+                  )}
+                  {after.length === 0 && (
+                    <div className="text-xs text-amber-700 mt-1">
+                      ⚠ Usuário ficará sem nenhuma role e não conseguirá acessar áreas restritas.
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); saveMutation.mutate(); }} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? "Salvando..." : "Confirmar e salvar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
