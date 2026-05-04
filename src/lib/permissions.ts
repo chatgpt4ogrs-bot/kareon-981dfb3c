@@ -11,7 +11,7 @@ export interface NavItem {
 const ROLE_ROUTES: Record<AppRole, string[]> = {
   admin: [
     "/", "/agenda", "/cameras", "/alterar-senha", "/perfil", "/admin",
-    "/admin/clinicas", "/admin/usuarios", "/permissoes",
+    "/admin/clinicas", "/admin/usuarios",
   ],
   clinica_admin: [
     "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha", "/clinica/usuarios", "/permissoes", "/perfil",
@@ -85,7 +85,7 @@ export function getNavItems(roles: AppRole[]): {
   if (isClinicaAdmin) {
     admin.push({ to: "/clinica/usuarios", icon: "Users", label: "Usuários da Clínica" });
   }
-  if (isAdmin || isClinicaAdmin) {
+  if (isClinicaAdmin) {
     admin.push({ to: "/permissoes", icon: "Shield", label: "Permissões" });
   }
 
