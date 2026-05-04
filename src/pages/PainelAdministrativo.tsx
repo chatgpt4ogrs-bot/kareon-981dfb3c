@@ -8,8 +8,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const PainelAdministrativo = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { isAdmin, hasRole } = useAuth();
-  const canManagePerms = isAdmin || hasRole("clinica_admin");
+  const { isAdmin } = useAuth();
+  const canManagePerms = isAdmin;
   const raw = searchParams.get("tab");
   const tab =
     raw === "usuarios" ? "usuarios" :
