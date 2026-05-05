@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { Shield, Search, AlertTriangle, Plus, Minus, Save, RotateCcw, Loader2, Eye } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import UsuarioDetalheDrawer from "@/components/admin/UsuarioDetalheDrawer";
 
 const ALL_ROLES: AppRole[] = ["admin", "clinica_admin", "responsavel_clinica", "terapeuta", "familiar"];
 const roleLabels: Record<AppRole, string> = {
@@ -46,13 +46,13 @@ type StagedChange = { userId: string; role: AppRole; action: "add" | "remove" };
 const AdminUsuarios = () => {
   const { isAdmin, profile } = useAuth();
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [clinicaFilter, setClinicaFilter] = useState<string>(isAdmin ? "all" : (profile?.clinica_id || "all"));
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [staged, setStaged] = useState<StagedChange[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [drawerProfileId, setDrawerProfileId] = useState<string | null>(null);
 
   const { data: clinicas = [] } = useQuery({
     queryKey: ["admin-usuarios-clinicas"],
@@ -346,7 +346,7 @@ const AdminUsuarios = () => {
                       })}
                       <TableCell className="text-right">
                         {isAdmin && (
-                          <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/usuarios/${p.id}`)} title="Ver detalhes">
+                          <Button variant="ghost" size="icon" onClick={() => setDrawerProfileId(p.id)} title="Ver detalhes">
                             <Eye className="w-4 h-4" />
                           </Button>
                         )}
@@ -432,6 +432,12 @@ const AdminUsuarios = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UsuarioDetalheDrawer
+        profileId={drawerProfileId}
+        open={!!drawerProfileId}
+        onOpenChange={(o) => { if (!o) setDrawerProfileId(null); }}
+      />
     </div>
   );
 };
