@@ -432,6 +432,12 @@ const AdminUsuarios = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UsuarioDetalheDrawer
+        profileId={drawerProfileId}
+        open={!!drawerProfileId}
+        onOpenChange={(o) => { if (!o) setDrawerProfileId(null); }}
+      />
     </div>
   );
 };
