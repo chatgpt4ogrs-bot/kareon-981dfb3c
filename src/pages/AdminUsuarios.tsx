@@ -49,6 +49,8 @@ const AdminUsuarios = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [clinicaFilter, setClinicaFilter] = useState<string>(isAdmin ? "all" : (profile?.clinica_id || "all"));
+  const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [staged, setStaged] = useState<StagedChange[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
@@ -88,9 +90,18 @@ const AdminUsuarios = () => {
     return profiles.filter((p) => {
       if (isAdmin && clinicaFilter !== "all" && p.clinica_id !== clinicaFilter) return false;
       if (search && !`${p.nome} ${p.email}`.toLowerCase().includes(search.toLowerCase())) return false;
+      if (statusFilter !== "all" && p.status !== statusFilter) return false;
+      if (roleFilter !== "all") {
+        const userRoles = roles.filter((r) => r.user_id === p.user_id).map((r) => r.role);
+        if (roleFilter === "none") {
+          if (userRoles.length > 0) return false;
+        } else if (!userRoles.includes(roleFilter as any)) {
+          return false;
+        }
+      }
       return true;
     });
-  }, [profiles, search, clinicaFilter, isAdmin]);
+  }, [profiles, search, clinicaFilter, roleFilter, statusFilter, roles, isAdmin]);
 
   const getClinicaNome = (id: string | null) => clinicas.find((c) => c.id === id)?.nome || "—";
   const currentRolesOf = (userId: string) => roles.filter((r) => r.user_id === userId).map((r) => r.role as AppRole);
@@ -218,19 +229,44 @@ const AdminUsuarios = () => {
       )}
 
       <Card>
-        <CardContent className="p-4 grid gap-3 md:grid-cols-[1fr_220px]">
+        <CardContent className="p-4 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" placeholder="Buscar por nome ou email" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           {isAdmin && (
             <Select value={clinicaFilter} onValueChange={setClinicaFilter}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Clínica" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as clínicas</SelectItem>
                 {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
               </SelectContent>
             </Select>
+          )}
+          <Select value={roleFilter} onValueChange={setRoleFilter}>
+            <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as roles</SelectItem>
+              {ALL_ROLES.map((r) => <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>)}
+              <SelectItem value="none">Sem role atribuída</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="ativo">Ativo</SelectItem>
+              <SelectItem value="pendente">Pendente</SelectItem>
+              <SelectItem value="inativo">Inativo</SelectItem>
+            </SelectContent>
+          </Select>
+          {(search || clinicaFilter !== "all" || roleFilter !== "all" || statusFilter !== "all") && (
+            <div className="lg:col-span-4 flex items-center justify-between text-xs text-muted-foreground">
+              <span>{filtered.length} de {profiles.length} usuário(s)</span>
+              <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setClinicaFilter(isAdmin ? "all" : (profile?.clinica_id || "all")); setRoleFilter("all"); setStatusFilter("all"); }}>
+                Limpar filtros
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
