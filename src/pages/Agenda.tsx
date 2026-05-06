@@ -232,18 +232,6 @@ const Agenda = () => {
                   selected={range}
                   onSelect={(r) => {
                     setRange(r);
-                    if (r?.from && r?.to) {
-                      const dias =
-                        Math.round(
-                          (r.to.getTime() - r.from.getTime()) / 86400000
-                        ) + 1;
-                      if (dias <= 1) setVisao("dia");
-                      else if (dias <= 7) setVisao("semana");
-                      else setVisao("mes");
-                      setCursor(r.from);
-                      setRange(undefined);
-                      setPickerOpen(false);
-                    }
                   }}
                   defaultMonth={range?.from ?? cursor}
                   locale={ptBR}
@@ -251,24 +239,83 @@ const Agenda = () => {
                   numberOfMonths={2}
                   className="pointer-events-auto"
                 />
-                <div className="flex items-center justify-between gap-3 border-t p-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRange(undefined);
-                    }}
-                    className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
-                  >
-                    Limpar intervalo
-                  </button>
-                  <span className="text-[11px] text-muted-foreground">
-                    {!range?.from
-                      ? "Selecione a data inicial"
-                      : !range?.to
-                      ? "Selecione a data final"
-                      : ""}
-                  </span>
-                </div>
+                {(() => {
+                  const dias =
+                    range?.from && range?.to
+                      ? Math.round(
+                          (range.to.getTime() - range.from.getTime()) / 86400000
+                        ) + 1
+                      : 0;
+                  const destino =
+                    dias <= 1 ? "Dia" : dias <= 7 ? "Semana" : "Mês";
+                  const destinoCor =
+                    dias <= 1
+                      ? "bg-blue-500/10 text-blue-600 border-blue-500/30"
+                      : dias <= 7
+                      ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                      : "bg-violet-500/10 text-violet-600 border-violet-500/30";
+                  return (
+                    <div className="space-y-2 border-t bg-muted/20 p-3">
+                      {range?.from && range?.to ? (
+                        <div className="rounded-lg border bg-background p-2.5 shadow-sm">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Intervalo selecionado
+                              </p>
+                              <p className="truncate text-sm font-semibold text-foreground">
+                                {format(range.from, "dd MMM", { locale: ptBR })} —{" "}
+                                {format(range.to, "dd MMM yyyy", { locale: ptBR })}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {dias} {dias === 1 ? "dia" : "dias"}
+                              </p>
+                            </div>
+                            <span
+                              className={cn(
+                                "shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                                destinoCor
+                              )}
+                            >
+                              Abrirá em: {destino}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="rounded-lg border border-dashed bg-background/50 p-2.5 text-center text-[11px] text-muted-foreground">
+                          {!range?.from
+                            ? "Selecione a data inicial"
+                            : "Selecione a data final"}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRange(undefined)}
+                          className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+                        >
+                          Limpar
+                        </button>
+                        <Button
+                          size="sm"
+                          disabled={!range?.from || !range?.to}
+                          onClick={() => {
+                            if (!range?.from || !range?.to) return;
+                            if (dias <= 1) setVisao("dia");
+                            else if (dias <= 7) setVisao("semana");
+                            else setVisao("mes");
+                            setCursor(range.from);
+                            setRange(undefined);
+                            setPickerOpen(false);
+                          }}
+                          className="h-8 rounded-lg"
+                        >
+                          Aplicar
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </PopoverContent>
             </Popover>
           </div>
