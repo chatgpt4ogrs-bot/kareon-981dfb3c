@@ -233,7 +233,15 @@ const Agenda = () => {
                   onSelect={(r) => {
                     setRange(r);
                     if (r?.from && r?.to) {
+                      const dias =
+                        Math.round(
+                          (r.to.getTime() - r.from.getTime()) / 86400000
+                        ) + 1;
+                      if (dias <= 1) setVisao("dia");
+                      else if (dias <= 7) setVisao("semana");
+                      else setVisao("mes");
                       setCursor(r.from);
+                      setRange(undefined);
                       setPickerOpen(false);
                     }
                   }}
