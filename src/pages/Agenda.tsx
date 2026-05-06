@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 
 type Visao = "dia" | "semana" | "mes";
 
@@ -63,6 +64,7 @@ const Agenda = () => {
   const [eventoSel, setEventoSel] = useState<Evento | null>(null);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [range, setRange] = useState<DateRange | undefined>(undefined);
 
   const eventosFiltrados = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -75,22 +77,27 @@ const Agenda = () => {
   }, [eventos, filtros, search]);
 
   const periodo = useMemo(() => {
+    if (range?.from && range?.to) return { inicio: range.from, fim: range.to };
     if (visao === "dia") return { inicio: cursor, fim: cursor };
     if (visao === "semana") {
       const ini = startOfWeek(cursor, { weekStartsOn: 1 });
       return { inicio: ini, fim: addDays(ini, 6) };
     }
     return { inicio: startOfMonth(cursor), fim: endOfMonth(cursor) };
-  }, [cursor, visao]);
+  }, [cursor, visao, range]);
 
   const labelPeriodo = useMemo(() => {
+    if (range?.from && range?.to) {
+      return `${format(range.from, "dd MMM", { locale: ptBR })} — ${format(range.to, "dd MMM yyyy", { locale: ptBR })}`;
+    }
     if (visao === "dia") return format(cursor, "dd 'de' MMMM yyyy", { locale: ptBR });
     if (visao === "semana")
       return `${format(periodo.inicio, "dd MMM", { locale: ptBR })} — ${format(periodo.fim, "dd MMM yyyy", { locale: ptBR })}`;
     return format(cursor, "MMMM yyyy", { locale: ptBR });
-  }, [cursor, visao, periodo]);
+  }, [cursor, visao, periodo, range]);
 
   const navegar = (dir: -1 | 1) => {
+    if (range) setRange(undefined);
     if (visao === "dia") setCursor(addDays(cursor, dir));
     else if (visao === "semana") setCursor(dir > 0 ? addWeeks(cursor, 1) : subWeeks(cursor, 1));
     else setCursor(addMonths(cursor, dir));
@@ -221,17 +228,39 @@ const Agenda = () => {
               </PopoverTrigger>
               <PopoverContent align="start" className="w-auto p-0">
                 <Calendar
-                  mode="single"
-                  selected={cursor}
-                  onDayClick={(d) => {
-                    setCursor(d);
-                    setPickerOpen(false);
+                  mode="range"
+                  selected={range}
+                  onSelect={(r) => {
+                    setRange(r);
+                    if (r?.from && r?.to) {
+                      setCursor(r.from);
+                      setPickerOpen(false);
+                    }
                   }}
-                  defaultMonth={cursor}
+                  defaultMonth={range?.from ?? cursor}
                   locale={ptBR}
                   initialFocus
+                  numberOfMonths={2}
                   className="pointer-events-auto"
                 />
+                <div className="flex items-center justify-between gap-3 border-t p-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRange(undefined);
+                    }}
+                    className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+                  >
+                    Limpar intervalo
+                  </button>
+                  <span className="text-[11px] text-muted-foreground">
+                    {!range?.from
+                      ? "Selecione a data inicial"
+                      : !range?.to
+                      ? "Selecione a data final"
+                      : ""}
+                  </span>
+                </div>
               </PopoverContent>
             </Popover>
           </div>
@@ -262,6 +291,15 @@ const Agenda = () => {
         </div>
       ) : visao === "dia" ? (
         <VisaoDia data={cursor} eventos={eventosDoDia(cursor)} onNew={() => abrirNovo(cursor)} onOpen={abrirEvento} terapeutaMap={terapeutaMap} />
+      ) : range?.from && range?.to ? (
+        <VisaoIntervalo
+          inicio={range.from}
+          fim={range.to}
+          eventosDoDia={eventosDoDia}
+          onNew={abrirNovo}
+          onOpen={abrirEvento}
+          terapeutaMap={terapeutaMap}
+        />
       ) : visao === "semana" ? (
         <VisaoSemana inicio={periodo.inicio} eventosDoDia={eventosDoDia} onNew={abrirNovo} onOpen={abrirEvento} terapeutaMap={terapeutaMap} />
       ) : (
