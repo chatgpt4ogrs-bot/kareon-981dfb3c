@@ -39,6 +39,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 type Visao = "dia" | "semana" | "mes";
 
@@ -60,6 +62,7 @@ const Agenda = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [eventoSel, setEventoSel] = useState<Evento | null>(null);
   const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const eventosFiltrados = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -207,9 +210,32 @@ const Agenda = () => {
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
-            <p className="ml-2 text-base font-semibold text-foreground capitalize">
-              {labelPeriodo}
-            </p>
+            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  className="ml-2 rounded-lg px-2 py-1 text-base font-semibold text-foreground capitalize transition-colors hover:bg-muted"
+                  title="Selecionar data"
+                >
+                  {labelPeriodo}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={cursor}
+                  onSelect={(d) => {
+                    if (d) {
+                      setCursor(d);
+                      setPickerOpen(false);
+                    }
+                  }}
+                  defaultMonth={cursor}
+                  locale={ptBR}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="inline-flex rounded-xl bg-muted/60 p-1">
