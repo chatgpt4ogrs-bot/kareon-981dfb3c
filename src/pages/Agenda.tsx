@@ -223,11 +223,9 @@ const Agenda = () => {
                 <Calendar
                   mode="single"
                   selected={cursor}
-                  onSelect={(d) => {
-                    if (d) {
-                      setCursor(d);
-                      setPickerOpen(false);
-                    }
+                  onDayClick={(d) => {
+                    setCursor(d);
+                    setPickerOpen(false);
                   }}
                   defaultMonth={cursor}
                   locale={ptBR}
