@@ -539,6 +539,43 @@ function VisaoSemana({
   );
 }
 
+function VisaoIntervalo({
+  inicio,
+  fim,
+  eventosDoDia,
+  onNew,
+  onOpen,
+  terapeutaMap,
+}: {
+  inicio: Date;
+  fim: Date;
+  eventosDoDia: (d: Date) => Evento[];
+  onNew: (d: Date) => void;
+  onOpen: (e: Evento) => void;
+  terapeutaMap?: Map<string, string>;
+}) {
+  const dias: Date[] = [];
+  let cur = inicio;
+  while (cur <= fim) {
+    dias.push(cur);
+    cur = addDays(cur, 1);
+  }
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {dias.map((d) => (
+        <ColunaDia
+          key={d.toISOString()}
+          data={d}
+          eventos={eventosDoDia(d)}
+          onNew={onNew}
+          onOpen={onOpen}
+          terapeutaMap={terapeutaMap}
+        />
+      ))}
+    </div>
+  );
+}
+
 function VisaoMes({
   cursor,
   eventosDoDia,
