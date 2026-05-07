@@ -8,6 +8,7 @@ import { canAccessRoute } from "@/lib/permissions";
 import AppLayout from "@/components/AppLayout";
 import { lazy, Suspense } from "react";
 import AguardandoAprovacao from "@/pages/AguardandoAprovacao";
+import SensitiveAreaGuard from "@/components/SensitiveAreaGuard";
 
 const Login = lazy(() => import("@/pages/Login"));
 const Cadastro = lazy(() => import("@/pages/Cadastro"));
@@ -105,14 +106,14 @@ const App = () => (
               <Route path="pacientes/:pacienteId/objetivo" element={<RoleRoute><ObjetivoForm /></RoleRoute>} />
               <Route path="pacientes/:pacienteId/relatorio" element={<RoleRoute><Relatorio /></RoleRoute>} />
               <Route path="agenda" element={<RoleRoute><Agenda /></RoleRoute>} />
-              <Route path="cameras" element={<RoleRoute><Cameras /></RoleRoute>} />
+              <Route path="cameras" element={<RoleRoute><SensitiveAreaGuard area="cameras"><Cameras /></SensitiveAreaGuard></RoleRoute>} />
               <Route path="perfil" element={<Perfil />} />
               <Route path="alterar-senha" element={<AlterarSenha />} />
-              <Route path="admin" element={<AdminRoute><PainelAdministrativo /></AdminRoute>} />
-              <Route path="admin/clinicas" element={<AdminRoute><AdminClinicas /></AdminRoute>} />
-              <Route path="admin/clinicas/:id" element={<AdminRoute><AdminClinicaDetalhe /></AdminRoute>} />
-              <Route path="admin/usuarios" element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
-              <Route path="admin/usuarios/:id" element={<AdminRoute><AdminUsuarioDetalhe /></AdminRoute>} />
+              <Route path="admin" element={<AdminRoute><SensitiveAreaGuard area="admin"><PainelAdministrativo /></SensitiveAreaGuard></AdminRoute>} />
+              <Route path="admin/clinicas" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminClinicas /></SensitiveAreaGuard></AdminRoute>} />
+              <Route path="admin/clinicas/:id" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminClinicaDetalhe /></SensitiveAreaGuard></AdminRoute>} />
+              <Route path="admin/usuarios" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminUsuarios /></SensitiveAreaGuard></AdminRoute>} />
+              <Route path="admin/usuarios/:id" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminUsuarioDetalhe /></SensitiveAreaGuard></AdminRoute>} />
               <Route path="clinica/usuarios" element={<RoleRoute><UsuariosClinica /></RoleRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
