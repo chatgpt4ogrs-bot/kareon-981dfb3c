@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -16,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { User, Pencil, Power, Mail, Building2, Briefcase, Shield, X, Save } from "lucide-react";
 import { format } from "date-fns";
 
+const ALL_ROLES = ["admin", "clinica_admin", "responsavel_clinica", "terapeuta", "familiar"] as const;
 const roleLabels: Record<string, string> = {
   admin: "Admin Master",
   clinica_admin: "Admin Clínica",
@@ -23,7 +25,13 @@ const roleLabels: Record<string, string> = {
   terapeuta: "Terapeuta",
   familiar: "Familiar",
 };
-const roleBadgeVariant = (role: string) => role === "admin" ? "destructive" as const : role === "clinica_admin" ? "default" as const : "secondary" as const;
+const roleDescriptions: Record<string, string> = {
+  admin: "Acesso total ao sistema, todas as clínicas.",
+  clinica_admin: "Gerencia configurações, usuários e dados da clínica.",
+  responsavel_clinica: "Gestão operacional (pacientes, agenda, câmeras).",
+  terapeuta: "Atende pacientes, registra sessões e objetivos.",
+  familiar: "Visualiza informações e câmeras dos pacientes vinculados.",
+};
 const statusLabel: Record<string, string> = { ativo: "Ativo", pendente: "Pendente", inativo: "Inativo" };
 
 interface Props {
@@ -36,10 +44,9 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ nome: "", email: "", cargo: "", clinica_id: "none" });
-  const [newRole, setNewRole] = useState("");
   const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
 
-  useEffect(() => { if (open) { setEditing(false); setNewRole(""); } }, [open, profileId]);
+  useEffect(() => { if (open) { setEditing(false); } }, [open, profileId]);
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-profile", profileId],
@@ -104,7 +111,6 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
       qc.invalidateQueries({ queryKey: ["user-roles", profile?.user_id] });
       qc.invalidateQueries({ queryKey: ["admin-usuarios-roles"] });
       toast({ title: "Permissão adicionada" });
-      setNewRole("");
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
@@ -124,7 +130,15 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
 
   const inativo = profile?.status !== "ativo";
   const clinicaNome = clinicas.find((c) => c.id === profile?.clinica_id)?.nome;
-  const availableRoles = Object.keys(roleLabels).filter((r) => !roles.some((ur) => ur.role === r));
+
+  const toggleRole = (role: string, has: boolean) => {
+    if (has) {
+      const row = roles.find((r) => r.role === role);
+      if (row) removeRoleMutation.mutate(row.id);
+    } else {
+      addRoleMutation.mutate(role);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -200,31 +214,32 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
 
               <div>
                 <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><Shield className="w-4 h-4" /> Permissões</h3>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {roles.length === 0 && <span className="text-xs text-muted-foreground">Sem permissões atribuídas</span>}
-                  {roles.map((r) => (
-                    <Badge key={r.id} variant={roleBadgeVariant(r.role)} className="gap-1.5 pr-1">
-                      {roleLabels[r.role] || r.role}
-                      <button
-                        className="hover:bg-black/10 rounded p-0.5"
-                        onClick={() => { if (confirm(`Remover "${roleLabels[r.role]}"?`)) removeRoleMutation.mutate(r.id); }}
+                <p className="text-xs text-muted-foreground mb-3">Ative ou desative as funções deste usuário. As alterações são salvas automaticamente.</p>
+                <div className="space-y-2">
+                  {ALL_ROLES.map((r) => {
+                    const has = roles.some((ur) => ur.role === r);
+                    const busy = addRoleMutation.isPending || removeRoleMutation.isPending;
+                    return (
+                      <div
+                        key={r}
+                        className={`flex items-start justify-between gap-3 rounded-lg border p-3 transition-colors ${has ? "border-primary/40 bg-primary/5" : "border-border bg-background hover:bg-muted/40"}`}
                       >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-foreground">{roleLabels[r]}</span>
+                            {has && <Badge variant="secondary" className="text-[10px] h-4 px-1.5">Ativa</Badge>}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">{roleDescriptions[r]}</p>
+                        </div>
+                        <Switch
+                          checked={has}
+                          disabled={busy}
+                          onCheckedChange={() => toggleRole(r, has)}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-                {availableRoles.length > 0 && (
-                  <div className="flex gap-2">
-                    <Select value={newRole} onValueChange={setNewRole}>
-                      <SelectTrigger className="flex-1"><SelectValue placeholder="Adicionar permissão..." /></SelectTrigger>
-                      <SelectContent>
-                        {availableRoles.map((r) => <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={() => newRole && addRoleMutation.mutate(newRole)} disabled={!newRole}>Adicionar</Button>
-                  </div>
-                )}
               </div>
             </>
           )}
