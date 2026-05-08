@@ -39,25 +39,82 @@ export const AvatarUploader = ({ open, onOpenChange, onUploaded }: Props) => {
 
   useEffect(() => { if (!open) reset(); }, [open]);
 
+  // Read EXIF orientation (1-8) from a JPEG file. Returns 1 for non-JPEG or unknown.
+  const readExifOrientation = async (file: File): Promise<number> => {
+    if (file.type !== "image/jpeg" && file.type !== "image/jpg") return 1;
+    try {
+      const buf = await file.slice(0, 128 * 1024).arrayBuffer();
+      const view = new DataView(buf);
+      if (view.getUint16(0) !== 0xffd8) return 1;
+      let offset = 2;
+      const len = view.byteLength;
+      while (offset < len) {
+        const marker = view.getUint16(offset); offset += 2;
+        if (marker === 0xffe1) {
+          if (view.getUint32(offset + 2) !== 0x45786966) return 1; // "Exif"
+          const tiff = offset + 8;
+          const little = view.getUint16(tiff) === 0x4949;
+          const get16 = (o: number) => view.getUint16(o, little);
+          const get32 = (o: number) => view.getUint32(o, little);
+          const ifd0 = tiff + get32(tiff + 4);
+          const tags = get16(ifd0);
+          for (let i = 0; i < tags; i++) {
+            const entry = ifd0 + 2 + i * 12;
+            if (get16(entry) === 0x0112) return get16(entry + 8);
+          }
+          return 1;
+        } else if ((marker & 0xff00) !== 0xff00) {
+          break;
+        } else {
+          offset += view.getUint16(offset);
+        }
+      }
+    } catch { /* ignore */ }
+    return 1;
+  };
+
+  // Apply EXIF orientation transform on a 2D context for an image of size w×h.
+  const applyOrientation = (ctx: CanvasRenderingContext2D, orientation: number, w: number, h: number) => {
+    switch (orientation) {
+      case 2: ctx.translate(w, 0); ctx.scale(-1, 1); break;
+      case 3: ctx.translate(w, h); ctx.rotate(Math.PI); break;
+      case 4: ctx.translate(0, h); ctx.scale(1, -1); break;
+      case 5: ctx.rotate(0.5 * Math.PI); ctx.scale(1, -1); break;
+      case 6: ctx.rotate(0.5 * Math.PI); ctx.translate(0, -h); break;
+      case 7: ctx.rotate(0.5 * Math.PI); ctx.translate(w, -h); ctx.scale(-1, 1); break;
+      case 8: ctx.rotate(-0.5 * Math.PI); ctx.translate(-w, 0); break;
+    }
+  };
+
+  // Loads an image file, applies EXIF rotation, and downscales it. Output image
+ // bytes already have correct pixel orientation, so no further rotation needed.
   const downscaleSource = async (file: File): Promise<HTMLImageElement> => {
+    const orientation = await readExifOrientation(file);
     const url = URL.createObjectURL(file);
-    const im = await new Promise<HTMLImageElement>((res, rej) => {
+    const raw = await new Promise<HTMLImageElement>((res, rej) => {
       const i = new Image();
       i.onload = () => res(i);
       i.onerror = rej;
       i.src = url;
     });
-    const maxDim = Math.max(im.width, im.height);
-    if (maxDim <= MAX_SOURCE_DIM) return im;
-    const ratio = MAX_SOURCE_DIM / maxDim;
-    const w = Math.round(im.width * ratio);
-    const h = Math.round(im.height * ratio);
+    const swap = orientation >= 5 && orientation <= 8;
+    const srcW = swap ? raw.height : raw.width;
+    const srcH = swap ? raw.width : raw.height;
+    const maxDim = Math.max(srcW, srcH);
+    const ratio = maxDim > MAX_SOURCE_DIM ? MAX_SOURCE_DIM / maxDim : 1;
+    const outW = Math.round(srcW * ratio);
+    const outH = Math.round(srcH * ratio);
     const c = document.createElement("canvas");
-    c.width = w; c.height = h;
+    c.width = outW; c.height = outH;
     const ctx = c.getContext("2d")!;
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(im, 0, 0, w, h);
+    // Draw in a coordinate space sized to the original (unswapped) image and let
+    // the orientation transform map it onto the output canvas.
+    const drawW = swap ? outH : outW;
+    const drawH = swap ? outW : outH;
+    applyOrientation(ctx, orientation, drawW, drawH);
+    ctx.drawImage(raw, 0, 0, drawW, drawH);
     URL.revokeObjectURL(url);
     const dataUrl = c.toDataURL("image/jpeg", 0.92);
     return await new Promise<HTMLImageElement>((res, rej) => {
