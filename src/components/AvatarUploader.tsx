@@ -10,6 +10,8 @@ import { toast } from "@/hooks/use-toast";
 const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const OUTPUT_SIZE = 512;
+const MAX_SOURCE_DIM = 1600;
+const JPEG_QUALITY = 0.85;
 const VIEW = 280;
 
 interface Props {
@@ -37,7 +39,36 @@ export const AvatarUploader = ({ open, onOpenChange, onUploaded }: Props) => {
 
   useEffect(() => { if (!open) reset(); }, [open]);
 
-  const handleFile = (f: File) => {
+  const downscaleSource = async (file: File): Promise<HTMLImageElement> => {
+    const url = URL.createObjectURL(file);
+    const im = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = url;
+    });
+    const maxDim = Math.max(im.width, im.height);
+    if (maxDim <= MAX_SOURCE_DIM) return im;
+    const ratio = MAX_SOURCE_DIM / maxDim;
+    const w = Math.round(im.width * ratio);
+    const h = Math.round(im.height * ratio);
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const ctx = c.getContext("2d")!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(im, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const dataUrl = c.toDataURL("image/jpeg", 0.92);
+    return await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = rej;
+      i.src = dataUrl;
+    });
+  };
+
+  const handleFile = async (f: File) => {
     if (!ACCEPTED.includes(f.type)) {
       toast({ title: "Formato inválido", description: "Use JPG, PNG ou WEBP.", variant: "destructive" });
       return;
@@ -46,17 +77,17 @@ export const AvatarUploader = ({ open, onOpenChange, onUploaded }: Props) => {
       toast({ title: "Arquivo muito grande", description: "Máximo de 5MB.", variant: "destructive" });
       return;
     }
-    setFile(f);
-    const url = URL.createObjectURL(f);
-    setImgSrc(url);
-    const im = new Image();
-    im.onload = () => {
+    try {
+      setFile(f);
+      const im = await downscaleSource(f);
+      setImgSrc(im.src);
       setImg(im);
       const minScale = VIEW / Math.min(im.width, im.height);
       setScale(minScale);
       setOffset({ x: 0, y: 0 });
-    };
-    im.src = url;
+    } catch {
+      toast({ title: "Erro ao ler imagem", variant: "destructive" });
+    }
   };
 
   const draw = useCallback(() => {
@@ -96,6 +127,8 @@ export const AvatarUploader = ({ open, onOpenChange, onUploaded }: Props) => {
     const c = document.createElement("canvas");
     c.width = OUTPUT_SIZE; c.height = OUTPUT_SIZE;
     const ctx = c.getContext("2d")!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
     const ratio = OUTPUT_SIZE / VIEW;
     const w = img.width * scale * ratio;
     const h = img.height * scale * ratio;
@@ -104,7 +137,7 @@ export const AvatarUploader = ({ open, onOpenChange, onUploaded }: Props) => {
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
     ctx.drawImage(img, x, y, w, h);
-    c.toBlob((b) => b ? resolve(b) : reject(new Error("blob fail")), "image/jpeg", 0.88);
+    c.toBlob((b) => b ? resolve(b) : reject(new Error("blob fail")), "image/jpeg", JPEG_QUALITY);
   });
 
   const handleSave = async () => {
@@ -114,14 +147,15 @@ export const AvatarUploader = ({ open, onOpenChange, onUploaded }: Props) => {
       const blob = await exportBlob();
       const path = `${user.id}/avatar-${Date.now()}.jpg`;
       const { error: upErr } = await supabase.storage.from("avatars").upload(path, blob, {
-        contentType: "image/jpeg", upsert: true,
+        contentType: "image/jpeg", upsert: true, cacheControl: "3600",
       });
       if (upErr) throw upErr;
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
       const finalUrl = `${publicUrl}?t=${Date.now()}`;
       const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: finalUrl }).eq("user_id", user.id);
       if (dbErr) throw dbErr;
-      toast({ title: "Foto atualizada", description: "Sua nova foto de perfil foi salva." });
+      const kb = Math.round(blob.size / 1024);
+      toast({ title: "Foto atualizada", description: `Imagem otimizada para ${OUTPUT_SIZE}px (~${kb} KB).` });
       onUploaded?.(finalUrl);
       onOpenChange(false);
     } catch (e: any) {
