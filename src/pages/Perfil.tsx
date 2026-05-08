@@ -1,12 +1,14 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, Mail, Building2, Shield, Key } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { User, Mail, Building2, Shield, Key, Camera } from "lucide-react";
 import { Link } from "react-router-dom";
+import { AvatarUploader } from "@/components/AvatarUploader";
 
 const roleLabels: Record<string, string> = {
   admin: "Admin Master",
@@ -17,7 +19,8 @@ const roleLabels: Record<string, string> = {
 };
 
 const Perfil = () => {
-  const { profile, roles } = useAuth();
+  const { profile, roles, refreshProfile } = useAuth();
+  const [uploaderOpen, setUploaderOpen] = useState(false);
 
   const { data: clinica } = useQuery({
     queryKey: ["clinica-perfil", profile?.clinica_id],
@@ -47,11 +50,22 @@ const Perfil = () => {
       <Card>
         <CardHeader className="pb-4">
           <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16">
-              <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <button
+              type="button"
+              onClick={() => setUploaderOpen(true)}
+              className="relative group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Alterar foto de perfil"
+            >
+              <Avatar className="w-20 h-20">
+                {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile.nome} />}
+                <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Camera className="w-5 h-5 text-white" />
+              </span>
+            </button>
             <div>
               <CardTitle className="text-xl">{profile?.nome || "Usuário"}</CardTitle>
               <div className="flex gap-2 mt-1 flex-wrap">
@@ -113,6 +127,12 @@ const Perfil = () => {
           </div>
         </CardContent>
       </Card>
+
+      <AvatarUploader
+        open={uploaderOpen}
+        onOpenChange={setUploaderOpen}
+        onUploaded={() => refreshProfile()}
+      />
     </div>
   );
 };
