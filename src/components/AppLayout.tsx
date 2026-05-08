@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Users,
@@ -80,6 +80,7 @@ const AppLayout = () => {
           aria-label="Menu do usuário"
         >
           <Avatar className="w-8 h-8">
+            {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile?.nome || ""} />}
             <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
               {initials}
             </AvatarFallback>
@@ -166,9 +167,12 @@ const AppLayout = () => {
             to="/perfil"
             className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/60 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs">
-              {initials}
-            </div>
+            <Avatar className="w-8 h-8">
+              {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile?.nome || ""} />}
+              <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium truncate text-foreground">{profile?.nome || "Usuário"}</p>
               <p className="text-[11px] text-muted-foreground truncate">{roleLabel}</p>
