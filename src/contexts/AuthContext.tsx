@@ -9,6 +9,7 @@ interface Profile {
   clinica_id: string | null;
   cargo: string | null;
   status: string;
+  avatar_url?: string | null;
 }
 
 export type AppRole = "admin" | "clinica_admin" | "responsavel_clinica" | "terapeuta" | "familiar";
@@ -24,6 +25,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,7 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, nome, email, clinica_id, cargo, status")
+      .select("id, nome, email, clinica_id, cargo, status, avatar_url")
       .eq("user_id", userId)
       .single();
     setProfile(data);
@@ -53,6 +55,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const userRoles = (rolesData?.map((r: any) => r.role) || []) as AppRole[];
     setRoles(userRoles);
     setIsAdmin(userRoles.includes("admin"));
+  };
+
+  const refreshProfile = async () => {
+    if (user) await fetchProfile(user.id);
   };
 
   useEffect(() => {
@@ -106,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, isAdmin, roles, hasRole, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, isAdmin, roles, hasRole, signIn, signUp, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
