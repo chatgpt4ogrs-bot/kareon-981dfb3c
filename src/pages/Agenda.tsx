@@ -22,6 +22,7 @@ import {
   ChevronRight,
   Clock,
   Filter,
+  FileText,
   Loader2,
   Plus,
   Search,
@@ -30,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CATEGORIAS, Evento, EventoCategoria, useEventos } from "@/hooks/use-eventos";
 import { EventoModal } from "@/components/agenda/EventoModal";
+import { RelatorioAgendaDialog } from "@/components/agenda/RelatorioAgendaDialog";
 import { useTerapeutas } from "@/hooks/use-terapeutas";
 import {
   DropdownMenu,
@@ -65,6 +67,7 @@ const Agenda = () => {
   const [defaultDate, setDefaultDate] = useState<Date | undefined>(undefined);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [range, setRange] = useState<DateRange | undefined>(undefined);
+  const [relatorioOpen, setRelatorioOpen] = useState(false);
 
   const eventosFiltrados = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -186,6 +189,15 @@ const Agenda = () => {
           >
             <Plus className="h-4 w-4" />
             Novo Evento
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={() => setRelatorioOpen(true)}
+            className="h-10 rounded-xl gap-1.5"
+          >
+            <FileText className="h-4 w-4" />
+            Relatório PDF
           </Button>
         </div>
       </div>
@@ -367,6 +379,8 @@ const Agenda = () => {
         evento={eventoSel}
         defaultDate={defaultDate}
       />
+
+      <RelatorioAgendaDialog open={relatorioOpen} onOpenChange={setRelatorioOpen} />
     </div>
   );
 };
