@@ -197,7 +197,7 @@ const Agenda = () => {
             className="h-10 rounded-xl gap-1.5"
           >
             <FileText className="h-4 w-4" />
-            Relatório PDF
+            Relatórios
           </Button>
         </div>
       </div>

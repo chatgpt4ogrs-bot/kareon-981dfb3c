@@ -198,10 +198,10 @@ export function RelatorioAgendaDialog({ open, onOpenChange }: Props) {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" /> Relatório da agenda
+            <FileText className="h-5 w-5 text-primary" /> Relatórios da agenda
           </DialogTitle>
           <DialogDescription>
-            Personalize os filtros e escolha as colunas do PDF.
+            Personalize os filtros e escolha as colunas do relatório.
           </DialogDescription>
         </DialogHeader>
 
@@ -269,7 +269,7 @@ export function RelatorioAgendaDialog({ open, onOpenChange }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label>Colunas do PDF</Label>
+            <Label>Colunas</Label>
             <div className="grid grid-cols-2 gap-2 rounded-md border bg-muted/30 p-3 sm:grid-cols-3">
               {COLUNAS.map((c) => (
                 <label key={c.key} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -290,7 +290,7 @@ export function RelatorioAgendaDialog({ open, onOpenChange }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={gerando}>Cancelar</Button>
           <Button onClick={handleGerar} disabled={gerando} className="gap-2">
             {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Gerar PDF
+            Gerar relatório
           </Button>
         </DialogFooter>
       </DialogContent>
