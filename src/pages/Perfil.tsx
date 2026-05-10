@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { User, Mail, Building2, Shield, Key, Camera, Pencil, Save, X, Loader2 } from "lucide-react";
+import { User, Mail, Building2, Shield, Key, Camera, Pencil, Save, X, Loader2, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AvatarUploader } from "@/components/AvatarUploader";
 
@@ -27,6 +27,7 @@ const Perfil = () => {
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [saving, setSaving] = useState(false);
 
   const { data: clinica } = useQuery({
@@ -53,6 +54,7 @@ const Perfil = () => {
   const startEdit = () => {
     setNome(profile?.nome || "");
     setEmail(profile?.email || "");
+    setTelefone(profile?.telefone || "");
     setEditing(true);
   };
 
@@ -64,6 +66,7 @@ const Perfil = () => {
     if (!profile) return;
     const nomeTrim = nome.trim();
     const emailTrim = email.trim().toLowerCase();
+    const telefoneTrim = telefone.trim();
     if (!nomeTrim) {
       toast({ title: "Nome obrigatório", variant: "destructive" });
       return;
@@ -77,16 +80,21 @@ const Perfil = () => {
       toast({ title: "Email inválido", variant: "destructive" });
       return;
     }
+    if (telefoneTrim.length > 20) {
+      toast({ title: "Telefone muito longo", description: "Máximo 20 caracteres.", variant: "destructive" });
+      return;
+    }
 
     setSaving(true);
     try {
       const emailChanged = emailTrim !== (profile.email || "").toLowerCase();
       const nomeChanged = nomeTrim !== (profile.nome || "");
+      const telefoneChanged = telefoneTrim !== (profile.telefone || "");
 
-      if (nomeChanged) {
+      if (nomeChanged || telefoneChanged) {
         const { error } = await supabase
           .from("profiles")
-          .update({ nome: nomeTrim })
+          .update({ nome: nomeTrim, telefone: telefoneTrim || null })
           .eq("id", profile.id);
         if (error) throw error;
       }
@@ -100,7 +108,7 @@ const Perfil = () => {
         });
       }
 
-      if (nomeChanged && !emailChanged) {
+      if ((nomeChanged || telefoneChanged) && !emailChanged) {
         toast({ title: "Perfil atualizado" });
       }
 
@@ -176,6 +184,18 @@ const Perfil = () => {
                   Ao alterar o email, você precisará confirmar pelo link enviado ao novo endereço.
                 </p>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="perfil-telefone">Telefone</Label>
+                <Input
+                  id="perfil-telefone"
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  maxLength={20}
+                  disabled={saving}
+                />
+              </div>
             </div>
           ) : (
             <div className="grid gap-4">
@@ -192,6 +212,14 @@ const Perfil = () => {
                 <div>
                   <p className="text-xs text-muted-foreground">Email</p>
                   <p className="text-sm font-medium text-foreground">{profile?.email}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                <Phone className="w-5 h-5 text-muted-foreground" />
+                <div>
+                  <p className="text-xs text-muted-foreground">Telefone</p>
+                  <p className="text-sm font-medium text-foreground">{profile?.telefone || "—"}</p>
                 </div>
               </div>
 
