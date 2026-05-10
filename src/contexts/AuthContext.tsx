@@ -10,6 +10,7 @@ interface Profile {
   cargo: string | null;
   status: string;
   avatar_url?: string | null;
+  telefone?: string | null;
 }
 
 export type AppRole = "admin" | "clinica_admin" | "responsavel_clinica" | "terapeuta" | "familiar";
@@ -23,7 +24,7 @@ interface AuthContextType {
   roles: AppRole[];
   hasRole: (role: AppRole) => boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, nome: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, nome: string, telefone?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -43,7 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, nome, email, clinica_id, cargo, status, avatar_url")
+      .select("id, nome, email, clinica_id, cargo, status, avatar_url, telefone")
       .eq("user_id", userId)
       .single();
     setProfile(data);
@@ -93,11 +94,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error: error ? new Error(error.message) : null };
   };
 
-  const signUp = async (email: string, password: string, nome: string) => {
+  const signUp = async (email: string, password: string, nome: string, telefone?: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { nome } },
+      options: {
+        data: { nome, telefone: telefone || null },
+        emailRedirectTo: `${window.location.origin}/`,
+      },
     });
     return { error: error ? new Error(error.message) : null };
   };
