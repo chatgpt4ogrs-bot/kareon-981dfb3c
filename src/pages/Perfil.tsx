@@ -87,7 +87,6 @@ const Perfil = () => {
         const { error } = await supabase
           .from("profiles")
           .update({ nome: nomeTrim })
-          .eq("user_id", profile.id ? undefined as any : undefined as any)
           .eq("id", profile.id);
         if (error) throw error;
       }
