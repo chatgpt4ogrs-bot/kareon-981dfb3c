@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Download, FileText } from "lucide-react";
 import { format, isWithinInterval, startOfDay, endOfDay, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -94,6 +96,23 @@ export function RelatorioAgendaDialog({ open, onOpenChange }: Props) {
     setTipos((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   const toggleColuna = (c: ColKey) =>
     setColunas((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+
+  const previewRows = useMemo(() => {
+    return eventosFiltrados.slice(0, 50).map((e) => {
+      const ids = e.terapeuta_ids && e.terapeuta_ids.length > 0 ? e.terapeuta_ids : e.terapeuta_id ? [e.terapeuta_id] : [];
+      const nomes = ids.map((id) => terapeutaMap.get(id)).filter(Boolean).join(", ");
+      const row: Record<ColKey, string> = {
+        data: format(new Date(e.data_inicio), "dd/MM/yyyy HH:mm"),
+        paciente: e.paciente_id ? pacienteMap.get(e.paciente_id) || "—" : "—",
+        profissional: nomes || "—",
+        tipo: getCategoriaInfo(e.categoria).label,
+        status: "—",
+        observacoes: e.descricao || "—",
+        valor: "—",
+      };
+      return { id: e.id, row };
+    });
+  }, [eventosFiltrados, pacienteMap, terapeutaMap]);
 
   const handleGerar = async () => {
     if (colunas.length === 0) {
@@ -195,7 +214,7 @@ export function RelatorioAgendaDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" /> Relatórios da agenda
@@ -283,6 +302,53 @@ export function RelatorioAgendaDialog({ open, onOpenChange }: Props) {
           <div className="rounded-md border bg-primary/5 p-3 text-sm">
             <span className="font-semibold text-foreground">{eventosFiltrados.length}</span>{" "}
             <span className="text-muted-foreground">agendamento(s) no filtro selecionado</span>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label>Prévia do relatório</Label>
+              {eventosFiltrados.length > 50 && (
+                <span className="text-xs text-muted-foreground">
+                  mostrando 50 de {eventosFiltrados.length}
+                </span>
+              )}
+            </div>
+            <div className="rounded-md border">
+              {colunas.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  Selecione ao menos uma coluna para visualizar a prévia.
+                </div>
+              ) : previewRows.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  Nenhum agendamento no filtro selecionado.
+                </div>
+              ) : (
+                <ScrollArea className="h-[280px]">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-muted z-10">
+                      <TableRow>
+                        {colunas.map((c) => (
+                          <TableHead key={c} className="whitespace-nowrap text-xs">
+                            {COLUNAS.find((x) => x.key === c)!.label}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {previewRows.map(({ id, row }) => (
+                        <TableRow key={id}>
+                          {colunas.map((c) => (
+                            <TableCell key={c} className="text-xs py-2">
+                              {row[c]}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              )}
+            </div>
           </div>
         </div>
 
