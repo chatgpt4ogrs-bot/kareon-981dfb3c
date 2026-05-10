@@ -13,6 +13,7 @@ const Cadastro = () => {
   const navigate = useNavigate();
   const { signUp } = useAuth();
   const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
@@ -35,7 +36,7 @@ const Cadastro = () => {
 
     setLoading(true);
     try {
-      const { error } = await signUp(email, senha, nome);
+      const { error } = await signUp(email, senha, nome, telefone);
       if (error) {
         setErro(error.message);
       } else {
@@ -69,6 +70,18 @@ const Cadastro = () => {
               <div className="space-y-2">
                 <Label htmlFor="nome">Nome completo</Label>
                 <Input id="nome" placeholder="Seu nome" value={nome} onChange={(e) => setNome(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="telefone">Telefone</Label>
+                <Input
+                  id="telefone"
+                  type="tel"
+                  placeholder="(11) 99999-9999"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  maxLength={20}
+                  required
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
