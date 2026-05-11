@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, UserPlus, LogIn, Mail, ShieldCheck, Sparkles, CalendarCheck, BarChart3 } from "lucide-react";
+import { Loader2, UserPlus, LogIn, Mail, ShieldCheck, Heart, CalendarCheck, BarChart3 } from "lucide-react";
 import PasswordInput from "@/components/PasswordInput";
 
 const Login = () => {
@@ -59,7 +59,7 @@ const Login = () => {
           <div className="relative z-10 animate-fade-in">
             <div className="inline-flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/25">
-                <Sparkles className="w-5 h-5" />
+                <Heart className="w-5 h-5" />
               </div>
               <span className="text-2xl font-bold tracking-tight">Kareon</span>
             </div>
@@ -102,7 +102,7 @@ const Login = () => {
             {/* Logo mobile */}
             <div className="flex lg:hidden flex-col items-center gap-3 text-center">
               <div className="w-14 h-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-soft-md">
-                <Sparkles className="w-6 h-6" />
+                <Heart className="w-6 h-6" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Kareon</h1>
