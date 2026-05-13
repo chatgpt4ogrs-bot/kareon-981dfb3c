@@ -1,0 +1,11 @@
+# Kareon
+
+> Plataforma SaaS de gestão para clínicas de terapia ocupacional pediátrica: agenda, evolução de pacientes e relatórios em um só lugar.
+
+Kareon ajuda clínicas e terapeutas a centralizar agendamentos, registrar sessões e evolução, e gerar relatórios em PDF — com interfaces dedicadas para a clínica, terapeutas e responsáveis.
+
+## Pages
+
+- [Login](/login): Acesso de terapeutas, administradores de clínica e responsáveis.
+- [Cadastro](/cadastro): Criação de nova conta na plataforma.
+- [Recuperar senha](/esqueci-senha): Fluxo de recuperação de senha por email.
