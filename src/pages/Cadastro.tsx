@@ -122,7 +122,7 @@ const Cadastro = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </main>
   );
 };
 
