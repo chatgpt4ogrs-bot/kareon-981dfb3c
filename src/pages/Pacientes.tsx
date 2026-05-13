@@ -47,7 +47,7 @@ const Pacientes = () => {
           <Input placeholder="Buscar por nome, diagnóstico ou tag..." className="pl-10" value={busca} onChange={(e) => setBusca(e.target.value)} />
         </div>
         {tagsUsadas.length > 0 && (
-          <Button variant="outline" size="icon" onClick={() => setShowFilters(!showFilters)} className={cn(showFilters && "bg-primary/10 text-primary")}>
+          <Button variant="outline" size="icon" aria-label="Filtrar pacientes" onClick={() => setShowFilters(!showFilters)} className={cn(showFilters && "bg-primary/10 text-primary")}>
             <Filter className="w-4 h-4" />
           </Button>
         )}

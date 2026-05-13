@@ -40,7 +40,7 @@ const PacienteDetalhe = () => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/pacientes")}><ArrowLeft className="w-5 h-5" /></Button>
+        <Button variant="ghost" size="icon" aria-label="Voltar para pacientes" onClick={() => navigate("/pacientes")}><ArrowLeft className="w-5 h-5" /></Button>
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-foreground">{paciente.nome}</h1>
@@ -118,7 +118,7 @@ const PacienteDetalhe = () => {
                         <p className="text-sm font-medium text-foreground">{o.descricao}</p>
                         <span className={cn("inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium", statusColor[o.status])}>{statusLabel[o.status]}</span>
                       </div>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => deleteObjetivoMutation.mutate(o.id)}><Trash2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" aria-label="Excluir objetivo" className="text-muted-foreground hover:text-destructive" onClick={() => deleteObjetivoMutation.mutate(o.id)}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                     <div className="flex items-center gap-3"><Progress value={o.progresso} className="flex-1 h-2.5" /><span className="text-sm font-semibold text-foreground w-12 text-right">{o.progresso}%</span></div>
                   </CardContent>

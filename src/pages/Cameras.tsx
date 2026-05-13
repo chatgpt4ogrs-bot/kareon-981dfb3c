@@ -399,10 +399,10 @@ const Cameras = () => {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right space-x-1">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(cam)}>
+                            <Button variant="ghost" size="icon" aria-label="Editar câmera" onClick={() => openEdit(cam)}>
                               <Pencil className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(cam.id)}>
+                            <Button variant="ghost" size="icon" aria-label="Excluir câmera" onClick={() => handleDelete(cam.id)}>
                               <Trash2 className="w-4 h-4 text-destructive" />
                             </Button>
                           </TableCell>
