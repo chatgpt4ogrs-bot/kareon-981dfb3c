@@ -41,7 +41,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-background relative overflow-hidden">
+    <main className="min-h-screen w-full bg-background relative overflow-hidden">
+      <h1 className="sr-only">Kareon — Acesso à plataforma de gestão terapêutica pediátrica</h1>
       {/* Background decorativo */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-32 -left-32 w-[28rem] h-[28rem] rounded-full bg-primary/20 blur-3xl opacity-60" />
@@ -67,10 +68,10 @@ const Login = () => {
 
           <div className="relative z-10 space-y-8 animate-fade-in">
             <div className="space-y-4 max-w-md">
-              <h2 className="text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight">
+              <h2 className="text-4xl xl:text-5xl font-bold leading-[1.1] tracking-tight text-white">
                 Gestão inteligente para clínicas modernas.
               </h2>
-              <p className="text-base xl:text-lg text-white/80 leading-relaxed">
+              <p className="text-base xl:text-lg text-white/90 leading-relaxed">
                 Centralize agendamentos, evolução de pacientes e relatórios em uma plataforma simples, segura e feita para o seu dia a dia clínico.
               </p>
             </div>
@@ -85,13 +86,13 @@ const Login = () => {
                   <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
                     <Icon className="w-4 h-4" />
                   </div>
-                  <span className="text-sm text-white/90">{text}</span>
+                  <span className="text-sm text-white">{text}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="relative z-10 text-xs text-white/60">
+          <div className="relative z-10 text-xs text-white/80">
             © {new Date().getFullYear()} Kareon · Todos os direitos reservados
           </div>
         </div>
@@ -105,7 +106,7 @@ const Login = () => {
                 <Heart className="w-6 h-6" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">Kareon</h1>
+                <p className="text-2xl font-bold tracking-tight">Kareon</p>
                 <p className="text-sm text-muted-foreground">Gestão inteligente para clínicas modernas</p>
               </div>
             </div>
@@ -197,7 +198,7 @@ const Login = () => {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 
