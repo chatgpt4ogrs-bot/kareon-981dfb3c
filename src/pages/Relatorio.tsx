@@ -183,7 +183,7 @@ const Relatorio = () => {
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="w-5 h-5" /></Button>
+          <Button variant="ghost" size="icon" aria-label="Voltar" onClick={() => navigate(-1)}><ArrowLeft className="w-5 h-5" /></Button>
           <div>
             <h1 className="text-xl font-bold text-foreground">Relatório terapêutico</h1>
             <p className="text-sm text-muted-foreground">{paciente.nome}</p>

@@ -209,6 +209,7 @@ const Agenda = () => {
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Período anterior"
               className="h-9 w-9 rounded-lg"
               onClick={() => navegar(-1)}
             >
@@ -224,6 +225,7 @@ const Agenda = () => {
             <Button
               variant="ghost"
               size="icon"
+              aria-label="Próximo período"
               className="h-9 w-9 rounded-lg"
               onClick={() => navegar(1)}
             >
