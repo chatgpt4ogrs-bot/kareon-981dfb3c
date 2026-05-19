@@ -85,7 +85,7 @@ export function getNavItems(roles: AppRole[]): {
     admin.push({ to: "/admin", icon: "Shield", label: "Painel administrativo" });
   }
   if (isClinicaAdmin) {
-    admin.push({ to: "/clinica/usuarios", icon: "Users", label: "Usuários da Clínica" });
+    admin.push({ to: "/clinica/usuarios", icon: "Users", label: "Usuários" });
   }
   return { main, admin };
 }

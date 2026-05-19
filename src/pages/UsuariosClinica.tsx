@@ -103,7 +103,7 @@ const UsuariosClinica = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Usuários da Clínica</h1>
+        <h1 className="text-2xl font-bold text-foreground">Usuários</h1>
         <p className="text-muted-foreground">Gerencie e aprove os usuários da sua clínica</p>
       </div>
 
