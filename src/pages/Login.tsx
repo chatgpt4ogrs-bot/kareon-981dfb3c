@@ -78,7 +78,7 @@ const Login = () => {
 
             <div className="grid gap-3 max-w-md">
               {[
-                { icon: CalendarCheck, text: "Agenda inteligente e relatórios em PDF" },
+                { icon: CalendarCheck, text: "Agenda inteligente e relatórios" },
                 { icon: BarChart3, text: "Acompanhamento de evolução em tempo real" },
                 { icon: ShieldCheck, text: "Segurança e privacidade dos dados clínicos" },
               ].map(({ icon: Icon, text }) => (
