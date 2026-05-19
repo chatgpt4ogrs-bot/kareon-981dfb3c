@@ -58,8 +58,8 @@ const LoadingScreen = () => (
 );
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading, isAdmin } = useAuth();
-  if (loading) return <LoadingScreen />;
+  const { user, profile, loading, rolesLoaded, isAdmin } = useAuth();
+  if (loading || (user && !rolesLoaded)) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
   // Admins bypass approval; pending/blocked users see waiting screen
   if (profile && profile.status !== "ativo" && !isAdmin) {
@@ -69,9 +69,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function RoleRoute({ children }: { children: React.ReactNode }) {
-  const { roles, loading } = useAuth();
+  const { roles, loading, rolesLoaded } = useAuth();
   const location = useLocation();
-  if (loading) return <LoadingScreen />;
+  if (loading || !rolesLoaded) return <LoadingScreen />;
   if (!canAccessRoute(roles, location.pathname)) {
     return <Navigate to="/" replace />;
   }
@@ -79,8 +79,8 @@ function RoleRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { isAdmin, loading } = useAuth();
-  if (loading) return <LoadingScreen />;
+  const { isAdmin, loading, rolesLoaded } = useAuth();
+  if (loading || !rolesLoaded) return <LoadingScreen />;
   if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
