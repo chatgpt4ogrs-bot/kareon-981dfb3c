@@ -20,6 +20,7 @@ interface AuthContextType {
   profile: Profile | null;
   session: Session | null;
   loading: boolean;
+  rolesLoaded: boolean;
   isAdmin: boolean;
   roles: AppRole[];
   hasRole: (role: AppRole) => boolean;
@@ -38,6 +39,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
 
   const hasRole = (role: AppRole) => roles.includes(role);
 
@@ -56,6 +58,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const userRoles = (rolesData?.map((r: any) => r.role) || []) as AppRole[];
     setRoles(userRoles);
     setIsAdmin(userRoles.includes("admin"));
+    setRolesLoaded(true);
   };
 
   const refreshProfile = async () => {
@@ -68,10 +71,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (session?.user) {
+          setRolesLoaded(false);
           setTimeout(() => fetchProfile(session.user.id), 0);
         } else {
           setProfile(null);
           setIsAdmin(false);
+          setRoles([]);
+          setRolesLoaded(true);
         }
         setLoading(false);
       }
@@ -82,6 +88,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+      } else {
+        setRolesLoaded(true);
       }
       setLoading(false);
     });
@@ -113,10 +121,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setProfile(null);
     setIsAdmin(false);
     setRoles([]);
+    setRolesLoaded(true);
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, isAdmin, roles, hasRole, signIn, signUp, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, rolesLoaded, isAdmin, roles, hasRole, signIn, signUp, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );
