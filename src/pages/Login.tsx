@@ -50,9 +50,9 @@ const Login = () => {
         <div className="absolute bottom-0 left-1/3 w-[24rem] h-[24rem] rounded-full bg-accent/10 blur-3xl opacity-50" />
       </div>
 
-      <div className="min-h-screen grid grid-cols-1 lg:grid-cols-2">
+      <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12">
         {/* Lado esquerdo — Branding */}
-        <div className="relative hidden lg:flex flex-col justify-between p-12 xl:p-16 text-primary-foreground overflow-hidden">
+        <div className="relative hidden lg:flex lg:col-span-5 flex-col justify-between p-12 xl:p-16 text-primary-foreground overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-[hsl(217_89%_42%)]" />
           <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,white,transparent_45%)]" />
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_80%_80%,white,transparent_40%)]" />
@@ -98,7 +98,7 @@ const Login = () => {
         </div>
 
         {/* Lado direito — Formulário */}
-        <div className="flex items-center justify-center p-6 sm:p-10">
+        <div className="flex lg:col-span-7 items-center justify-center p-6 sm:p-10">
           <div className="w-full max-w-md space-y-8 animate-fade-in">
             {/* Logo mobile */}
             <div className="flex lg:hidden flex-col items-center gap-3 text-center">
