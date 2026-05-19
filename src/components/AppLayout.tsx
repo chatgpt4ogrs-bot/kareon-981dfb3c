@@ -117,6 +117,24 @@ const AppLayout = () => {
           {navItems.map((item) => {
             const Icon = iconMap[item.icon] || LayoutDashboard;
             const active = isActive(item.to);
+            if (item.disabled) {
+              return (
+                <div
+                  key={item.to}
+                  aria-disabled="true"
+                  title={item.badge || "Em breve"}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium text-muted-foreground/60 cursor-not-allowed select-none"
+                >
+                  <Icon className="w-[18px] h-[18px]" strokeWidth={1.85} />
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge && (
+                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+              );
+            }
             return (
               <Link
                 key={item.to}
@@ -204,6 +222,23 @@ const AppLayout = () => {
           <div className="md:hidden bg-card border-b border-border/60 p-3 space-y-1 animate-fade-in">
             {allItems.map((item) => {
               const Icon = iconMap[item.icon] || LayoutDashboard;
+              if (item.disabled) {
+                return (
+                  <div
+                    key={item.to}
+                    aria-disabled="true"
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed select-none"
+                  >
+                    <Icon className="w-[18px] h-[18px]" />
+                    <span className="flex-1">{item.label}</span>
+                    {item.badge && (
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+                );
+              }
               return (
                 <Link
                   key={item.to}
