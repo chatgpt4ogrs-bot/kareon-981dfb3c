@@ -15,6 +15,8 @@ import {
   Shield,
   Camera,
   User as UserIcon,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getNavItems } from "@/lib/permissions";
@@ -37,6 +39,7 @@ const AppLayout = () => {
   const navigate = useNavigate();
   const { profile, signOut, isAdmin, hasRole, roles } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   // Auto-logout após 30 min de inatividade
   useIdleLogout(30 * 60 * 1000);
@@ -105,15 +108,39 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="hidden md:flex w-60 flex-col border-r border-border/60 bg-sidebar">
-        <div className="px-5 h-14 flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Heart className="w-4 h-4 text-primary" />
+      {collapsed && (
+        <button
+          onClick={() => setCollapsed(false)}
+          aria-label="Expandir menu"
+          className="hidden md:flex fixed left-0 top-1/2 -translate-y-1/2 z-20 h-10 w-6 items-center justify-center rounded-r-lg bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      )}
+      <aside
+        className={cn(
+          "hidden md:flex w-60 flex-col border-r border-primary/20 bg-primary text-primary-foreground transition-all",
+          collapsed && "md:hidden",
+        )}
+      >
+        {/* Topo — usuário */}
+        <Link
+          to="/perfil"
+          className="flex items-center gap-2.5 px-4 py-3 border-b border-white/15 hover:bg-white/10 transition-colors"
+        >
+          <Avatar className="w-9 h-9 ring-2 ring-white/20">
+            {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile?.nome || ""} />}
+            <AvatarFallback className="text-xs font-semibold bg-white/15 text-primary-foreground">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold truncate text-primary-foreground">{profile?.nome || "Usuário"}</p>
+            <p className="text-[11px] truncate text-primary-foreground/70">{profile?.email || roleLabel}</p>
           </div>
-          <span className="font-semibold text-[15px] tracking-tight text-foreground">Kareon</span>
-        </div>
+        </Link>
 
-        <nav className="flex-1 px-3 py-2 space-y-0.5">
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = iconMap[item.icon] || LayoutDashboard;
             const active = isActive(item.to);
@@ -123,12 +150,12 @@ const AppLayout = () => {
                   key={item.to}
                   aria-disabled="true"
                   title={item.badge || "Em breve"}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium text-muted-foreground/60 cursor-not-allowed select-none"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium text-primary-foreground/50 cursor-not-allowed select-none"
                 >
                   <Icon className="w-[18px] h-[18px]" strokeWidth={1.85} />
                   <span className="flex-1">{item.label}</span>
                   {item.badge && (
-                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/15 text-primary-foreground/80">
                       {item.badge}
                     </span>
                   )}
@@ -142,11 +169,11 @@ const AppLayout = () => {
                 className={cn(
                   "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-150",
                   active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                    ? "bg-white text-primary shadow-sm"
+                    : "text-primary-foreground/85 hover:bg-white/10 hover:text-primary-foreground",
                 )}
               >
-                <Icon className={cn("w-[18px] h-[18px]", active ? "text-sidebar-accent-foreground" : "")} strokeWidth={active ? 2.25 : 1.85} />
+                <Icon className={cn("w-[18px] h-[18px]", active ? "text-primary" : "")} strokeWidth={active ? 2.25 : 1.85} />
                 {item.label}
               </Link>
             );
@@ -155,7 +182,7 @@ const AppLayout = () => {
           {adminItems.length > 0 && (
             <>
               <div className="pt-5 pb-1.5 px-3">
-                <p className="text-[10.5px] font-semibold text-muted-foreground/80 uppercase tracking-[0.08em]">Administração</p>
+                <p className="text-[10.5px] font-semibold text-primary-foreground/70 uppercase tracking-[0.08em]">Administração</p>
               </div>
               {adminItems.map((item) => {
                 const Icon = iconMap[item.icon] || Shield;
@@ -167,11 +194,11 @@ const AppLayout = () => {
                     className={cn(
                       "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-150",
                       active
-                        ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                        ? "bg-white text-primary shadow-sm"
+                        : "text-primary-foreground/85 hover:bg-white/10 hover:text-primary-foreground",
                     )}
                   >
-                    <Icon className="w-[18px] h-[18px]" strokeWidth={active ? 2.25 : 1.85} />
+                    <Icon className={cn("w-[18px] h-[18px]", active ? "text-primary" : "")} strokeWidth={active ? 2.25 : 1.85} />
                     {item.label}
                   </Link>
                 );
@@ -180,22 +207,21 @@ const AppLayout = () => {
           )}
         </nav>
 
-        <div className="p-3 border-t border-border/60">
-          <Link
-            to="/perfil"
-            className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/60 transition-colors"
-          >
-            <Avatar className="w-8 h-8">
-              {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile?.nome || ""} />}
-              <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium truncate text-foreground">{profile?.nome || "Usuário"}</p>
-              <p className="text-[11px] text-muted-foreground truncate">{roleLabel}</p>
+        {/* Rodapé — logo Kareon + botão recolher */}
+        <div className="px-4 py-3 border-t border-white/15 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center ring-1 ring-white/20">
+              <Heart className="w-4 h-4 text-primary-foreground" />
             </div>
-          </Link>
+            <span className="font-semibold text-[15px] tracking-tight text-primary-foreground">Kareon</span>
+          </div>
+          <button
+            onClick={() => setCollapsed(true)}
+            aria-label="Recolher menu"
+            className="w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/15 text-primary-foreground/90 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
         </div>
       </aside>
 
