@@ -5,6 +5,8 @@ export interface NavItem {
   icon: string;
   label: string;
   section?: "main" | "admin";
+  disabled?: boolean;
+  badge?: string;
 }
 
 /** Routes each role can access */
@@ -49,8 +51,8 @@ export function getDefaultRoute(roles: AppRole[]): string {
 
 /** Nav items visible per role */
 export function getNavItems(roles: AppRole[]): {
-  main: { to: string; icon: string; label: string }[];
-  admin: { to: string; icon: string; label: string }[];
+  main: { to: string; icon: string; label: string; disabled?: boolean; badge?: string }[];
+  admin: { to: string; icon: string; label: string; disabled?: boolean; badge?: string }[];
 } {
   const isAdmin = roles.includes("admin");
   const isClinicaAdmin = roles.includes("clinica_admin");
@@ -58,7 +60,7 @@ export function getNavItems(roles: AppRole[]): {
   const isTerapeuta = roles.includes("terapeuta");
   const isFamiliar = roles.includes("familiar");
 
-  const main: { to: string; icon: string; label: string }[] = [];
+  const main: { to: string; icon: string; label: string; disabled?: boolean; badge?: string }[] = [];
 
   // Dashboard is always visible
   main.push({ to: "/", icon: "LayoutDashboard", label: "Início" });
@@ -73,12 +75,12 @@ export function getNavItems(roles: AppRole[]): {
     main.push({ to: "/agenda", icon: "CalendarDays", label: "Agenda" });
   }
 
-  // Cameras - visible to admin, clinica_admin, responsavel
-  if (isAdmin || isClinicaAdmin || isResponsavel) {
-    main.push({ to: "/cameras", icon: "Camera", label: "Câmeras" });
+  // Cameras - visible to admin, clinica_admin, responsavel, familiar (em breve, desabilitado)
+  if (isAdmin || isClinicaAdmin || isResponsavel || isFamiliar) {
+    main.push({ to: "/cameras", icon: "Camera", label: "Câmeras", disabled: true, badge: "Em breve" });
   }
 
-  const admin: { to: string; icon: string; label: string }[] = [];
+  const admin: { to: string; icon: string; label: string; disabled?: boolean; badge?: string }[] = [];
   if (isAdmin) {
     admin.push({ to: "/admin", icon: "Shield", label: "Painel administrativo" });
   }
