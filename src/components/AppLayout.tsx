@@ -182,7 +182,7 @@ const AppLayout = () => {
           {adminItems.length > 0 && (
             <>
               <div className="pt-5 pb-1.5 px-3">
-                <p className="text-[10.5px] font-semibold text-primary-foreground/70 uppercase tracking-[0.08em]">Administração</p>
+                <p className="text-[10.5px] text-primary-foreground/70 uppercase tracking-[0.08em] border-0 border-none shadow-none opacity-100 text-left font-extrabold">Administração</p>
               </div>
               {adminItems.map((item) => {
                 const Icon = iconMap[item.icon] || Shield;
