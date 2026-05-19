@@ -99,6 +99,9 @@ const App = () => (
             <Route path="/verificar-email" element={<VerificarEmail />} />
             <Route path="/esqueci-senha" element={<EsqueciSenha />} />
             <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+            <Route path="/termos-de-servico" element={<TermosServico />} />
+            <Route path="/politica-de-privacidade" element={<PoliticaPrivacidade />} />
+            <Route path="/aviso-de-saude" element={<AvisoSaude />} />
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />
               <Route path="pacientes" element={<RoleRoute><Pacientes /></RoleRoute>} />
