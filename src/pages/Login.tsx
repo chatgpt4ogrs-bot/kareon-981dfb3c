@@ -111,10 +111,10 @@ const Login = () => {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-card/80 backdrop-blur-xl shadow-soft-lg transition-all hover:shadow-soft-lg p-7 sm:p-9 space-y-6">
+            <div className="border border-border/60 bg-card/80 backdrop-blur-xl shadow-soft-lg transition-all hover:shadow-soft-lg p-7 sm:p-9 space-y-6 rounded-2xl shadow-2xl opacity-100">
               <div className="space-y-1.5">
-                <h2 className="text-2xl font-bold tracking-tight text-foreground">Bem-vindo de volta</h2>
-                <p className="text-sm text-muted-foreground">Acesse sua conta para continuar</p>
+                <h2 className="text-2xl font-bold tracking-tight text-foreground">Bem-vindo</h2>
+                <p className="text-sm text-muted-foreground">Acesse sua conta para continuar </p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-5">
