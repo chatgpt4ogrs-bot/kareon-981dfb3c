@@ -16,6 +16,9 @@ const VerificarEmail = lazy(() => import("@/pages/VerificarEmail"));
 const EsqueciSenha = lazy(() => import("@/pages/EsqueciSenha"));
 const RedefinirSenha = lazy(() => import("@/pages/RedefinirSenha"));
 const AlterarSenha = lazy(() => import("@/pages/AlterarSenha"));
+const TermosServico = lazy(() => import("@/pages/TermosServico"));
+const PoliticaPrivacidade = lazy(() => import("@/pages/PoliticaPrivacidade"));
+const AvisoSaude = lazy(() => import("@/pages/AvisoSaude"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Pacientes = lazy(() => import("@/pages/Pacientes"));
 const PacienteForm = lazy(() => import("@/pages/PacienteForm"));
@@ -96,6 +99,9 @@ const App = () => (
             <Route path="/verificar-email" element={<VerificarEmail />} />
             <Route path="/esqueci-senha" element={<EsqueciSenha />} />
             <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+            <Route path="/termos-de-servico" element={<TermosServico />} />
+            <Route path="/politica-de-privacidade" element={<PoliticaPrivacidade />} />
+            <Route path="/aviso-de-saude" element={<AvisoSaude />} />
             <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route index element={<Dashboard />} />
               <Route path="pacientes" element={<RoleRoute><Pacientes /></RoleRoute>} />

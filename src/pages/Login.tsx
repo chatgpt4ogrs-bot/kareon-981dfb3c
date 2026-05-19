@@ -321,8 +321,11 @@ const Login = () => {
               </Tabs>
             </div>
 
-            <p className="text-center text-xs text-muted-foreground">
-              Ao continuar, você concorda com nossos termos de uso e política de privacidade.
+            <p className="text-center text-xs text-muted-foreground leading-relaxed">
+              Ao acessar o Kareon, você concorda com os{" "}
+              <Link to="/termos-de-servico" className="underline hover:text-foreground transition-colors">Termos de Serviço</Link>,{" "}
+              a <Link to="/politica-de-privacidade" className="underline hover:text-foreground transition-colors">Política de Privacidade</Link>{" "}
+              e o <Link to="/aviso-de-saude" className="underline hover:text-foreground transition-colors">Aviso de Saúde</Link>, incluindo o tratamento de dados clínicos conforme a LGPD.
             </p>
           </div>
         </div>
