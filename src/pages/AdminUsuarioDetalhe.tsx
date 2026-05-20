@@ -43,7 +43,7 @@ const AdminUsuarioDetalhe = () => {
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", cargo: "", clinica_id: "none" });
+  const [form, setForm] = useState({ nome: "", email: "", cargo: "", telefone: "", clinica_id: "none" });
   const [newRole, setNewRole] = useState("");
 
   const { data: profile, isLoading } = useQuery({
@@ -120,6 +120,7 @@ const AdminUsuarioDetalhe = () => {
       nome: profile.nome || "",
       email: profile.email || "",
       cargo: profile.cargo || "",
+      telefone: profile.telefone || "",
       clinica_id: profile.clinica_id || "none",
     });
     setEditOpen(true);
@@ -129,6 +130,7 @@ const AdminUsuarioDetalhe = () => {
     updateProfileMutation.mutate({
       nome: form.nome,
       cargo: form.cargo,
+      telefone: form.telefone,
       clinica_id: form.clinica_id === "none" ? null : form.clinica_id,
     });
   };
@@ -236,7 +238,10 @@ const AdminUsuarioDetalhe = () => {
           <form onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} className="space-y-4">
             <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required /></div>
             <div><Label>Email</Label><Input value={form.email} disabled /></div>
-            <div><Label>Cargo</Label><Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Cargo</Label><Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></div>
+              <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
+            </div>
             <div>
               <Label>Clínica</Label>
               <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })}>

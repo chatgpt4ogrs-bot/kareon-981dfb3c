@@ -43,7 +43,7 @@ interface Props {
 const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", cargo: "", clinica_id: "none" });
+  const [form, setForm] = useState({ nome: "", email: "", cargo: "", telefone: "", clinica_id: "none" });
   const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
 
   useEffect(() => { if (open) { setEditing(false); } }, [open, profileId]);
@@ -83,6 +83,7 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
       nome: profile.nome || "",
       email: profile.email || "",
       cargo: profile.cargo || "",
+      telefone: profile.telefone || "",
       clinica_id: profile.clinica_id || "none",
     });
   }, [profile]);
@@ -178,13 +179,16 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                updateProfileMutation.mutate({ nome: form.nome, cargo: form.cargo, clinica_id: form.clinica_id === "none" ? null : form.clinica_id });
+                updateProfileMutation.mutate({ nome: form.nome, cargo: form.cargo, telefone: form.telefone, clinica_id: form.clinica_id === "none" ? null : form.clinica_id });
               }}
               className="space-y-4"
             >
               <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required /></div>
               <div><Label>Email</Label><Input value={form.email} disabled /></div>
-              <div><Label>Cargo</Label><Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Cargo</Label><Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></div>
+                <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
+              </div>
               <div>
                 <Label>Clínica</Label>
                 <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })}>
