@@ -9,8 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { Shield, Search, Loader2, Pencil } from "lucide-react";
+import { Shield, Search, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
 import UsuarioDetalheDrawer from "@/components/admin/UsuarioDetalheDrawer";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ALL_ROLES: AppRole[] = ["admin", "clinica_admin", "responsavel_clinica", "terapeuta", "familiar"];
 const roleLabels: Record<AppRole, string> = {
@@ -44,6 +53,11 @@ const AdminUsuarios = () => {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [drawerProfileId, setDrawerProfileId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newUser, setNewUser] = useState<{ nome: string; email: string; password: string; cargo: string; clinica_id: string; roles: AppRole[] }>({
+    nome: "", email: "", password: "", cargo: "", clinica_id: "", roles: [],
+  });
 
   const { data: clinicas = [] } = useQuery({
     queryKey: ["admin-usuarios-clinicas"],
@@ -118,6 +132,57 @@ const AdminUsuarios = () => {
     onSettled: () => qc.invalidateQueries({ queryKey: ["admin-usuarios-profiles"] }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (profileId: string) => {
+      const { data, error } = await supabase.functions.invoke("manage-clinic-user", {
+        body: { action: "delete", profile_id: profileId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      toast({ title: "Usuário excluído" });
+      qc.invalidateQueries({ queryKey: ["admin-usuarios-profiles"] });
+      setDeleteTarget(null);
+    },
+    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const payload: any = {
+        action: "create",
+        nome: newUser.nome,
+        email: newUser.email,
+        password: newUser.password,
+        cargo: newUser.cargo || null,
+        roles: newUser.roles,
+      };
+      if (isAdmin && newUser.clinica_id) payload.clinica_id = newUser.clinica_id;
+      const { data, error } = await supabase.functions.invoke("manage-clinic-user", { body: payload });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      toast({ title: "Usuário criado", description: "Já vinculado à clínica e ativo." });
+      qc.invalidateQueries({ queryKey: ["admin-usuarios-profiles"] });
+      setCreateOpen(false);
+      setNewUser({ nome: "", email: "", password: "", cargo: "", clinica_id: "", roles: [] });
+    },
+    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
+  });
+
+  const availableRoles: AppRole[] = isAdmin
+    ? ALL_ROLES
+    : (ALL_ROLES.filter((r) => r !== "admin") as AppRole[]);
+
+  const toggleNewRole = (r: AppRole) => {
+    setNewUser((s) => ({
+      ...s,
+      roles: s.roles.includes(r) ? s.roles.filter((x) => x !== r) : [...s.roles, r],
+    }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
@@ -129,6 +194,9 @@ const AdminUsuarios = () => {
             Gerencie clínicas vinculadas e clique em <strong>Editar</strong> para ajustar permissões de cada usuário.
           </p>
         </div>
+        <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+          <UserPlus className="w-4 h-4" /> Novo usuário
+        </Button>
       </div>
 
       <Card>
@@ -185,7 +253,7 @@ const AdminUsuarios = () => {
                   <TableHead>Usuário</TableHead>
                   <TableHead className="min-w-[180px]">Clínica</TableHead>
                   <TableHead>Permissões</TableHead>
-                  <TableHead className="w-24 text-right">Ações</TableHead>
+                  <TableHead className="w-40 text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -224,9 +292,19 @@ const AdminUsuarios = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDrawerProfileId(p.id)}>
-                          <Pencil className="w-3.5 h-3.5" /> Editar
-                        </Button>
+                        <div className="flex justify-end gap-1.5">
+                          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDrawerProfileId(p.id)}>
+                            <Pencil className="w-3.5 h-3.5" /> Editar
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget({ id: p.id, nome: p.nome })}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -261,6 +339,91 @@ const AdminUsuarios = () => {
         open={!!drawerProfileId}
         onOpenChange={(o) => { if (!o) setDrawerProfileId(null); }}
       />
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é permanente. <strong>{deleteTarget?.nome}</strong> perderá acesso e todos os vínculos serão removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); if (deleteTarget) deleteMutation.mutate(deleteTarget.id); }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo usuário</DialogTitle>
+            <DialogDescription>
+              O usuário será criado e {isAdmin ? "vinculado à clínica escolhida" : "vinculado automaticamente à sua clínica"}, com acesso imediato.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => { e.preventDefault(); createMutation.mutate(); }}
+            className="space-y-3"
+          >
+            <div>
+              <Label>Nome</Label>
+              <Input value={newUser.nome} onChange={(e) => setNewUser({ ...newUser, nome: e.target.value })} required />
+            </div>
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} required />
+            </div>
+            <div>
+              <Label>Senha inicial</Label>
+              <Input type="text" minLength={6} value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} required />
+              <p className="text-xs text-muted-foreground mt-1">Mínimo 6 caracteres. Compartilhe com o usuário.</p>
+            </div>
+            <div>
+              <Label>Cargo (opcional)</Label>
+              <Input value={newUser.cargo} onChange={(e) => setNewUser({ ...newUser, cargo: e.target.value })} placeholder="Ex.: Terapeuta sênior" />
+            </div>
+            {isAdmin && (
+              <div>
+                <Label>Clínica</Label>
+                <Select value={newUser.clinica_id} onValueChange={(v) => setNewUser({ ...newUser, clinica_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div>
+              <Label>Permissões</Label>
+              <div className="mt-2 space-y-2">
+                {availableRoles.map((r) => (
+                  <label key={r} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <Checkbox
+                      checked={newUser.roles.includes(r)}
+                      onCheckedChange={() => toggleNewRole(r)}
+                    />
+                    <span>{roleLabels[r]}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={createMutation.isPending}>
+                {createMutation.isPending ? "Criando..." : "Criar usuário"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
