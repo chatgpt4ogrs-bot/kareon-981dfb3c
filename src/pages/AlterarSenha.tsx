@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +10,9 @@ import PasswordInput from "@/components/PasswordInput";
 import PasswordValidation, { isPasswordValid } from "@/components/PasswordValidation";
 
 const AlterarSenha = () => {
+  const { profile, refreshProfile } = useAuth();
+  const navigate = useNavigate();
+  const forced = !!profile?.must_change_password;
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
@@ -30,30 +35,39 @@ const AlterarSenha = () => {
 
     setLoading(true);
     try {
-      // Verify current password by re-authenticating
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
         setErro("Usuário não encontrado");
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: senhaAtual,
-      });
-      if (signInError) {
-        setErro("Senha atual incorreta");
-        return;
+      // Quando não é troca obrigatória, valida a senha atual reautenticando
+      if (!forced) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: senhaAtual,
+        });
+        if (signInError) {
+          setErro("Senha atual incorreta");
+          return;
+        }
       }
 
       const { error } = await supabase.auth.updateUser({ password: novaSenha });
       if (error) {
         setErro(error.message);
       } else {
+        if (profile?.id) {
+          await supabase.from("profiles").update({ must_change_password: false }).eq("id", profile.id);
+          await refreshProfile();
+        }
         setSucesso(true);
         setSenhaAtual("");
         setNovaSenha("");
         setConfirmar("");
+        if (forced) {
+          setTimeout(() => navigate("/", { replace: true }), 800);
+        }
       }
     } catch {
       setErro("Erro ao alterar senha");
@@ -69,8 +83,14 @@ const AlterarSenha = () => {
           <Lock className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Alterar senha</h1>
-          <p className="text-sm text-muted-foreground">Atualize sua senha de acesso</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {forced ? "Defina sua nova senha" : "Alterar senha"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {forced
+              ? "Por segurança, você precisa cadastrar uma nova senha antes de continuar."
+              : "Atualize sua senha de acesso"}
+          </p>
         </div>
       </div>
 
@@ -88,16 +108,18 @@ const AlterarSenha = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="senhaAtual">Senha atual</Label>
-              <PasswordInput
-                id="senhaAtual"
-                placeholder="Digite sua senha atual"
-                value={senhaAtual}
-                onChange={(e) => setSenhaAtual(e.target.value)}
-                required
-              />
-            </div>
+            {!forced && (
+              <div className="space-y-2">
+                <Label htmlFor="senhaAtual">Senha atual</Label>
+                <PasswordInput
+                  id="senhaAtual"
+                  placeholder="Digite sua senha atual"
+                  value={senhaAtual}
+                  onChange={(e) => setSenhaAtual(e.target.value)}
+                  required
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="novaSenha">Nova senha</Label>
               <PasswordInput
