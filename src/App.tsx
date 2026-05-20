@@ -59,11 +59,16 @@ const LoadingScreen = () => (
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, rolesLoaded, isAdmin } = useAuth();
+  const location = useLocation();
   if (loading || (user && !rolesLoaded)) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
   // Admins bypass approval; pending/blocked users see waiting screen
   if (profile && profile.status !== "ativo" && !isAdmin) {
     return <AguardandoAprovacao />;
+  }
+  // Força troca de senha no primeiro login
+  if (profile?.must_change_password && location.pathname !== "/alterar-senha") {
+    return <Navigate to="/alterar-senha" replace />;
   }
   return <>{children}</>;
 }

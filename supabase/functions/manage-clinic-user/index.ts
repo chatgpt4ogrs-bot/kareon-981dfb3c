@@ -16,6 +16,8 @@ interface CreatePayload {
   cargo?: string;
   roles: string[];
   clinica_id?: string; // admin master pode informar; clinica_admin é forçado para a própria
+  status?: "ativo" | "inativo";
+  must_change_password?: boolean;
 }
 
 interface DeletePayload {
@@ -76,6 +78,8 @@ Deno.serve(async (req) => {
 
     if (body.action === "create") {
       const { nome, email, password, cargo, roles: newRoles } = body;
+      const status = body.status === "inativo" ? "inativo" : "ativo";
+      const mustChange = body.must_change_password !== false; // default true
       if (!nome || !email || !password) return json({ error: "Dados obrigatórios faltando" }, 400);
 
       // Determina clínica destino
@@ -111,7 +115,8 @@ Deno.serve(async (req) => {
           nome,
           clinica_id: clinicaId,
           cargo: cargo ?? null,
-          status: "ativo",
+          status,
+          must_change_password: mustChange,
         })
         .eq("user_id", newUserId);
       if (profErr) {

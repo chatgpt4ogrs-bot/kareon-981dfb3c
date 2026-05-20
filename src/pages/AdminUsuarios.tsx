@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 
 const ALL_ROLES: AppRole[] = ["admin", "clinica_admin", "responsavel_clinica", "terapeuta", "familiar"];
 const roleLabels: Record<AppRole, string> = {
@@ -55,8 +56,12 @@ const AdminUsuarios = () => {
   const [drawerProfileId, setDrawerProfileId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [newUser, setNewUser] = useState<{ nome: string; email: string; password: string; cargo: string; clinica_id: string; roles: AppRole[] }>({
+  const [newUser, setNewUser] = useState<{
+    nome: string; email: string; password: string; cargo: string; clinica_id: string;
+    roles: AppRole[]; ativo: boolean; must_change_password: boolean;
+  }>({
     nome: "", email: "", password: "", cargo: "", clinica_id: "", roles: [],
+    ativo: true, must_change_password: true,
   });
 
   const { data: clinicas = [] } = useQuery({
@@ -157,6 +162,8 @@ const AdminUsuarios = () => {
         password: newUser.password,
         cargo: newUser.cargo || null,
         roles: newUser.roles,
+        status: newUser.ativo ? "ativo" : "inativo",
+        must_change_password: newUser.must_change_password,
       };
       if (isAdmin && newUser.clinica_id) payload.clinica_id = newUser.clinica_id;
       const { data, error } = await supabase.functions.invoke("manage-clinic-user", { body: payload });
@@ -164,10 +171,10 @@ const AdminUsuarios = () => {
       if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
-      toast({ title: "Usuário criado", description: "Já vinculado à clínica e ativo." });
+      toast({ title: "Usuário criado", description: "Já vinculado à clínica." });
       qc.invalidateQueries({ queryKey: ["admin-usuarios-profiles"] });
       setCreateOpen(false);
-      setNewUser({ nome: "", email: "", password: "", cargo: "", clinica_id: "", roles: [] });
+      setNewUser({ nome: "", email: "", password: "", cargo: "", clinica_id: "", roles: [], ativo: true, must_change_password: true });
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
@@ -413,6 +420,28 @@ const AdminUsuarios = () => {
                     <span>{roleLabels[r]}</span>
                   </label>
                 ))}
+              </div>
+            </div>
+            <div className="rounded-md border border-border p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label className="text-sm">Usuário ativo</Label>
+                  <p className="text-xs text-muted-foreground">Quando desativado, o usuário não consegue acessar o sistema.</p>
+                </div>
+                <Switch
+                  checked={newUser.ativo}
+                  onCheckedChange={(v) => setNewUser({ ...newUser, ativo: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label className="text-sm">Exigir troca de senha no primeiro login</Label>
+                  <p className="text-xs text-muted-foreground">Ao entrar, o usuário será obrigado a definir uma nova senha.</p>
+                </div>
+                <Switch
+                  checked={newUser.must_change_password}
+                  onCheckedChange={(v) => setNewUser({ ...newUser, must_change_password: v })}
+                />
               </div>
             </div>
             <DialogFooter className="pt-2">
