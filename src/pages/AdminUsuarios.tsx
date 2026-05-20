@@ -40,7 +40,7 @@ const AdminUsuarios = () => {
   const { isAdmin, profile } = useAuth();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [clinicaFilter, setClinicaFilter] = useState<string>(isAdmin ? "all" : (profile?.clinica_id || "all"));
+  const [clinicaFilter, setClinicaFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [drawerProfileId, setDrawerProfileId] = useState<string | null>(null);
@@ -79,7 +79,7 @@ const AdminUsuarios = () => {
 
   const filtered = useMemo(() => {
     return profiles.filter((p) => {
-      if (isAdmin && clinicaFilter !== "all" && p.clinica_id !== clinicaFilter) return false;
+      if (clinicaFilter !== "all" && p.clinica_id !== clinicaFilter) return false;
       if (search && !`${p.nome} ${p.email}`.toLowerCase().includes(search.toLowerCase())) return false;
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (roleFilter !== "all") {
@@ -137,15 +137,13 @@ const AdminUsuarios = () => {
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" placeholder="Buscar por nome ou email" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          {isAdmin && (
-            <Select value={clinicaFilter} onValueChange={setClinicaFilter}>
+          <Select value={clinicaFilter} onValueChange={setClinicaFilter}>
               <SelectTrigger><SelectValue placeholder="Clínica" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as clínicas</SelectItem>
                 {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
               </SelectContent>
-            </Select>
-          )}
+          </Select>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
             <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
             <SelectContent>
@@ -166,7 +164,7 @@ const AdminUsuarios = () => {
           {(search || clinicaFilter !== "all" || roleFilter !== "all" || statusFilter !== "all") && (
             <div className="lg:col-span-4 flex items-center justify-between text-xs text-muted-foreground">
               <span>{filtered.length} de {profiles.length} usuário(s)</span>
-              <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setClinicaFilter(isAdmin ? "all" : (profile?.clinica_id || "all")); setRoleFilter("all"); setStatusFilter("all"); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setClinicaFilter("all"); setRoleFilter("all"); setStatusFilter("all"); }}>
                 Limpar filtros
               </Button>
             </div>
@@ -185,7 +183,7 @@ const AdminUsuarios = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Usuário</TableHead>
-                  {isAdmin && <TableHead className="min-w-[180px]">Clínica</TableHead>}
+                  <TableHead className="min-w-[180px]">Clínica</TableHead>
                   <TableHead>Permissões</TableHead>
                   <TableHead className="w-24 text-right">Ações</TableHead>
                 </TableRow>
@@ -201,11 +199,11 @@ const AdminUsuarios = () => {
                           <p className="text-xs text-muted-foreground">{p.email}</p>
                         </div>
                       </TableCell>
-                      {isAdmin && (
-                        <TableCell>
+                      <TableCell>
                           <Select
                             value={p.clinica_id || "none"}
                             onValueChange={(v) => updateClinicaMutation.mutate({ profileId: p.id, clinicaId: v === "none" ? null : v })}
+                            disabled={!isAdmin}
                           >
                             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
@@ -213,8 +211,7 @@ const AdminUsuarios = () => {
                               {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                        </TableCell>
-                      )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {userRoles.length === 0 ? (
