@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getNavItems } from "@/lib/permissions";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
+import { useLogout } from "@/hooks/use-logout";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,12 +42,12 @@ const AppLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
-  // Auto-logout após 30 min de inatividade
-  useIdleLogout(30 * 60 * 1000);
+  // Auto-logout após 10 min de inatividade
+  useIdleLogout(10 * 60 * 1000);
+  const logout = useLogout();
 
   const handleLogout = async () => {
-    await signOut();
-    navigate("/login");
+    await logout("manual");
   };
 
   const isActive = (path: string) => {
