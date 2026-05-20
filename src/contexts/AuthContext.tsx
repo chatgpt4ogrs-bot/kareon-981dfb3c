@@ -11,6 +11,7 @@ interface Profile {
   status: string;
   avatar_url?: string | null;
   telefone?: string | null;
+  must_change_password?: boolean;
 }
 
 export type AppRole = "admin" | "clinica_admin" | "responsavel_clinica" | "terapeuta" | "familiar";
@@ -46,7 +47,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, nome, email, clinica_id, cargo, status, avatar_url, telefone")
+      .select("id, nome, email, clinica_id, cargo, status, avatar_url, telefone, must_change_password")
       .eq("user_id", userId)
       .single();
     setProfile(data);
