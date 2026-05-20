@@ -422,6 +422,28 @@ const AdminUsuarios = () => {
                 ))}
               </div>
             </div>
+            <div className="rounded-md border border-border p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label className="text-sm">Usuário ativo</Label>
+                  <p className="text-xs text-muted-foreground">Quando desativado, o usuário não consegue acessar o sistema.</p>
+                </div>
+                <Switch
+                  checked={newUser.ativo}
+                  onCheckedChange={(v) => setNewUser({ ...newUser, ativo: v })}
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label className="text-sm">Exigir troca de senha no primeiro login</Label>
+                  <p className="text-xs text-muted-foreground">Ao entrar, o usuário será obrigado a definir uma nova senha.</p>
+                </div>
+                <Switch
+                  checked={newUser.must_change_password}
+                  onCheckedChange={(v) => setNewUser({ ...newUser, must_change_password: v })}
+                />
+              </div>
+            </div>
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={createMutation.isPending}>
