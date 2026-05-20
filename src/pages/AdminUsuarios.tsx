@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { Shield, Search, Loader2, Pencil, Trash2, UserPlus } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import UsuarioDetalheDrawer from "@/components/admin/UsuarioDetalheDrawer";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -56,6 +57,7 @@ const AdminUsuarios = () => {
   const [drawerProfileId, setDrawerProfileId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [newUser, setNewUser] = useState<{
     nome: string; email: string; password: string; cargo: string; clinica_id: string;
     roles: AppRole[]; ativo: boolean; must_change_password: boolean;
@@ -175,6 +177,7 @@ const AdminUsuarios = () => {
       qc.invalidateQueries({ queryKey: ["admin-usuarios-profiles"] });
       setCreateOpen(false);
       setNewUser({ nome: "", email: "", password: "", cargo: "", clinica_id: "", roles: [], ativo: true, must_change_password: true });
+      setShowAdvanced(false);
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
@@ -393,57 +396,71 @@ const AdminUsuarios = () => {
               <Input type="text" minLength={6} value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} required />
               <p className="text-xs text-muted-foreground mt-1">Mínimo 6 caracteres. Compartilhe com o usuário.</p>
             </div>
-            <div>
-              <Label>Cargo (opcional)</Label>
-              <Input value={newUser.cargo} onChange={(e) => setNewUser({ ...newUser, cargo: e.target.value })} placeholder="Ex.: Terapeuta sênior" />
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                Configurações avançadas
+              </button>
             </div>
-            {isAdmin && (
-              <div>
-                <Label>Clínica</Label>
-                <Select value={newUser.clinica_id} onValueChange={(v) => setNewUser({ ...newUser, clinica_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+            {showAdvanced && (
+              <div className="space-y-3 border-l-2 border-border pl-3">
+                <div>
+                  <Label>Cargo (opcional)</Label>
+                  <Input value={newUser.cargo} onChange={(e) => setNewUser({ ...newUser, cargo: e.target.value })} placeholder="Ex.: Terapeuta sênior" />
+                </div>
+                {isAdmin && (
+                  <div>
+                    <Label>Clínica</Label>
+                    <Select value={newUser.clinica_id} onValueChange={(v) => setNewUser({ ...newUser, clinica_id: v })}>
+                      <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                      <SelectContent>
+                        {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div>
+                  <Label>Permissões</Label>
+                  <div className="mt-2 space-y-2">
+                    {availableRoles.map((r) => (
+                      <label key={r} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <Checkbox
+                          checked={newUser.roles.includes(r)}
+                          onCheckedChange={() => toggleNewRole(r)}
+                        />
+                        <span>{roleLabels[r]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded-md border border-border p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label className="text-sm">Usuário ativo</Label>
+                      <p className="text-xs text-muted-foreground">Quando desativado, o usuário não consegue acessar o sistema.</p>
+                    </div>
+                    <Switch
+                      checked={newUser.ativo}
+                      onCheckedChange={(v) => setNewUser({ ...newUser, ativo: v })}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label className="text-sm">Exigir troca de senha no primeiro login</Label>
+                      <p className="text-xs text-muted-foreground">Ao entrar, o usuário será obrigado a definir uma nova senha.</p>
+                    </div>
+                    <Switch
+                      checked={newUser.must_change_password}
+                      onCheckedChange={(v) => setNewUser({ ...newUser, must_change_password: v })}
+                    />
+                  </div>
+                </div>
               </div>
             )}
-            <div>
-              <Label>Permissões</Label>
-              <div className="mt-2 space-y-2">
-                {availableRoles.map((r) => (
-                  <label key={r} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <Checkbox
-                      checked={newUser.roles.includes(r)}
-                      onCheckedChange={() => toggleNewRole(r)}
-                    />
-                    <span>{roleLabels[r]}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div className="rounded-md border border-border p-3 space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <Label className="text-sm">Usuário ativo</Label>
-                  <p className="text-xs text-muted-foreground">Quando desativado, o usuário não consegue acessar o sistema.</p>
-                </div>
-                <Switch
-                  checked={newUser.ativo}
-                  onCheckedChange={(v) => setNewUser({ ...newUser, ativo: v })}
-                />
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <Label className="text-sm">Exigir troca de senha no primeiro login</Label>
-                  <p className="text-xs text-muted-foreground">Ao entrar, o usuário será obrigado a definir uma nova senha.</p>
-                </div>
-                <Switch
-                  checked={newUser.must_change_password}
-                  onCheckedChange={(v) => setNewUser({ ...newUser, must_change_password: v })}
-                />
-              </div>
-            </div>
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
               <Button type="submit" disabled={createMutation.isPending}>
