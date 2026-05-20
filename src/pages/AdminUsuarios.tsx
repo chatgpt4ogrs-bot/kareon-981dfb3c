@@ -40,7 +40,7 @@ const AdminUsuarios = () => {
   const { isAdmin, profile } = useAuth();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const [clinicaFilter, setClinicaFilter] = useState<string>(isAdmin ? "all" : (profile?.clinica_id || "all"));
+  const [clinicaFilter, setClinicaFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [drawerProfileId, setDrawerProfileId] = useState<string | null>(null);
@@ -79,7 +79,7 @@ const AdminUsuarios = () => {
 
   const filtered = useMemo(() => {
     return profiles.filter((p) => {
-      if (isAdmin && clinicaFilter !== "all" && p.clinica_id !== clinicaFilter) return false;
+      if (clinicaFilter !== "all" && p.clinica_id !== clinicaFilter) return false;
       if (search && !`${p.nome} ${p.email}`.toLowerCase().includes(search.toLowerCase())) return false;
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (roleFilter !== "all") {
