@@ -21,7 +21,7 @@ const GoogleIcon = () => (
 
 const Login = () => {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithGoogle } = useAuth();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -86,8 +86,14 @@ const Login = () => {
 
   const handleGoogle = async () => {
     setLoadingGoogle(true);
+    setErro("");
     try {
-      await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/` });
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setErro(error.message);
+      }
+    } catch {
+      setErro("Erro ao iniciar login com Google.");
     } finally {
       setLoadingGoogle(false);
     }
