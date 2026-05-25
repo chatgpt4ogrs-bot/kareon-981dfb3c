@@ -98,9 +98,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const translateAuthError = (message: string): string => {
+    if (message.includes("Invalid login credentials")) return "Email ou senha inválidos.";
+    if (message.includes("Email not confirmed")) return "Email não confirmado.";
+    if (message.includes("User already registered")) return "Este email já está cadastrado.";
+    if (message.includes("Database error saving new user")) return "Erro ao criar conta. Tente novamente em instantes.";
+    if (message.includes("Password should be at least")) return "A senha deve ter no mínimo 6 caracteres.";
+    if (message.includes("Unable to validate email address")) return "Endereço de email inválido.";
+    if (message.includes("Email rate limit exceeded")) return "Muitas tentativas. Aguarde alguns minutos.";
+    if (message.includes("over_email_send_rate_limit")) return "Muitas tentativas. Aguarde alguns minutos.";
+    return message;
+  };
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error ? new Error(error.message) : null };
+    return { error: error ? new Error(translateAuthError(error.message)) : null };
   };
 
   const signUp = async (email: string, password: string, nome: string, telefone?: string) => {
@@ -112,7 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         emailRedirectTo: `${window.location.origin}/`,
       },
     });
-    return { error: error ? new Error(error.message) : null };
+    return { error: error ? new Error(translateAuthError(error.message)) : null };
   };
 
   const signOut = async () => {

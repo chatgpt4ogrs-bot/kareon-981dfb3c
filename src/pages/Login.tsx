@@ -47,11 +47,19 @@ const Login = () => {
     try {
       const { error } = await signIn(email, senha);
       if (error) {
-        if (error.message.includes("Email not confirmed")) setEmailNaoVerificado(true);
-        else setErro(error.message);
-      } else navigate("/");
+        if (
+          error.message.includes("Email not confirmed") ||
+          error.message.includes("não confirmado")
+        ) {
+          setEmailNaoVerificado(true);
+        } else {
+          setErro(error.message);
+        }
+      } else {
+        navigate("/");
+      }
     } catch {
-      setErro("Erro ao fazer login");
+      setErro("Erro ao fazer login. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -64,10 +72,13 @@ const Login = () => {
     setLoadingSignup(true);
     try {
       const { error } = await signUp(emailSignup, senhaSignup, nome, telefone);
-      if (error) setErroSignup(error.message);
-      else setOkSignup(true);
+      if (error) {
+        setErroSignup(error.message);
+      } else {
+        setOkSignup(true);
+      }
     } catch {
-      setErroSignup("Erro ao criar conta");
+      setErroSignup("Erro inesperado ao criar conta. Tente novamente.");
     } finally {
       setLoadingSignup(false);
     }
