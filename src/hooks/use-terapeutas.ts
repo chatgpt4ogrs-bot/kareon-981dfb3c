@@ -12,12 +12,19 @@ export function useTerapeutas() {
   return useQuery({
     queryKey: ["terapeutas"],
     queryFn: async () => {
+      // Real DB columns: id, name, email, role
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nome, email, cargo")
-        .order("nome");
+        .select("id, name, email, role")
+        .order("name");
       if (error) throw error;
-      return (data || []) as Terapeuta[];
+      // Map real DB column names → app interface
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        nome: p.name,
+        email: p.email,
+        cargo: p.role,
+      })) as Terapeuta[];
     },
   });
 }

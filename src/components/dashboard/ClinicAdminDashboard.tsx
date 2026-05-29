@@ -15,11 +15,12 @@ function useClinicTerapeutaCount() {
   return useQuery({
     queryKey: ["clinic-terapeuta-count"],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("user_roles")
-        .select("user_id", { count: "exact", head: true })
+      // user_roles table doesn't exist; role is on profiles directly
+      const { count } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
         .eq("role", "terapeuta");
-      return data;
+      return count ?? 0;
     },
   });
 }
@@ -36,7 +37,7 @@ const ClinicAdminDashboard = () => {
       const { count } = await supabase
         .from("profiles")
         .select("id", { count: "exact", head: true })
-        .eq("clinica_id", profile?.clinica_id || "")
+        .eq("clinic_id", profile?.clinica_id || "")
         .eq("status", "ativo");
       return count ?? 0;
     },

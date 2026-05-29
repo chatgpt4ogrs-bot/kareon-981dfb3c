@@ -78,24 +78,22 @@ const AdminUsuarios = () => {
   const { data: profiles = [], isLoading } = useQuery({
     queryKey: ["admin-usuarios-profiles", isAdmin, profile?.clinica_id],
     queryFn: async () => {
-      let q = supabase.from("profiles").select("id, user_id, nome, email, clinica_id, status").order("nome");
-      if (!isAdmin && profile?.clinica_id) q = q.eq("clinica_id", profile.clinica_id);
+      // Real DB columns: id, name, email, clinic_id, role, status
+      let q = supabase.from("profiles").select("id, name, email, clinic_id, role, status").order("name");
+      if (!isAdmin && profile?.clinica_id) q = q.eq("clinic_id", profile.clinica_id);
       const { data, error } = await q;
       if (error) throw error;
-      return data;
+      // Map real DB columns → app interface
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        user_id: p.id,
+        nome: p.name,
+        email: p.email,
+        clinica_id: p.clinic_id,
+        cargo: p.role,
+        status: p.status,
+      }));
     },
-  });
-
-  const userIds = profiles.map((p) => p.user_id);
-  const { data: roles = [] } = useQuery({
-    queryKey: ["admin-usuarios-roles", userIds],
-    queryFn: async () => {
-      if (userIds.length === 0) return [];
-      const { data, error } = await supabase.from("user_roles").select("id, user_id, role").in("user_id", userIds);
-      if (error) throw error;
-      return data;
-    },
-    enabled: userIds.length > 0,
   });
 
   const filtered = useMemo(() => {
@@ -104,23 +102,26 @@ const AdminUsuarios = () => {
       if (search && !`${p.nome} ${p.email}`.toLowerCase().includes(search.toLowerCase())) return false;
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
       if (roleFilter !== "all") {
-        const userRoles = roles.filter((r) => r.user_id === p.user_id).map((r) => r.role);
+        const userRole = p.cargo;
         if (roleFilter === "none") {
-          if (userRoles.length > 0) return false;
-        } else if (!userRoles.includes(roleFilter as any)) {
+          if (userRole) return false;
+        } else if (userRole !== roleFilter) {
           return false;
         }
       }
       return true;
     });
-  }, [profiles, search, clinicaFilter, roleFilter, statusFilter, roles, isAdmin]);
+  }, [profiles, search, clinicaFilter, roleFilter, statusFilter, isAdmin]);
 
   const getClinicaNome = (id: string | null) => clinicas.find((c) => c.id === id)?.nome || "—";
-  const currentRolesOf = (userId: string) => roles.filter((r) => r.user_id === userId).map((r) => r.role as AppRole);
+  const currentRolesOf = (userId: string) => {
+    const p = profiles.find((pr) => pr.user_id === userId);
+    return p?.cargo ? [p.cargo as AppRole] : [];
+  };
 
   const updateClinicaMutation = useMutation({
     mutationFn: async ({ profileId, clinicaId }: { profileId: string; clinicaId: string | null }) => {
-      const { error } = await supabase.from("profiles").update({ clinica_id: clinicaId }).eq("id", profileId);
+      const { error } = await supabase.from("profiles").update({ clinic_id: clinicaId } as any).eq("id", profileId);
       if (error) throw error;
     },
     onMutate: async ({ profileId, clinicaId }) => {

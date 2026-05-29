@@ -38,9 +38,14 @@ const AdminClinicaDetalhe = () => {
   const { data: usuarios = [] } = useQuery({
     queryKey: ["clinica-usuarios", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").eq("clinica_id", id);
+      const { data, error } = await supabase.from("profiles").select("*").eq("clinic_id", id);
       if (error) throw error;
-      return data;
+      return (data || []).map((u: any) => ({
+        ...u,
+        nome: u.name,
+        cargo: u.role,
+        clinica_id: u.clinic_id,
+      }));
     },
     enabled: !!id,
   });

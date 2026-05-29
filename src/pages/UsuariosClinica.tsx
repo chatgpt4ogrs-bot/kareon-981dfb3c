@@ -37,31 +37,23 @@ const UsuariosClinica = () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("clinica_id", profile.clinica_id)
+        .eq("clinic_id", profile.clinica_id)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data;
+      return (data || []).map((p: any) => ({
+        ...p,
+        nome: p.name,
+        cargo: p.role,
+        user_id: p.id,
+      }));
     },
     enabled: !!profile?.clinica_id,
   });
 
-  const userIds = usuarios.map((u) => u.user_id);
-  const { data: userRoles = [] } = useQuery({
-    queryKey: ["clinica-user-roles", userIds],
-    queryFn: async () => {
-      if (userIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .in("user_id", userIds);
-      if (error) throw error;
-      return data;
-    },
-    enabled: userIds.length > 0,
-  });
-
-  const getUserRoles = (userId: string) =>
-    userRoles.filter((r) => r.user_id === userId).map((r) => r.role);
+  const getUserRoles = (userId: string) => {
+    const u = usuarios.find((usr) => usr.user_id === userId);
+    return u?.cargo ? [u.cargo] : [];
+  };
 
   const isFamiliar = (userId: string) => getUserRoles(userId).includes("familiar");
 

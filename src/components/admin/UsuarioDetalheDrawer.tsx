@@ -53,6 +53,14 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", profileId!).maybeSingle();
       if (error) throw error;
+      if (data) {
+        return {
+          ...data,
+          nome: (data as any).name,
+          cargo: data.role,
+          clinica_id: (data as any).clinic_id,
+        };
+      }
       return data;
     },
     enabled: !!profileId && open,
@@ -68,15 +76,8 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
     enabled: open,
   });
 
-  const { data: roles = [] } = useQuery({
-    queryKey: ["user-roles", profile?.user_id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("*").eq("user_id", profile!.user_id);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!profile?.user_id && open,
-  });
+  // Derive roles locally from profile.role (since user_roles table does not exist)
+  const roles = profile?.cargo ? [{ id: "role-id", role: profile.cargo }] : [];
 
   useEffect(() => {
     if (profile) setForm({
@@ -90,7 +91,16 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const { error } = await supabase.from("profiles").update(payload).eq("id", profileId!);
+      // Map form payload back to real database columns
+      const dbPayload: any = {};
+      if ("nome" in payload) dbPayload.name = payload.nome;
+      if ("cargo" in payload) dbPayload.role = payload.cargo;
+      if ("telefone" in payload) dbPayload.telefone = payload.telefone;
+      if ("clinica_id" in payload) dbPayload.clinic_id = payload.clinica_id;
+      if ("status" in payload) dbPayload.status = payload.status;
+      if ("role" in payload) dbPayload.role = payload.role;
+
+      const { error } = await supabase.from("profiles").update(dbPayload).eq("id", profileId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -103,42 +113,11 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
 
-  const addRoleMutation = useMutation({
-    mutationFn: async (role: string) => {
-      const { error } = await supabase.from("user_roles").insert({ user_id: profile!.user_id, role: role as any });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["user-roles", profile?.user_id] });
-      qc.invalidateQueries({ queryKey: ["admin-usuarios-roles"] });
-      toast({ title: "Permissão adicionada" });
-    },
-    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
-  });
-
-  const removeRoleMutation = useMutation({
-    mutationFn: async (roleId: string) => {
-      const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["user-roles", profile?.user_id] });
-      qc.invalidateQueries({ queryKey: ["admin-usuarios-roles"] });
-      toast({ title: "Permissão removida" });
-    },
-    onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
-  });
-
   const inativo = profile?.status !== "ativo";
   const clinicaNome = clinicas.find((c) => c.id === profile?.clinica_id)?.nome;
 
   const toggleRole = (role: string, has: boolean) => {
-    if (has) {
-      const row = roles.find((r) => r.role === role);
-      if (row) removeRoleMutation.mutate(row.id);
-    } else {
-      addRoleMutation.mutate(role);
-    }
+    updateProfileMutation.mutate({ role: has ? null : role });
   };
 
   return (

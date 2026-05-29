@@ -46,20 +46,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const hasRole = (role: AppRole) => roles.includes(role);
 
   const fetchProfile = async (userId: string) => {
+    // Real DB columns: id (= auth UUID), name, email, clinic_id, role, status, avatar_url, telefone, must_change_password
     const { data } = await supabase
       .from("profiles")
-      .select("id, nome, email, clinica_id, cargo, status, avatar_url, telefone, must_change_password")
-      .eq("user_id", userId)
+      .select("id, name, email, clinic_id, role, status, avatar_url, telefone, must_change_password")
+      .eq("id", userId)
       .single();
-    setProfile(data);
 
-    const { data: rolesData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-    const userRoles = (rolesData?.map((r: any) => r.role) || []) as AppRole[];
-    setRoles(userRoles);
-    setIsAdmin(userRoles.includes("admin"));
+    if (data) {
+      // Map real DB column names → Profile interface used by the rest of the app
+      setProfile({
+        id: data.id,
+        nome: (data as any).name,
+        email: data.email,
+        clinica_id: (data as any).clinic_id,
+        cargo: data.role,
+        status: data.status,
+        avatar_url: data.avatar_url,
+        telefone: data.telefone,
+        must_change_password: data.must_change_password,
+      });
+
+      // Derive roles from profile.role (no user_roles table in DB)
+      const userRoles = data.role ? [data.role as AppRole] : [];
+      setRoles(userRoles);
+      setIsAdmin(userRoles.includes("admin"));
+    } else {
+      setProfile(null);
+      setRoles([]);
+      setIsAdmin(false);
+    }
     setRolesLoaded(true);
   };
 

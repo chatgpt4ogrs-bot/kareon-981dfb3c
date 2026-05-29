@@ -61,13 +61,14 @@ Deno.serve(async (req) => {
     if (userErr || !userData.user) return json({ error: "Sessão inválida" }, 401);
     const callerId = userData.user.id;
 
-    // Carrega perfil e roles do chamador (via service role para evitar RLS surpresas)
-    const [{ data: callerProfile }, { data: callerRoles }] = await Promise.all([
-      admin.from("profiles").select("id, clinica_id, status").eq("user_id", callerId).maybeSingle(),
-      admin.from("user_roles").select("role").eq("user_id", callerId),
-    ]);
+    // Carrega perfil do chamador (via service role para evitar RLS surpresas)
+    const { data: callerProfile } = await admin
+      .from("profiles")
+      .select("id, clinic_id, status, role")
+      .eq("id", callerId)
+      .maybeSingle();
 
-    const roles = (callerRoles ?? []).map((r: any) => r.role);
+    const roles = callerProfile?.role ? [callerProfile.role] : [];
     const isAdminMaster = roles.includes("admin");
     const isClinicAdmin = roles.includes("clinica_admin");
     if (!isAdminMaster && !isClinicAdmin) {
@@ -85,10 +86,10 @@ Deno.serve(async (req) => {
       // Determina clínica destino
       let clinicaId: string | null = null;
       if (isAdminMaster) {
-        clinicaId = body.clinica_id ?? callerProfile?.clinica_id ?? null;
+        clinicaId = body.clinica_id ?? callerProfile?.clinic_id ?? null;
       } else {
-        if (!callerProfile?.clinica_id) return json({ error: "Sem clínica vinculada" }, 400);
-        clinicaId = callerProfile.clinica_id;
+        if (!callerProfile?.clinic_id) return json({ error: "Sem clínica vinculada" }, 400);
+        clinicaId = callerProfile.clinic_id;
       }
 
       // Valida roles
@@ -112,22 +113,16 @@ Deno.serve(async (req) => {
       const { error: profErr } = await admin
         .from("profiles")
         .update({
-          nome,
-          clinica_id: clinicaId,
-          cargo: cargo ?? null,
+          name: nome,
+          clinic_id: clinicaId,
+          role: cleanRoles[0] || cargo || null,
           status,
           must_change_password: mustChange,
         })
-        .eq("user_id", newUserId);
+        .eq("id", newUserId);
       if (profErr) {
         await admin.auth.admin.deleteUser(newUserId);
         return json({ error: profErr.message }, 400);
-      }
-
-      if (cleanRoles.length > 0) {
-        const rows = cleanRoles.map((role) => ({ user_id: newUserId, role }));
-        const { error: roleErr } = await admin.from("user_roles").insert(rows);
-        if (roleErr) return json({ error: roleErr.message }, 400);
       }
 
       return json({ success: true, user_id: newUserId });
@@ -139,28 +134,26 @@ Deno.serve(async (req) => {
 
       const { data: target, error: tErr } = await admin
         .from("profiles")
-        .select("id, user_id, clinica_id")
+        .select("id, clinic_id, role")
         .eq("id", profile_id)
         .maybeSingle();
       if (tErr || !target) return json({ error: "Usuário não encontrado" }, 404);
 
-      if (target.user_id === callerId) return json({ error: "Não é possível excluir a si mesmo" }, 400);
+      if (target.id === callerId) return json({ error: "Não é possível excluir a si mesmo" }, 400);
 
       if (!isAdminMaster) {
-        if (!callerProfile?.clinica_id || target.clinica_id !== callerProfile.clinica_id) {
+        if (!callerProfile?.clinic_id || target.clinic_id !== callerProfile.clinic_id) {
           return json({ error: "Sem permissão para excluir este usuário" }, 403);
         }
         // Bloqueia excluir admin master
-        const { data: targetRoles } = await admin.from("user_roles").select("role").eq("user_id", target.user_id);
-        if ((targetRoles ?? []).some((r: any) => r.role === "admin")) {
+        if (target.role === "admin") {
           return json({ error: "Não é possível excluir admin master" }, 403);
         }
       }
 
-      // Remove roles, profile e auth user
-      await admin.from("user_roles").delete().eq("user_id", target.user_id);
+      // Remove profile e auth user
       await admin.from("profiles").delete().eq("id", profile_id);
-      const { error: delErr } = await admin.auth.admin.deleteUser(target.user_id);
+      const { error: delErr } = await admin.auth.admin.deleteUser(target.id);
       if (delErr) return json({ error: delErr.message }, 400);
 
       return json({ success: true });

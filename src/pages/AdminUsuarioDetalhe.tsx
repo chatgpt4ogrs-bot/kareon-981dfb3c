@@ -51,6 +51,14 @@ const AdminUsuarioDetalhe = () => {
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
       if (error) throw error;
+      if (data) {
+        return {
+          ...data,
+          nome: (data as any).name,
+          cargo: data.role,
+          clinica_id: (data as any).clinic_id,
+        };
+      }
       return data;
     },
     enabled: !!id,
@@ -65,19 +73,19 @@ const AdminUsuarioDetalhe = () => {
     },
   });
 
-  const { data: roles = [] } = useQuery({
-    queryKey: ["user-roles", profile?.user_id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("user_roles").select("*").eq("user_id", profile!.user_id);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!profile?.user_id,
-  });
+  // Derive roles locally from profile.role (since user_roles table does not exist)
+  const roles = profile?.cargo ? [{ id: "role-id", role: profile.cargo }] : [];
 
   const updateProfileMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const { error } = await supabase.from("profiles").update(payload).eq("id", id);
+      const dbPayload: any = {};
+      if ("nome" in payload) dbPayload.name = payload.nome;
+      if ("cargo" in payload) dbPayload.role = payload.cargo;
+      if ("telefone" in payload) dbPayload.telefone = payload.telefone;
+      if ("clinica_id" in payload) dbPayload.clinic_id = payload.clinica_id;
+      if ("status" in payload) dbPayload.status = payload.status;
+
+      const { error } = await supabase.from("profiles").update(dbPayload).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -91,11 +99,11 @@ const AdminUsuarioDetalhe = () => {
 
   const addRoleMutation = useMutation({
     mutationFn: async (role: string) => {
-      const { error } = await supabase.from("user_roles").insert({ user_id: profile!.user_id, role: role as any });
+      const { error } = await supabase.from("profiles").update({ role }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-roles", profile?.user_id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-profile", id] });
       toast({ title: "Permissão adicionada" });
       setNewRole("");
     },
@@ -104,11 +112,11 @@ const AdminUsuarioDetalhe = () => {
 
   const removeRoleMutation = useMutation({
     mutationFn: async (roleId: string) => {
-      const { error } = await supabase.from("user_roles").delete().eq("id", roleId);
+      const { error } = await supabase.from("profiles").update({ role: null }).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-roles", profile?.user_id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-profile", id] });
       toast({ title: "Permissão removida" });
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),

@@ -31,37 +31,34 @@ function useRecentUsers() {
   return useQuery({
     queryKey: ["recent-users"],
     queryFn: async () => {
+      // Real DB columns: id, name, email, role, status, clinic_id, created_at
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, user_id, nome, email, cargo, status, clinica_id, created_at")
+        .select("id, name, email, role, status, clinic_id, created_at")
         .order("created_at", { ascending: false })
         .limit(10);
       if (error) throw error;
 
-      const userIds = (data || []).map((p) => p.user_id);
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .in("user_id", userIds);
-
-      const roleMap: Record<string, string[]> = {};
-      (roles || []).forEach((r: any) => {
-        if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
-        roleMap[r.user_id].push(r.role);
-      });
-
       // Fetch clinic names
-      const clinicaIds = [...new Set((data || []).map((p) => p.clinica_id).filter(Boolean))];
+      const clinicaIds = [...new Set((data || []).map((p: any) => p.clinic_id).filter(Boolean))];
       const { data: clinicas } = clinicaIds.length > 0
         ? await supabase.from("clinicas").select("id, nome").in("id", clinicaIds)
         : { data: [] };
       const clinicaMap: Record<string, string> = {};
       (clinicas || []).forEach((c: any) => { clinicaMap[c.id] = c.nome; });
 
-      return (data || []).map((p) => ({
-        ...p,
-        roles: roleMap[p.user_id] || [],
-        clinica_nome: p.clinica_id ? clinicaMap[p.clinica_id] || "—" : "—",
+      // Map real DB columns → app interface
+      return (data || []).map((p: any) => ({
+        id: p.id,
+        user_id: p.id,
+        nome: p.name,
+        email: p.email,
+        cargo: p.role,
+        status: p.status,
+        clinica_id: p.clinic_id,
+        created_at: p.created_at,
+        roles: p.role ? [p.role] : [],
+        clinica_nome: p.clinic_id ? clinicaMap[p.clinic_id] || "—" : "—",
       }));
     },
   });

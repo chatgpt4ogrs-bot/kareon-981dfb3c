@@ -11,33 +11,28 @@ export interface ClinicProfile {
   clinica_id: string | null;
 }
 
-/** Fetch profiles with their roles for the user's clinic */
+/** Fetch profiles for the user's clinic. Maps real DB columns to app interface. */
 export function useClinicProfiles() {
   return useQuery({
     queryKey: ["clinic-profiles"],
     queryFn: async () => {
+      // Real DB columns: id, name, email, role, status, clinic_id
       const { data: profiles, error } = await supabase
         .from("profiles")
-        .select("id, user_id, nome, email, cargo, status, clinica_id")
-        .order("nome");
+        .select("id, name, email, role, status, clinic_id")
+        .order("name");
       if (error) throw error;
 
-      // Fetch roles for these profiles
-      const userIds = (profiles || []).map((p) => p.user_id);
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .in("user_id", userIds);
-
-      const roleMap: Record<string, string[]> = {};
-      (roles || []).forEach((r: any) => {
-        if (!roleMap[r.user_id]) roleMap[r.user_id] = [];
-        roleMap[r.user_id].push(r.role);
-      });
-
-      return (profiles || []).map((p) => ({
-        ...p,
-        roles: roleMap[p.user_id] || [],
+      // Map real DB column names → app interface
+      return (profiles || []).map((p: any) => ({
+        id: p.id,
+        user_id: p.id, // id IS the auth user UUID
+        nome: p.name,
+        email: p.email,
+        cargo: p.role,
+        status: p.status,
+        clinica_id: p.clinic_id,
+        roles: p.role ? [p.role] : [],
       }));
     },
   });
