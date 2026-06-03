@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -9,6 +9,7 @@ import { lovable } from "@/integrations/lovable";
 import { Loader2, LogIn, Mail, ShieldCheck, Heart, CalendarCheck, BarChart3, User, Phone } from "lucide-react";
 import PasswordInput from "@/components/PasswordInput";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
@@ -21,6 +22,8 @@ const GoogleIcon = () => (
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
   const { signIn, signUp, signInWithGoogle } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -36,8 +39,20 @@ const Login = () => {
   const [erroSignup, setErroSignup] = useState("");
   const [okSignup, setOkSignup] = useState(false);
   const [loadingSignup, setLoadingSignup] = useState(false);
-
   const [loadingGoogle, setLoadingGoogle] = useState(false);
+
+  const [activeTab, setActiveTab] = useState("login");
+
+  useEffect(() => {
+    if (location.state?.email) {
+      setEmail(location.state.email);
+      setActiveTab("login");
+      setEmailSignup("");
+      setSenhaSignup("");
+      setNome("");
+      setTelefone("");
+    }
+  }, [location.state]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,7 +90,22 @@ const Login = () => {
       if (error) {
         setErroSignup(error.message);
       } else {
-        setOkSignup(true);
+        toast({
+          title: "Conta criada com sucesso!",
+          description: "Sua conta foi criada. Faça login para acessar o sistema.",
+        });
+
+        // Copia o email cadastrado para a tela de login
+        setEmail(emailSignup);
+
+        // Limpa todas as informações do formulário de criação de conta
+        setNome("");
+        setTelefone("");
+        setEmailSignup("");
+        setSenhaSignup("");
+
+        // Direciona para a aba de login automaticamente
+        setActiveTab("login");
       }
     } catch {
       setErroSignup("Erro inesperado ao criar conta. Tente novamente.");
@@ -197,7 +227,7 @@ const Login = () => {
                 </div>
               </div>
 
-              <Tabs defaultValue="login" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 bg-muted/60 rounded-lg">
                   <TabsTrigger value="login" className="rounded-md">Entrar</TabsTrigger>
                   <TabsTrigger value="signup" className="rounded-md">Criar conta</TabsTrigger>

@@ -9,9 +9,12 @@ import { Heart, Loader2 } from "lucide-react";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordValidation, { isPasswordValid } from "@/components/PasswordValidation";
 
+import { useToast } from "@/hooks/use-toast";
+
 const Cadastro = () => {
   const navigate = useNavigate();
   const { signUp } = useAuth();
+  const { toast } = useToast();
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
@@ -40,7 +43,20 @@ const Cadastro = () => {
       if (error) {
         setErro(error.message);
       } else {
-        navigate("/verificar-email", { state: { email } });
+        toast({
+          title: "Conta criada com sucesso!",
+          description: "Sua conta foi criada. Faça login para continuar.",
+        });
+
+        // Limpa campos da tela de criação de conta
+        setNome("");
+        setTelefone("");
+        setEmail("");
+        setSenha("");
+        setConfirmarSenha("");
+
+        // Redireciona para a tela de login
+        navigate("/login", { state: { email } });
       }
     } catch {
       setErro("Erro ao criar conta");
