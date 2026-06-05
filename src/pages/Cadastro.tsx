@@ -44,19 +44,18 @@ const Cadastro = () => {
         setErro(error.message);
       } else {
         toast({
-          title: "Conta criada com sucesso!",
-          description: "Sua conta foi criada. Faça login para continuar.",
+          title: "Conta criada!",
+          description: "Confirme seu email para ativar a conta.",
         });
 
         // Limpa campos da tela de criação de conta
         setNome("");
         setTelefone("");
-        setEmail("");
         setSenha("");
         setConfirmarSenha("");
 
-        // Redireciona para a tela de login
-        navigate("/login", { state: { email } });
+        // Redireciona para a página de verificação de email
+        navigate("/verificar-email", { state: { email } });
       }
     } catch {
       setErro("Erro ao criar conta");

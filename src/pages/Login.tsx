@@ -90,22 +90,8 @@ const Login = () => {
       if (error) {
         setErroSignup(error.message);
       } else {
-        toast({
-          title: "Conta criada com sucesso!",
-          description: "Sua conta foi criada. Faça login para acessar o sistema.",
-        });
-
-        // Copia o email cadastrado para a tela de login
-        setEmail(emailSignup);
-
-        // Limpa todas as informações do formulário de criação de conta
-        setNome("");
-        setTelefone("");
-        setEmailSignup("");
-        setSenhaSignup("");
-
-        // Direciona para a aba de login automaticamente
-        setActiveTab("login");
+        // Email confirmation is required - send user to verify-email page
+        navigate("/verificar-email", { state: { email: emailSignup } });
       }
     } catch {
       setErroSignup("Erro inesperado ao criar conta. Tente novamente.");
