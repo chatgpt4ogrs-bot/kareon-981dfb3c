@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
 
     if (!clinicaId) {
       const { data: clinica } = await admin
-        .from("clinicas")
+        .from("clinics")
         .insert({ nome: "Clínica Kareon" })
         .select()
         .single();

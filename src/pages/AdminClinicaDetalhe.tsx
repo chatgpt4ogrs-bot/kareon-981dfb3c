@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,22 +18,28 @@ import { ArrowLeft, Building2, Pencil, Power, Users, Trash2, Mail, Phone, MapPin
 import { format } from "date-fns";
 
 const AdminClinicaDetalhe = () => {
-  const { id } = useParams();
+  const { id: paramId } = useParams();
   const navigate = useNavigate();
+  const { profile, isAdmin } = useAuth();
+  const id = paramId || profile?.clinica_id;
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [form, setForm] = useState({ nome: "", cnpj: "", telefone: "", email: "", endereco: "" });
 
+  const isCurrentClinic = profile?.clinica_id === id;
+  const canAccess = isAdmin || isCurrentClinic;
+
   const { data: clinica, isLoading } = useQuery({
     queryKey: ["clinica", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinicas").select("*").eq("id", id).maybeSingle();
+      if (!id) return null;
+      const { data, error } = await supabase.from("clinics").select("*").eq("id", id).maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!id,
+    enabled: !!id && canAccess,
   });
 
   const { data: usuarios = [] } = useQuery({
@@ -47,7 +54,7 @@ const AdminClinicaDetalhe = () => {
         clinica_id: u.clinic_id,
       }));
     },
-    enabled: !!id,
+    enabled: !!id && canAccess,
   });
 
   const { data: pacientes = [] } = useQuery({
@@ -57,12 +64,12 @@ const AdminClinicaDetalhe = () => {
       if (error) throw error;
       return { total: count || 0 };
     },
-    enabled: !!id,
+    enabled: !!id && canAccess,
   });
 
   const updateMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const { error } = await supabase.from("clinicas").update(payload).eq("id", id);
+      const { error } = await supabase.from("clinics").update(payload).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -76,7 +83,7 @@ const AdminClinicaDetalhe = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("clinicas").delete().eq("id", id);
+      const { error } = await supabase.from("clinics").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -105,12 +112,22 @@ const AdminClinicaDetalhe = () => {
     setConfirmStatusOpen(false);
   };
 
+  if (!canAccess) {
+    return (
+      <div className="p-12 text-center space-y-4">
+        <Building2 className="w-12 h-12 mx-auto text-muted-foreground/50" />
+        <p className="text-muted-foreground">Acesso negado: Você só pode visualizar a sua clínica.</p>
+        <Button variant="outline" onClick={() => navigate("/")}>Voltar para o início</Button>
+      </div>
+    );
+  }
+
   if (isLoading) return <p className="p-6 text-muted-foreground">Carregando...</p>;
   if (!clinica) return (
     <div className="p-12 text-center space-y-4">
       <Building2 className="w-12 h-12 mx-auto text-muted-foreground/50" />
       <p className="text-muted-foreground">Clínica não encontrada</p>
-      <Button variant="outline" onClick={() => navigate("/admin?tab=clinicas")}>Voltar</Button>
+      <Button variant="outline" onClick={() => navigate(isAdmin ? "/admin?tab=clinicas" : "/")}>Voltar</Button>
     </div>
   );
 
@@ -121,7 +138,7 @@ const AdminClinicaDetalhe = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin?tab=clinicas")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(isAdmin ? "/admin?tab=clinicas" : "/")}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -141,14 +158,18 @@ const AdminClinicaDetalhe = () => {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={openEdit}>
-            <Pencil className="w-4 h-4" /> Editar
+            <Pencil className="w-4 h-4" /> Editar informações
           </Button>
-          <Button variant="outline" className="gap-2" onClick={() => setConfirmStatusOpen(true)}>
-            <Power className="w-4 h-4" /> {inativa ? "Ativar" : "Desativar"}
-          </Button>
-          <Button variant="destructive" className="gap-2" onClick={() => setConfirmDeleteOpen(true)}>
-            <Trash2 className="w-4 h-4" /> Excluir
-          </Button>
+          {isAdmin && (
+            <>
+              <Button variant="outline" className="gap-2" onClick={() => setConfirmStatusOpen(true)}>
+                <Power className="w-4 h-4" /> {inativa ? "Ativar" : "Desativar"}
+              </Button>
+              <Button variant="destructive" className="gap-2" onClick={() => setConfirmDeleteOpen(true)}>
+                <Trash2 className="w-4 h-4" /> Excluir
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

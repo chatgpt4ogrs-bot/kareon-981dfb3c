@@ -36,7 +36,7 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
   const { data: clinica, isLoading } = useQuery({
     queryKey: ["clinica", clinicaId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinicas").select("*").eq("id", clinicaId!).maybeSingle();
+      const { data, error } = await supabase.from("clinics").select("*").eq("id", clinicaId!).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -67,10 +67,10 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (mode === "create") {
-        const { error } = await supabase.from("clinicas").insert(form);
+        const { error } = await supabase.from("clinics").insert(form);
         if (error) throw error;
       } else if (clinicaId) {
-        const { error } = await supabase.from("clinicas").update(form).eq("id", clinicaId);
+        const { error } = await supabase.from("clinics").update(form).eq("id", clinicaId);
         if (error) throw error;
       }
     },
@@ -86,7 +86,7 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
-      const { error } = await supabase.from("clinicas").update({ status }).eq("id", clinicaId!);
+      const { error } = await supabase.from("clinics").update({ status }).eq("id", clinicaId!);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -100,7 +100,7 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("clinicas").delete().eq("id", clinicaId!);
+      const { error } = await supabase.from("clinics").delete().eq("id", clinicaId!);
       if (error) throw error;
     },
     onSuccess: () => {

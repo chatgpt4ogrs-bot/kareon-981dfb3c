@@ -47,10 +47,7 @@ const Relatorio = () => {
       .sort((a, b) => new Date(a.dataHora).getTime() - new Date(b.dataHora).getTime());
   }, [sessoes, dataInicio, dataFim]);
 
-  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
-  if (!paciente) return null;
-
-  const idade = paciente.dataNascimento ? differenceInYears(new Date(), new Date(paciente.dataNascimento)) : null;
+  const idade = paciente?.dataNascimento ? differenceInYears(new Date(), new Date(paciente.dataNascimento)) : null;
   const progressoMedio = objetivos.length > 0 ? Math.round(objetivos.reduce((s, o) => s + o.progresso, 0) / objetivos.length) : 0;
 
   const evolucaoTexto = useMemo(() => {
@@ -68,6 +65,9 @@ const Relatorio = () => {
       eng.alto >= eng.medio && eng.alto >= eng.baixo ? "alto" : eng.medio >= eng.baixo ? "médio" : "baixo"
     }.`;
   }, [sessoesFiltradas]);
+
+  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  if (!paciente) return null;
 
   const handleExportPDF = async () => {
     try {

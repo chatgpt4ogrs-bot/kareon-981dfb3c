@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,9 +42,10 @@ interface Props {
 }
 
 const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
+  const { isAdmin } = useAuth();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", cargo: "", telefone: "", clinica_id: "none" });
+  const [form, setForm] = useState({ nome: "", email: "", cargo: "", telefone: "", clinica_id: "none", password: "", must_change_password: false });
   const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
 
   useEffect(() => { if (open) { setEditing(false); } }, [open, profileId]);
@@ -69,7 +71,7 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
   const { data: clinicas = [] } = useQuery({
     queryKey: ["admin-clinicas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinicas").select("id, nome").order("nome");
+      const { data, error } = await supabase.from("clinics").select("id, nome").order("nome");
       if (error) throw error;
       return data;
     },
@@ -86,11 +88,22 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
       cargo: profile.cargo || "",
       telefone: profile.telefone || "",
       clinica_id: profile.clinica_id || "none",
+      password: "",
+      must_change_password: !!profile.must_change_password,
     });
   }, [profile]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (payload: any) => {
+      // Se houver senha, precisa chamar a Edge Function
+      if (payload.password) {
+        const { data, error } = await supabase.functions.invoke("manage-clinic-user", {
+          body: { action: "update", profile_id: profileId, password: payload.password }
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      }
+
       // Map form payload back to real database columns
       const dbPayload: any = {};
       if ("nome" in payload) dbPayload.name = payload.nome;
@@ -99,9 +112,12 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
       if ("clinica_id" in payload) dbPayload.clinic_id = payload.clinica_id;
       if ("status" in payload) dbPayload.status = payload.status;
       if ("role" in payload) dbPayload.role = payload.role;
+      if ("must_change_password" in payload) dbPayload.must_change_password = payload.must_change_password;
 
-      const { error } = await supabase.from("profiles").update(dbPayload).eq("id", profileId!);
-      if (error) throw error;
+      if (Object.keys(dbPayload).length > 0) {
+        const { error } = await supabase.from("profiles").update(dbPayload).eq("id", profileId!);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-profile", profileId] });
@@ -158,7 +174,14 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                updateProfileMutation.mutate({ nome: form.nome, cargo: form.cargo, telefone: form.telefone, clinica_id: form.clinica_id === "none" ? null : form.clinica_id });
+                updateProfileMutation.mutate({ 
+                  nome: form.nome, 
+                  cargo: form.cargo, 
+                  telefone: form.telefone, 
+                  clinica_id: form.clinica_id === "none" ? null : form.clinica_id,
+                  password: form.password || undefined,
+                  must_change_password: form.must_change_password
+                });
               }}
               className="space-y-4"
             >
@@ -170,13 +193,30 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
               </div>
               <div>
                 <Label>Clínica</Label>
-                <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })}>
+                <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })} disabled={!isAdmin}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhuma</SelectItem>
                     {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid grid-cols-1 gap-3 border-t border-border pt-4">
+                <h4 className="text-sm font-medium">Segurança e Acesso</h4>
+                <div>
+                  <Label>Nova senha</Label>
+                  <Input type="text" placeholder="Deixe em branco para manter a atual" minLength={6} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                </div>
+                <div className="flex items-center justify-between gap-3 bg-muted/30 p-3 rounded-lg border border-border">
+                  <div>
+                    <Label className="text-sm">Exigir troca de senha</Label>
+                    <p className="text-xs text-muted-foreground">Obriga o usuário a mudar a senha no próximo login.</p>
+                  </div>
+                  <Switch
+                    checked={form.must_change_password}
+                    onCheckedChange={(v) => setForm({ ...form, must_change_password: v })}
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" className="gap-2" onClick={() => setEditing(false)}><X className="w-4 h-4" /> Cancelar</Button>
@@ -201,7 +241,8 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
                 <div className="space-y-2">
                   {ALL_ROLES.map((r) => {
                     const has = roles.some((ur) => ur.role === r);
-                    const busy = addRoleMutation.isPending || removeRoleMutation.isPending;
+                    const busy = updateProfileMutation.isPending;
+                    const canToggle = isAdmin || r !== "admin";
                     return (
                       <div
                         key={r}
@@ -216,7 +257,7 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
                         </div>
                         <Switch
                           checked={has}
-                          disabled={busy}
+                          disabled={busy || !canToggle}
                           onCheckedChange={() => toggleRole(r, has)}
                         />
                       </div>

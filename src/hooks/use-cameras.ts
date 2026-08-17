@@ -27,15 +27,21 @@ export interface Camera {
 }
 
 export function useCameras() {
-  const { profile } = useAuth();
+  const { profile, isAdmin } = useAuth();
 
   const query = useQuery({
-    queryKey: ["cameras"],
+    queryKey: ["cameras", isAdmin, profile?.clinica_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("cameras")
         .select("*")
         .order("nome");
+
+      if (!isAdmin && profile?.clinica_id) {
+        q = q.eq("clinica_id", profile.clinica_id);
+      }
+
+      const { data, error } = await q;
       if (error) throw error;
       return data as Camera[];
     },

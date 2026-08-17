@@ -69,7 +69,7 @@ const AdminUsuarios = () => {
   const { data: clinicas = [] } = useQuery({
     queryKey: ["admin-usuarios-clinicas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinicas").select("id, nome").order("nome");
+      const { data, error } = await supabase.from("clinics").select("id, nome").order("nome");
       if (error) throw error;
       return data;
     },
@@ -78,21 +78,44 @@ const AdminUsuarios = () => {
   const { data: profiles = [], isLoading } = useQuery({
     queryKey: ["admin-usuarios-profiles", isAdmin, profile?.clinica_id],
     queryFn: async () => {
-      // Real DB columns: id, name, email, clinic_id, role, status
-      let q = supabase.from("profiles").select("id, name, email, clinic_id, role, status").order("name");
-      if (!isAdmin && profile?.clinica_id) q = q.eq("clinic_id", profile.clinica_id);
-      const { data, error } = await q;
+      try {
+        const { data, error } = await supabase.functions.invoke("manage-clinic-user", {
+          body: { action: "list" },
+        });
+        if (!error && data?.profiles) {
+          return data.profiles.map((p: any) => ({
+            id: p.id,
+            user_id: p.id,
+            nome: p.name || p.nome || p.email,
+            email: p.email,
+            clinica_id: p.clinic_id || p.clinica_id,
+            cargo: p.role || p.cargo,
+            status: p.status,
+          }));
+        }
+      } catch (e) {
+        console.warn("Edge function list profiles failed, using direct query:", e);
+      }
+
+      // Fallback query directly from supabase
+      const { data, error } = await supabase.from("profiles").select("id, name, email, clinic_id, role, status").order("name");
       if (error) throw error;
-      // Map real DB columns → app interface
-      return (data || []).map((p: any) => ({
+      
+      const mapped = (data || []).map((p: any) => ({
         id: p.id,
         user_id: p.id,
-        nome: p.name,
+        nome: p.name || p.nome || p.email,
         email: p.email,
         clinica_id: p.clinic_id,
         cargo: p.role,
         status: p.status,
       }));
+
+      // Para admin da clínica, mostra os perfis da sua clínica e perfis não atribuídos
+      if (!isAdmin && profile?.clinica_id) {
+        return mapped.filter((p) => !p.clinica_id || p.clinica_id === profile.clinica_id);
+      }
+      return mapped;
     },
   });
 
@@ -167,8 +190,8 @@ const AdminUsuarios = () => {
         roles: newUser.roles,
         status: newUser.ativo ? "ativo" : "inativo",
         must_change_password: newUser.must_change_password,
+        clinica_id: isAdmin ? (newUser.clinica_id || null) : profile?.clinica_id,
       };
-      if (isAdmin && newUser.clinica_id) payload.clinica_id = newUser.clinica_id;
       const { data, error } = await supabase.functions.invoke("manage-clinic-user", { body: payload });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -224,11 +247,11 @@ const AdminUsuarios = () => {
               </SelectContent>
           </Select>
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger><SelectValue placeholder="Role" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Perfil" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as roles</SelectItem>
+              <SelectItem value="all">Todos os perfis</SelectItem>
               {ALL_ROLES.map((r) => <SelectItem key={r} value={r}>{roleLabels[r]}</SelectItem>)}
-              <SelectItem value="none">Sem role atribuída</SelectItem>
+              <SelectItem value="none">Sem perfil atribuído</SelectItem>
             </SelectContent>
           </Select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -327,7 +350,7 @@ const AdminUsuarios = () => {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Referência de roles</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Referência de perfis</CardTitle></CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           {ALL_ROLES.map((r) => (
             <div key={r} className="border border-border rounded-md p-3">

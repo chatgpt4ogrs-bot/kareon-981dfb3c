@@ -125,7 +125,7 @@ export function RelatorioAgendaDialog({ open, onOpenChange }: Props) {
       // nome da clínica
       let clinicaNome = "Kareon";
       if (profile?.clinica_id) {
-        const { data } = await supabase.from("clinicas").select("nome").eq("id", profile.clinica_id).maybeSingle();
+        const { data } = await supabase.from("clinics").select("nome").eq("id", profile.clinica_id).maybeSingle();
         if (data?.nome) clinicaNome = data.nome;
       }
 

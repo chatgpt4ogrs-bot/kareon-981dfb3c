@@ -125,12 +125,12 @@ export type Database = {
             foreignKeyName: "cameras_clinica_id_fkey"
             columns: ["clinica_id"]
             isOneToOne: false
-            referencedRelation: "clinicas"
+            referencedRelation: "clinics"
             referencedColumns: ["id"]
           },
         ]
       }
-      clinicas: {
+      clinics: {
         Row: {
           cnpj: string | null
           created_at: string
@@ -377,7 +377,7 @@ export type Database = {
             foreignKeyName: "pacientes_clinica_id_fkey"
             columns: ["clinica_id"]
             isOneToOne: false
-            referencedRelation: "clinicas"
+            referencedRelation: "clinics"
             referencedColumns: ["id"]
           },
           {
@@ -467,7 +467,7 @@ export type Database = {
             foreignKeyName: "profiles_clinica_id_fkey"
             columns: ["clinica_id"]
             isOneToOne: false
-            referencedRelation: "clinicas"
+            referencedRelation: "clinics"
             referencedColumns: ["id"]
           },
         ]

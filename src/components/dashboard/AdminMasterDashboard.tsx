@@ -16,7 +16,7 @@ function useAdminMetrics() {
     queryKey: ["admin-metrics"],
     queryFn: async () => {
       const [clinicas, profiles] = await Promise.all([
-        supabase.from("clinicas").select("id", { count: "exact", head: true }),
+        supabase.from("clinics").select("id", { count: "exact", head: true }),
         supabase.from("profiles").select("id", { count: "exact", head: true }),
       ]);
       return {
@@ -42,7 +42,7 @@ function useRecentUsers() {
       // Fetch clinic names
       const clinicaIds = [...new Set((data || []).map((p: any) => p.clinic_id).filter(Boolean))];
       const { data: clinicas } = clinicaIds.length > 0
-        ? await supabase.from("clinicas").select("id, nome").in("id", clinicaIds)
+        ? await supabase.from("clinics").select("id, nome").in("id", clinicaIds)
         : { data: [] };
       const clinicaMap: Record<string, string> = {};
       (clinicas || []).forEach((c: any) => { clinicaMap[c.id] = c.nome; });

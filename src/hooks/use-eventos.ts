@@ -46,13 +46,20 @@ export function getCategoriaInfo(value: string) {
 }
 
 export function useEventos() {
+  const { profile, isAdmin } = useAuth();
   return useQuery({
-    queryKey: ["eventos"],
+    queryKey: ["eventos", isAdmin, profile?.clinica_id],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("eventos")
         .select("*")
         .order("data_inicio", { ascending: true });
+
+      if (!isAdmin && profile?.clinica_id) {
+        q = q.eq("clinica_id", profile.clinica_id);
+      }
+
+      const { data, error } = await q;
       if (error) throw error;
       const eventos = (data || []) as Evento[];
 

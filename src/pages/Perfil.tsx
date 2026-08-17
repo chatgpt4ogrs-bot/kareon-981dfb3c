@@ -35,7 +35,7 @@ const Perfil = () => {
     queryFn: async () => {
       if (!profile?.clinica_id) return null;
       const { data } = await supabase
-        .from("clinicas")
+        .from("clinics")
         .select("nome")
         .eq("id", profile.clinica_id)
         .single();

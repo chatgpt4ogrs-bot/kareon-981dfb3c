@@ -67,7 +67,7 @@ const AdminUsuarioDetalhe = () => {
   const { data: clinicas = [] } = useQuery({
     queryKey: ["admin-clinicas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinicas").select("*").order("nome");
+      const { data, error } = await supabase.from("clinics").select("*").order("nome");
       if (error) throw error;
       return data;
     },

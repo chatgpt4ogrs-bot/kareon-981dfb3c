@@ -48,7 +48,7 @@ const Cameras = () => {
   const { data: clinicas = [] } = useQuery({
     queryKey: ["clinicas-list"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinicas").select("id, nome").order("nome");
+      const { data, error } = await supabase.from("clinics").select("id, nome").order("nome");
       if (error) throw error;
       return data;
     },

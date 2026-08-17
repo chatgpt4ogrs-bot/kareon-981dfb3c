@@ -18,7 +18,7 @@ const AdminClinicas = () => {
   const { data: clinicas = [], isLoading } = useQuery({
     queryKey: ["admin-clinicas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinicas").select("*").order("nome");
+      const { data, error } = await supabase.from("clinics").select("*").order("nome");
       if (error) throw error;
       return data;
     },
@@ -26,7 +26,7 @@ const AdminClinicas = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("clinicas").delete().eq("id", id);
+      const { error } = await supabase.from("clinics").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

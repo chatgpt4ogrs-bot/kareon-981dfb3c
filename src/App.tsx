@@ -126,6 +126,7 @@ const App = () => (
               <Route path="admin/usuarios" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminUsuarios /></SensitiveAreaGuard></AdminRoute>} />
               <Route path="admin/usuarios/:id" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminUsuarioDetalhe /></SensitiveAreaGuard></AdminRoute>} />
               <Route path="clinica/usuarios" element={<RoleRoute><AdminUsuarios /></RoleRoute>} />
+              <Route path="clinica/detalhes" element={<RoleRoute><AdminClinicaDetalhe /></RoleRoute>} />
             </Route>
             <Route path="*" element={<NotFound />} />
             </Routes>

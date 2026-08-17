@@ -25,6 +25,19 @@ interface DeletePayload {
   profile_id: string;
 }
 
+interface UpdatePayload {
+  action: "update";
+  profile_id: string;
+  nome?: string;
+  email?: string;
+  password?: string;
+  cargo?: string;
+  roles?: string[];
+  clinica_id?: string;
+  status?: "ativo" | "inativo";
+  must_change_password?: boolean;
+}
+
 const ALLOWED_ROLES = new Set([
   "admin",
   "clinica_admin",
@@ -68,14 +81,44 @@ Deno.serve(async (req) => {
       .eq("id", callerId)
       .maybeSingle();
 
-    const roles = callerProfile?.role ? [callerProfile.role] : [];
-    const isAdminMaster = roles.includes("admin");
-    const isClinicAdmin = roles.includes("clinica_admin");
-    if (!isAdminMaster && !isClinicAdmin) {
+    const callerRole = (callerProfile?.role || "").toLowerCase().trim();
+    const isAdminMaster = callerRole === "admin" || callerRole === "admin_master" || callerRole === "admin master";
+    const isClinicAdmin = isAdminMaster || callerRole.includes("clinica") || callerRole.includes("admin") || callerRole.includes("responsavel");
+
+    if (!isClinicAdmin) {
       return json({ error: "Sem permissão" }, 403);
     }
 
-    const body = (await req.json()) as CreatePayload | DeletePayload;
+    const body = (await req.json()) as CreatePayload | DeletePayload | UpdatePayload | { action: "list" };
+
+    if (body.action === "list") {
+      let q = admin.from("profiles").select("id, name, email, clinic_id, role, status").order("name");
+      if (!isAdminMaster && callerProfile?.clinic_id) {
+        q = q.eq("clinic_id", callerProfile.clinic_id);
+      }
+      const { data: profilesList, error: pErr } = await q;
+      if (pErr) return json({ error: pErr.message }, 400);
+
+      const result = profilesList || [];
+      // Se for admin de clínica, inclui também perfis sem clínica definida (clinic_id IS NULL) para permitir gestão
+      if (!isAdminMaster && callerProfile?.clinic_id) {
+        const { data: unassigned } = await admin
+          .from("profiles")
+          .select("id, name, email, clinic_id, role, status")
+          .is("clinic_id", null)
+          .order("name");
+        if (unassigned && unassigned.length > 0) {
+          const existingIds = new Set(result.map((p) => p.id));
+          for (const u of unassigned) {
+            if (!existingIds.has(u.id)) {
+              result.push(u);
+            }
+          }
+        }
+      }
+
+      return json({ success: true, profiles: result });
+    }
 
     if (body.action === "create") {
       const { nome, email, password, cargo, roles: newRoles } = body;
@@ -155,6 +198,59 @@ Deno.serve(async (req) => {
       await admin.from("profiles").delete().eq("id", profile_id);
       const { error: delErr } = await admin.auth.admin.deleteUser(target.id);
       if (delErr) return json({ error: delErr.message }, 400);
+
+      return json({ success: true });
+    }
+
+    if (body.action === "update") {
+      const { profile_id, nome, password, cargo, roles: newRoles, clinica_id, status, must_change_password } = body;
+      if (!profile_id) return json({ error: "profile_id obrigatório" }, 400);
+
+      const { data: target, error: tErr } = await admin
+        .from("profiles")
+        .select("id, clinic_id, role")
+        .eq("id", profile_id)
+        .maybeSingle();
+      if (tErr || !target) return json({ error: "Usuário não encontrado" }, 404);
+
+      if (!isAdminMaster) {
+        if (!callerProfile?.clinic_id || target.clinic_id !== callerProfile.clinic_id) {
+          return json({ error: "Sem permissão para editar este usuário" }, 403);
+        }
+        if (target.role === "admin" && target.id !== callerId) {
+          return json({ error: "Não é possível editar outro admin master" }, 403);
+        }
+      }
+
+      // Valida roles se enviadas
+      const cleanRoles = newRoles ? newRoles.filter((r) => ALLOWED_ROLES.has(r)) : undefined;
+      if (!isAdminMaster && cleanRoles?.includes("admin")) {
+        return json({ error: "Não é permitido atribuir admin master" }, 403);
+      }
+
+      // Atualiza auth.users se a senha ou email foi enviado (aqui vamos suportar nome e senha)
+      if (password || nome) {
+        const updateData: any = {};
+        if (password) updateData.password = password;
+        if (nome) updateData.user_metadata = { nome };
+        
+        const { error: authErr } = await admin.auth.admin.updateUserById(profile_id, updateData);
+        if (authErr) return json({ error: authErr.message }, 400);
+      }
+
+      // Prepara os dados para o profiles
+      const profileUpdate: any = {};
+      if (nome !== undefined) profileUpdate.name = nome;
+      if (cargo !== undefined) profileUpdate.role = cargo;
+      if (cleanRoles && cleanRoles.length > 0) profileUpdate.role = cleanRoles[0];
+      if (clinica_id !== undefined) profileUpdate.clinic_id = clinica_id === "none" ? null : clinica_id;
+      if (status !== undefined) profileUpdate.status = status;
+      if (must_change_password !== undefined) profileUpdate.must_change_password = must_change_password;
+
+      if (Object.keys(profileUpdate).length > 0) {
+        const { error: profErr } = await admin.from("profiles").update(profileUpdate).eq("id", profile_id);
+        if (profErr) return json({ error: profErr.message }, 400);
+      }
 
       return json({ success: true });
     }

@@ -14,9 +14,12 @@ import {
   Building2,
   Shield,
   Camera,
+  FileText,
   User as UserIcon,
   ChevronLeft,
   ChevronRight,
+  MoreVertical,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getNavItems } from "@/lib/permissions";
@@ -30,15 +33,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
-  LayoutDashboard, Users, CalendarDays, Camera, Building2, Shield,
+  LayoutDashboard, Users, CalendarDays, Camera, FileText, Building2, Shield,
 };
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, signOut, isAdmin, hasRole, roles } = useAuth();
+  const { profile, isAdmin, hasRole, roles } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -76,22 +85,22 @@ const AppLayout = () => {
     .join("")
     .toUpperCase() || "U";
 
-  const UserMenu = ({ align = "end" as const }) => (
+  const UserDotsMenu = ({ dark = false }: { dark?: boolean }) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-muted/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Menu do usuário"
+          className={cn(
+            "w-8 h-8 rounded-lg flex items-center justify-center transition-colors focus-visible:outline-none shrink-0",
+            dark
+              ? "hover:bg-white/15 text-primary-foreground/90"
+              : "hover:bg-muted text-muted-foreground"
+          )}
+          aria-label="Opções do usuário"
         >
-          <Avatar className="w-8 h-8">
-            {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile?.nome || ""} />}
-            <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          <MoreVertical className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align={align} className="w-56">
+      <DropdownMenuContent align="start" side="bottom" className="w-56 z-50">
         <DropdownMenuLabel className="flex flex-col">
           <span className="text-sm font-medium truncate">{profile?.nome || "Usuário"}</span>
           <span className="text-xs text-muted-foreground font-normal truncate">{roleLabel}</span>
@@ -100,6 +109,22 @@ const AppLayout = () => {
         <DropdownMenuItem onClick={() => navigate("/perfil")} className="cursor-pointer">
           <UserIcon className="w-4 h-4 mr-2" /> Meu perfil
         </DropdownMenuItem>
+        {isAdmin && (
+          <DropdownMenuItem onClick={() => navigate("/admin")} className="cursor-pointer">
+            <Settings className="w-4 h-4 mr-2" /> Painel administrativo
+          </DropdownMenuItem>
+        )}
+        {hasRole("clinica_admin") && (
+          <>
+            <DropdownMenuItem onClick={() => navigate("/clinica/detalhes")} className="cursor-pointer">
+              <Building2 className="w-4 h-4 mr-2" /> Dados da clínica
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate("/clinica/usuarios")} className="cursor-pointer">
+              <Users className="w-4 h-4 mr-2" /> Usuários da clínica
+            </DropdownMenuItem>
+          </>
+        )}
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
           <LogOut className="w-4 h-4 mr-2" /> Sair
         </DropdownMenuItem>
@@ -124,88 +149,70 @@ const AppLayout = () => {
           collapsed && "md:hidden",
         )}
       >
-        {/* Topo — usuário */}
-        <Link
-          to="/perfil"
-          className="flex items-center gap-2.5 px-4 py-3 border-b border-white/15 hover:bg-white/10 transition-colors"
-        >
-          <Avatar className="w-9 h-9 ring-2 ring-white/20">
-            {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile?.nome || ""} />}
-            <AvatarFallback className="text-xs font-semibold bg-white/15 text-primary-foreground">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold truncate text-primary-foreground">{profile?.nome || "Usuário"}</p>
-            <p className="text-[11px] truncate text-primary-foreground/70">{profile?.email || roleLabel}</p>
+        {/* Topo — usuário + três pontinhos */}
+        <div className="flex items-center justify-between gap-2 px-3 py-3 border-b border-white/15">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <Avatar className="w-9 h-9 ring-2 ring-white/20 shrink-0">
+              {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={profile?.nome || ""} />}
+              <AvatarFallback className="text-xs font-semibold bg-white/15 text-primary-foreground">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold truncate text-primary-foreground">{profile?.nome || "Usuário"}</p>
+              <p className="text-[11px] truncate text-primary-foreground/70">{profile?.email || roleLabel}</p>
+            </div>
           </div>
-        </Link>
+          <UserDotsMenu dark />
+        </div>
 
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-          {navItems.map((item) => {
-            const Icon = iconMap[item.icon] || LayoutDashboard;
-            const active = isActive(item.to);
-            if (item.disabled) {
-              return (
-                <div
-                  key={item.to}
-                  aria-disabled="true"
-                  title={item.badge || "Em breve"}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium text-primary-foreground/50 cursor-not-allowed select-none"
-                >
-                  <Icon className="w-[18px] h-[18px]" strokeWidth={1.85} />
-                  <span className="flex-1">{item.label}</span>
-                  {item.badge && (
-                    <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/15 text-primary-foreground/80">
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-150",
-                  active
-                    ? "bg-white text-primary shadow-sm"
-                    : "text-primary-foreground/85 hover:bg-white/10 hover:text-primary-foreground",
-                )}
-              >
-                <Icon className={cn("w-[18px] h-[18px]", active ? "text-primary" : "")} strokeWidth={active ? 2.25 : 1.85} />
-                {item.label}
-              </Link>
-            );
-          })}
+          <TooltipProvider>
+            {navItems.map((item) => {
+              const Icon = iconMap[item.icon] || LayoutDashboard;
+              const active = isActive(item.to);
 
-          {adminItems.length > 0 && (
-            <>
-              <div className="pt-5 pb-1.5 px-3">
-                <p className="text-[10.5px] text-primary-foreground/70 uppercase tracking-[0.08em] border-0 border-none shadow-none opacity-100 text-left font-extrabold">Administração</p>
-              </div>
-              {adminItems.map((item) => {
-                const Icon = iconMap[item.icon] || Shield;
-                const active = isActive(item.to);
+              if (item.disabled) {
                 return (
-                  <Link
-                    key={item.to}
-                    to={item.to}
-                    className={cn(
-                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-150",
-                      active
-                        ? "bg-white text-primary shadow-sm"
-                        : "text-primary-foreground/85 hover:bg-white/10 hover:text-primary-foreground",
-                    )}
-                  >
-                    <Icon className={cn("w-[18px] h-[18px]", active ? "text-primary" : "")} strokeWidth={active ? 2.25 : 1.85} />
-                    {item.label}
-                  </Link>
+                  <Tooltip key={item.to} delayDuration={150}>
+                    <TooltipTrigger asChild>
+                      <div
+                        aria-disabled="true"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium text-primary-foreground/50 cursor-not-allowed select-none"
+                      >
+                        <Icon className="w-[18px] h-[18px]" strokeWidth={1.85} />
+                        <span className="flex-1">{item.label}</span>
+                        {item.badge && (
+                          <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-white/15 text-primary-foreground/80">
+                            {item.badge}
+                          </span>
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-popover text-popover-foreground text-xs shadow-md border max-w-xs z-50">
+                      {item.tooltip || "entre em contato com o suporte para saber mais"}
+                    </TooltipContent>
+                  </Tooltip>
                 );
-              })}
-            </>
-          )}
+              }
+
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-all duration-150",
+                    active
+                      ? "bg-white text-primary shadow-sm"
+                      : "text-primary-foreground/85 hover:bg-white/10 hover:text-primary-foreground",
+                  )}
+                >
+                  <Icon className={cn("w-[18px] h-[18px]", active ? "text-primary" : "")} strokeWidth={active ? 2.25 : 1.85} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </TooltipProvider>
         </nav>
 
         {/* Rodapé — logo Kareon + botão recolher */}
@@ -227,9 +234,7 @@ const AppLayout = () => {
       </aside>
 
       <div className="flex-1 flex flex-col min-h-screen">
-        <header className="hidden md:flex items-center justify-end h-14 px-6 border-b border-border/60 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-          <UserMenu />
-        </header>
+        {/* Cabeçalho mobile */}
         <header className="md:hidden flex items-center justify-between h-14 px-4 border-b border-border/60 bg-card">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-md bg-primary/10 flex items-center justify-center">
@@ -238,7 +243,7 @@ const AppLayout = () => {
             <span className="font-semibold text-foreground">Kareon</span>
           </div>
           <div className="flex items-center gap-2">
-            <UserMenu />
+            <UserDotsMenu />
             <Button variant="ghost" size="icon" aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"} onClick={() => setMobileOpen(!mobileOpen)}>
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
@@ -247,40 +252,48 @@ const AppLayout = () => {
 
         {mobileOpen && (
           <div className="md:hidden bg-card border-b border-border/60 p-3 space-y-1 animate-fade-in">
-            {allItems.map((item) => {
-              const Icon = iconMap[item.icon] || LayoutDashboard;
-              if (item.disabled) {
+            <TooltipProvider>
+              {allItems.map((item) => {
+                const Icon = iconMap[item.icon] || LayoutDashboard;
+                if (item.disabled) {
+                  return (
+                    <Tooltip key={item.to} delayDuration={150}>
+                      <TooltipTrigger asChild>
+                        <div
+                          aria-disabled="true"
+                          className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed select-none"
+                        >
+                          <Icon className="w-[18px] h-[18px]" />
+                          <span className="flex-1">{item.label}</span>
+                          {item.badge && (
+                            <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-popover text-popover-foreground text-xs shadow-md border z-50">
+                        {item.tooltip || "entre em contato com o suporte para saber mais"}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
                 return (
-                  <div
+                  <Link
                     key={item.to}
-                    aria-disabled="true"
-                    className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-muted-foreground/60 cursor-not-allowed select-none"
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                      isActive(item.to) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-muted/60",
+                    )}
                   >
                     <Icon className="w-[18px] h-[18px]" />
-                    <span className="flex-1">{item.label}</span>
-                    {item.badge && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                        {item.badge}
-                      </span>
-                    )}
-                  </div>
+                    {item.label}
+                  </Link>
                 );
-              }
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                    isActive(item.to) ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-muted-foreground hover:bg-muted/60",
-                  )}
-                >
-                  <Icon className="w-[18px] h-[18px]" />
-                  {item.label}
-                </Link>
-              );
-            })}
+              })}
+            </TooltipProvider>
           </div>
         )}
 

@@ -16,7 +16,7 @@ const ROLE_ROUTES: Record<AppRole, string[]> = {
     "/admin/clinicas", "/admin/usuarios",
   ],
   clinica_admin: [
-    "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha", "/clinica/usuarios", "/perfil",
+    "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha", "/clinica/usuarios", "/clinica/detalhes", "/perfil",
   ],
   responsavel_clinica: [
     "/", "/pacientes", "/agenda", "/cameras", "/alterar-senha", "/perfil",
@@ -51,8 +51,8 @@ export function getDefaultRoute(roles: AppRole[]): string {
 
 /** Nav items visible per role */
 export function getNavItems(roles: AppRole[]): {
-  main: { to: string; icon: string; label: string; disabled?: boolean; badge?: string }[];
-  admin: { to: string; icon: string; label: string; disabled?: boolean; badge?: string }[];
+  main: { to: string; icon: string; label: string; disabled?: boolean; badge?: string; tooltip?: string }[];
+  admin: { to: string; icon: string; label: string; disabled?: boolean; badge?: string; tooltip?: string }[];
 } {
   const isAdmin = roles.includes("admin");
   const isClinicaAdmin = roles.includes("clinica_admin");
@@ -60,7 +60,7 @@ export function getNavItems(roles: AppRole[]): {
   const isTerapeuta = roles.includes("terapeuta");
   const isFamiliar = roles.includes("familiar");
 
-  const main: { to: string; icon: string; label: string; disabled?: boolean; badge?: string }[] = [];
+  const main: { to: string; icon: string; label: string; disabled?: boolean; badge?: string; tooltip?: string }[] = [];
 
   // Dashboard is always visible
   main.push({ to: "/", icon: "LayoutDashboard", label: "Início" });
@@ -75,16 +75,36 @@ export function getNavItems(roles: AppRole[]): {
     main.push({ to: "/agenda", icon: "CalendarDays", label: "Agenda" });
   }
 
-  // Cameras - visible to admin, clinica_admin, responsavel, familiar (em breve, desabilitado)
-  if (isAdmin || isClinicaAdmin || isResponsavel || isFamiliar) {
-    main.push({ to: "/cameras", icon: "Camera", label: "Câmeras", disabled: true, badge: "Em breve" });
+  // Anamnésia - desabilitado
+  if (isAdmin || isClinicaAdmin || isResponsavel || isTerapeuta) {
+    main.push({
+      to: "/anamnesia",
+      icon: "FileText",
+      label: "Anamnésia",
+      disabled: true,
+      badge: "Indisponível",
+      tooltip: "entre em contato com o suporte para saber mais",
+    });
   }
 
-  const admin: { to: string; icon: string; label: string; disabled?: boolean; badge?: string }[] = [];
+  // Cameras - desabilitado
+  if (isAdmin || isClinicaAdmin || isResponsavel || isFamiliar) {
+    main.push({
+      to: "/cameras",
+      icon: "Camera",
+      label: "Câmeras",
+      disabled: true,
+      badge: "Indisponível",
+      tooltip: "entre em contato com o suporte para saber mais",
+    });
+  }
+
+  const admin: { to: string; icon: string; label: string; disabled?: boolean; badge?: string; tooltip?: string }[] = [];
   if (isAdmin) {
     admin.push({ to: "/admin", icon: "Shield", label: "Painel administrativo" });
   }
   if (isClinicaAdmin) {
+    admin.push({ to: "/clinica/detalhes", icon: "Building2", label: "Dados da clínica" });
     admin.push({ to: "/clinica/usuarios", icon: "Users", label: "Usuários" });
   }
   return { main, admin };
