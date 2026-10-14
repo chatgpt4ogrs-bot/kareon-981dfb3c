@@ -10,24 +10,23 @@ export interface Terapeuta {
 }
 
 export function useTerapeutas() {
-  const { profile, isAdmin } = useAuth();
+  const { clinicScope } = useAuth();
   return useQuery({
-    queryKey: ["terapeutas", isAdmin, profile?.clinica_id],
+    queryKey: ["terapeutas", clinicScope],
     queryFn: async () => {
-      // Real DB columns: id, name, email, role, clinic_id
-      let q = supabase
-        .from("profiles")
+      if (clinicScope && clinicScope.length === 0) return [];
+
+      let q = (supabase.from("profiles") as any)
         .select("id, name, email, role, clinic_id")
         .order("name");
 
-      if (!isAdmin && profile?.clinica_id) {
-        q = q.eq("clinic_id", profile.clinica_id);
+      if (clinicScope) {
+        q = q.in("clinic_id", clinicScope);
       }
 
       const { data, error } = await q;
       if (error) throw error;
 
-      // Map real DB column names → app interface
       return (data || []).map((p: any) => ({
         id: p.id,
         nome: p.name,

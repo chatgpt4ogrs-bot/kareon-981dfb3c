@@ -14,13 +14,15 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { deleteWithAudit } from "@/lib/audit";
 import { ArrowLeft, Building2, Pencil, Power, Users, Trash2, Mail, Phone, MapPin, FileText } from "lucide-react";
 import { format } from "date-fns";
 
 const AdminClinicaDetalhe = () => {
   const { id: paramId } = useParams();
   const navigate = useNavigate();
-  const { profile, isAdmin } = useAuth();
+  const { profile, isAdmin, isPlatformSupervisor, gestorClinicIds } = useAuth();
   const id = paramId || profile?.clinica_id;
   const queryClient = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
@@ -29,7 +31,9 @@ const AdminClinicaDetalhe = () => {
   const [form, setForm] = useState({ nome: "", cnpj: "", telefone: "", email: "", endereco: "" });
 
   const isCurrentClinic = profile?.clinica_id === id;
-  const canAccess = isAdmin || isCurrentClinic;
+  const isGestorClinic = isPlatformSupervisor && !!id && gestorClinicIds.includes(id);
+  const canAccess = isAdmin || isCurrentClinic || isGestorClinic;
+  const backPath = isAdmin ? "/admin?tab=clinicas" : isPlatformSupervisor ? "/admin/clinicas" : "/";
 
   const { data: clinica, isLoading } = useQuery({
     queryKey: ["clinica", id],
@@ -47,7 +51,9 @@ const AdminClinicaDetalhe = () => {
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*").eq("clinic_id", id);
       if (error) throw error;
-      return (data || []).map((u: any) => ({
+      return (data || [])
+        .filter((u: any) => isAdmin || !["admin", "supervisor_plataforma"].includes(String(u.role ?? "").toLowerCase()))
+        .map((u: any) => ({
         ...u,
         nome: u.name,
         cargo: u.role,
@@ -75,6 +81,7 @@ const AdminClinicaDetalhe = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clinica", id] });
       queryClient.invalidateQueries({ queryKey: ["admin-clinicas"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-usuarios-clinicas"] });
       toast({ title: "Clínica atualizada" });
       setEditOpen(false);
     },
@@ -82,12 +89,14 @@ const AdminClinicaDetalhe = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("clinics").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async (reason: string) => {
+      if (!id) throw new Error("Clínica não encontrada");
+      await deleteWithAudit("clinica", id, reason);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-clinicas"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-usuarios-clinicas"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       toast({ title: "Clínica excluída" });
       navigate("/admin?tab=clinicas");
     },
@@ -116,7 +125,11 @@ const AdminClinicaDetalhe = () => {
     return (
       <div className="p-12 text-center space-y-4">
         <Building2 className="w-12 h-12 mx-auto text-muted-foreground/50" />
-        <p className="text-muted-foreground">Acesso negado: Você só pode visualizar a sua clínica.</p>
+        <p className="text-muted-foreground">
+          {isPlatformSupervisor
+            ? "Acesso negado: esta clínica não está vinculada a você. Se precisar de acesso, entre em contato com o suporte."
+            : "Acesso negado: Você só pode visualizar a sua clínica."}
+        </p>
         <Button variant="outline" onClick={() => navigate("/")}>Voltar para o início</Button>
       </div>
     );
@@ -127,18 +140,19 @@ const AdminClinicaDetalhe = () => {
     <div className="p-12 text-center space-y-4">
       <Building2 className="w-12 h-12 mx-auto text-muted-foreground/50" />
       <p className="text-muted-foreground">Clínica não encontrada</p>
-      <Button variant="outline" onClick={() => navigate(isAdmin ? "/admin?tab=clinicas" : "/")}>Voltar</Button>
+      <Button variant="outline" onClick={() => navigate(backPath)}>Voltar</Button>
     </div>
   );
 
   const status = (clinica as any).status || "ativa";
   const inativa = status === "inativa";
+  const cnpjLocked = !!(clinica as any).cnpj;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(isAdmin ? "/admin?tab=clinicas" : "/")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -208,8 +222,9 @@ const AdminClinicaDetalhe = () => {
               {usuarios.map((u) => (
                 <button
                   key={u.id}
-                  onClick={() => navigate(`/admin/usuarios/${u.id}`)}
-                  className="w-full flex items-center justify-between py-3 text-left hover:bg-muted/50 px-2 rounded transition-colors"
+                  disabled={!isAdmin}
+                  onClick={() => isAdmin && navigate(`/admin/usuarios/${u.id}`)}
+                  className="w-full flex items-center justify-between py-3 text-left hover:bg-muted/50 px-2 rounded transition-colors disabled:cursor-default"
                 >
                   <div>
                     <p className="font-medium text-foreground">{u.nome}</p>
@@ -226,9 +241,20 @@ const AdminClinicaDetalhe = () => {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Editar clínica</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(form); }} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const { cnpj, ...rest } = form;
+              updateMutation.mutate(cnpjLocked ? rest : form);
+            }}
+            className="space-y-4"
+          >
             <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required /></div>
-            <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} /></div>
+            <div>
+              <Label>CNPJ</Label>
+              <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} disabled={cnpjLocked} />
+              {cnpjLocked && <p className="text-xs text-muted-foreground mt-1">O CNPJ não pode ser alterado após o cadastro.{!isAdmin && " Para corrigir, entre em contato com o suporte."}</p>}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
               <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
@@ -257,22 +283,14 @@ const AdminClinicaDetalhe = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir clínica?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Todos os dados vinculados podem ser perdidos.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Excluir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Excluir clínica?"
+        itemName={clinica?.nome}
+        description="Esta ação não pode ser desfeita. Todos os dados vinculados podem ser perdidos."
+        onConfirm={async (reason) => { await deleteMutation.mutateAsync(reason); }}
+      />
     </div>
   );
 };

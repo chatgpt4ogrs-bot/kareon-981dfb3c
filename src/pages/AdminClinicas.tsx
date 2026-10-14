@@ -8,30 +8,42 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Building2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import ClinicaDetalheDrawer from "@/components/admin/ClinicaDetalheDrawer";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { deleteWithAudit } from "@/lib/audit";
 
 const AdminClinicas = () => {
+  const { isAdmin, isPlatformSupervisor, clinicScope } = useAuth();
   const queryClient = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"view" | "edit" | "create">("view");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; nome: string } | null>(null);
 
-  const { data: clinicas = [], isLoading } = useQuery({
-    queryKey: ["admin-clinicas"],
+  const { data: clinicas = [], isLoading, error: listError, refetch } = useQuery({
+    queryKey: ["admin-clinicas", clinicScope],
     queryFn: async () => {
-      const { data, error } = await supabase.from("clinics").select("*").order("nome");
-      if (error) throw error;
+      if (clinicScope && clinicScope.length === 0) return [];
+      let q = supabase.from("clinics").select("*").order("nome");
+      // Gestor: somente as clínicas vinculadas a ele
+      if (clinicScope) q = q.in("id", clinicScope);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
       return data;
     },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("clinics").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      await deleteWithAudit("clinica", id, reason);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-clinicas"] });
-      toast({ title: "Clínica removida" });
+      queryClient.invalidateQueries({ queryKey: ["admin-usuarios-clinicas"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
+      toast({ title: "Clínica excluída" });
     },
     onError: (err: any) => toast({ title: "Erro", description: err.message, variant: "destructive" }),
   });
@@ -46,22 +58,33 @@ const AdminClinicas = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Clínicas</h1>
-          <p className="text-muted-foreground">Gerencie todas as clínicas do sistema</p>
+          <h1 className="text-2xl font-bold text-foreground">{isAdmin ? "Clínicas" : "Minhas clínicas"}</h1>
+          <p className="text-muted-foreground">
+            {isAdmin ? "Gerencie todas as clínicas do sistema" : "Clínicas vinculadas à sua conta"}
+          </p>
         </div>
-        <Button className="gap-2" onClick={() => openDrawer(null, "create")}>
-          <Plus className="w-4 h-4" /> Nova clínica
-        </Button>
+        {isAdmin && (
+          <Button className="gap-2" onClick={() => openDrawer(null, "create")}>
+            <Plus className="w-4 h-4" /> Nova clínica
+          </Button>
+        )}
       </div>
 
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
             <p className="p-6 text-muted-foreground">Carregando...</p>
+          ) : listError ? (
+            <div className="p-12 text-center space-y-3">
+              <p className="text-sm text-destructive">Não foi possível carregar as clínicas: {(listError as Error).message}</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>Tentar novamente</Button>
+            </div>
           ) : clinicas.length === 0 ? (
             <div className="p-12 text-center">
               <Building2 className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-muted-foreground">Nenhuma clínica cadastrada</p>
+              <p className="text-muted-foreground">
+                {isPlatformSupervisor ? "Nenhuma clínica vinculada a você. Entre em contato com o suporte para vincular suas clínicas." : "Nenhuma clínica cadastrada"}
+              </p>
             </div>
           ) : (
             <Table>
@@ -85,9 +108,13 @@ const AdminClinicas = () => {
                         <Button variant="ghost" size="icon" onClick={() => openDrawer(c.id, "edit")}>
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => { if (confirm("Remover esta clínica?")) deleteMutation.mutate(c.id); }}>
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button variant="ghost" size="icon" aria-label={`Excluir ${c.nome}`} onClick={() => setDeleteTarget({ id: c.id, nome: c.nome })}>
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -103,6 +130,17 @@ const AdminClinicas = () => {
         onOpenChange={setDrawerOpen}
         clinicaId={selectedId}
         mode={drawerMode}
+      />
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
+        title="Excluir clínica?"
+        itemName={deleteTarget?.nome}
+        description="Esta ação é permanente e os dados vinculados à clínica podem ser perdidos."
+        onConfirm={async (reason) => {
+          if (deleteTarget) await deleteMutation.mutateAsync({ id: deleteTarget.id, reason });
+        }}
       />
     </div>
   );

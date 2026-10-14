@@ -28,6 +28,7 @@ const ObjetivoForm = lazy(() => import("@/pages/ObjetivoForm"));
 const Agenda = lazy(() => import("@/pages/Agenda"));
 const Relatorio = lazy(() => import("@/pages/Relatorio"));
 const Cameras = lazy(() => import("@/pages/Cameras"));
+const Estoque = lazy(() => import("@/pages/Estoque"));
 const Perfil = lazy(() => import("@/pages/Perfil"));
 const AdminClinicas = lazy(() => import("@/pages/AdminClinicas"));
 const AdminUsuarios = lazy(() => import("@/pages/AdminUsuarios"));
@@ -58,26 +59,27 @@ const LoadingScreen = () => (
 );
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, profile, loading, rolesLoaded, isAdmin } = useAuth();
+  const { user, profile, loading, rolesLoaded, isVisitor, isBlocked } = useAuth();
   const location = useLocation();
   if (loading || (user && !rolesLoaded)) return <LoadingScreen />;
   if (!user) return <Navigate to="/login" replace />;
-  // Admins bypass approval; pending/blocked users see waiting screen
-  if (profile && profile.status !== "ativo" && !isAdmin) {
-    return <AguardandoAprovacao />;
+  // Conta desativada
+  if (isBlocked) {
+    return <AguardandoAprovacao variant="blocked" />;
   }
-  // Força troca de senha no primeiro login
-  if (profile?.must_change_password && location.pathname !== "/alterar-senha") {
+  // Força troca de senha no primeiro login (não aplica a visitantes)
+  if (!isVisitor && profile?.must_change_password && location.pathname !== "/alterar-senha") {
     return <Navigate to="/alterar-senha" replace />;
   }
+  // Visitantes (cadastro/Google pendente) entram no app em modo visita
   return <>{children}</>;
 }
 
 function RoleRoute({ children }: { children: React.ReactNode }) {
-  const { roles, loading, rolesLoaded } = useAuth();
+  const { roles, tabs, loading, rolesLoaded, isVisitor } = useAuth();
   const location = useLocation();
   if (loading || !rolesLoaded) return <LoadingScreen />;
-  if (!canAccessRoute(roles, location.pathname)) {
+  if (!canAccessRoute(roles, location.pathname, isVisitor, tabs)) {
     return <Navigate to="/" replace />;
   }
   return <>{children}</>;
@@ -87,6 +89,14 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   const { isAdmin, loading, rolesLoaded } = useAuth();
   if (loading || !rolesLoaded) return <LoadingScreen />;
   if (!isAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+/** Admin Master ou Supervisor de Plataforma — visão global de clínicas */
+function GlobalClinicsRoute({ children }: { children: React.ReactNode }) {
+  const { canViewAllClinics, loading, rolesLoaded } = useAuth();
+  if (loading || !rolesLoaded) return <LoadingScreen />;
+  if (!canViewAllClinics) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
@@ -117,12 +127,13 @@ const App = () => (
               <Route path="pacientes/:pacienteId/objetivo" element={<RoleRoute><ObjetivoForm /></RoleRoute>} />
               <Route path="pacientes/:pacienteId/relatorio" element={<RoleRoute><Relatorio /></RoleRoute>} />
               <Route path="agenda" element={<RoleRoute><Agenda /></RoleRoute>} />
+              <Route path="estoque" element={<RoleRoute><Estoque /></RoleRoute>} />
               <Route path="cameras" element={<RoleRoute><SensitiveAreaGuard area="cameras"><Cameras /></SensitiveAreaGuard></RoleRoute>} />
               <Route path="perfil" element={<Perfil />} />
               <Route path="alterar-senha" element={<AlterarSenha />} />
               <Route path="admin" element={<AdminRoute><SensitiveAreaGuard area="admin"><PainelAdministrativo /></SensitiveAreaGuard></AdminRoute>} />
-              <Route path="admin/clinicas" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminClinicas /></SensitiveAreaGuard></AdminRoute>} />
-              <Route path="admin/clinicas/:id" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminClinicaDetalhe /></SensitiveAreaGuard></AdminRoute>} />
+              <Route path="admin/clinicas" element={<GlobalClinicsRoute><SensitiveAreaGuard area="admin"><AdminClinicas /></SensitiveAreaGuard></GlobalClinicsRoute>} />
+              <Route path="admin/clinicas/:id" element={<GlobalClinicsRoute><SensitiveAreaGuard area="admin"><AdminClinicaDetalhe /></SensitiveAreaGuard></GlobalClinicsRoute>} />
               <Route path="admin/usuarios" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminUsuarios /></SensitiveAreaGuard></AdminRoute>} />
               <Route path="admin/usuarios/:id" element={<AdminRoute><SensitiveAreaGuard area="admin"><AdminUsuarioDetalhe /></SensitiveAreaGuard></AdminRoute>} />
               <Route path="clinica/usuarios" element={<RoleRoute><AdminUsuarios /></RoleRoute>} />

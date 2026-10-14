@@ -44,10 +44,13 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
+import { useAuth } from "@/contexts/AuthContext";
+import VisitExploreNotice from "@/components/VisitExploreNotice";
 
 type Visao = "dia" | "semana" | "mes";
 
 const Agenda = () => {
+  const { isVisitor } = useAuth();
   const { data: eventos = [], isLoading } = useEventos();
   const { data: terapeutas = [] } = useTerapeutas();
   const terapeutaMap = useMemo(() => {
@@ -107,11 +110,13 @@ const Agenda = () => {
   };
 
   const abrirNovo = (data?: Date) => {
+    if (isVisitor) return;
     setEventoSel(null);
     setDefaultDate(data ?? cursor);
     setModalOpen(true);
   };
   const abrirEvento = (e: Evento) => {
+    if (isVisitor) return;
     setEventoSel(e);
     setDefaultDate(undefined);
     setModalOpen(true);
@@ -132,6 +137,7 @@ const Agenda = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {isVisitor && <VisitExploreNotice area="agenda" />}
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
@@ -183,22 +189,26 @@ const Agenda = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button
-            onClick={() => abrirNovo()}
-            className="h-10 rounded-xl gap-1.5 bg-primary shadow-sm hover:shadow-md transition-shadow"
-          >
-            <Plus className="h-4 w-4" />
-            Novo Evento
-          </Button>
+          {!isVisitor && (
+            <>
+              <Button
+                onClick={() => abrirNovo()}
+                className="h-10 rounded-xl gap-1.5 bg-primary shadow-sm hover:shadow-md transition-shadow"
+              >
+                <Plus className="h-4 w-4" />
+                Novo Evento
+              </Button>
 
-          <Button
-            variant="outline"
-            onClick={() => setRelatorioOpen(true)}
-            className="h-10 rounded-xl gap-1.5"
-          >
-            <FileText className="h-4 w-4" />
-            Relatórios
-          </Button>
+              <Button
+                variant="outline"
+                onClick={() => setRelatorioOpen(true)}
+                className="h-10 rounded-xl gap-1.5"
+              >
+                <FileText className="h-4 w-4" />
+                Relatórios
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

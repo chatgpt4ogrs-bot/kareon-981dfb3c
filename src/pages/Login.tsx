@@ -5,11 +5,9 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { lovable } from "@/integrations/lovable";
 import { Loader2, LogIn, Mail, ShieldCheck, Heart, CalendarCheck, BarChart3, User, Phone } from "lucide-react";
 import PasswordInput from "@/components/PasswordInput";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
@@ -23,8 +21,7 @@ const GoogleIcon = () => (
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp, signInWithGoogle, user, loading: authLoading } = useAuth();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -53,6 +50,13 @@ const Login = () => {
       setTelefone("");
     }
   }, [location.state]);
+
+  // Após OAuth (Google), sessão ativa → entra no app
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate("/", { replace: true });
+    }
+  }, [authLoading, user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,10 +108,15 @@ const Login = () => {
     setLoadingGoogle(true);
     setErro("");
     try {
-      const { error } = await signInWithGoogle();
+      const { error, redirected } = await signInWithGoogle();
       if (error) {
         setErro(error.message);
+        return;
       }
+      if (!redirected) {
+        navigate("/", { replace: true });
+      }
+      // redirected: true → o browser já está indo para o Google / broker
     } catch {
       setErro("Erro ao iniciar login com Google.");
     } finally {

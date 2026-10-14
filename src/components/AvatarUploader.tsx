@@ -209,7 +209,7 @@ export const AvatarUploader = ({ open, onOpenChange, onUploaded }: Props) => {
       if (upErr) throw upErr;
       const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
       const finalUrl = `${publicUrl}?t=${Date.now()}`;
-      const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: finalUrl }).eq("user_id", user.id);
+      const { error: dbErr } = await supabase.from("profiles").update({ avatar_url: finalUrl }).eq("id", user.id);
       if (dbErr) throw dbErr;
       const kb = Math.round(blob.size / 1024);
       toast({ title: "Foto atualizada", description: `Imagem otimizada para ${OUTPUT_SIZE}px (~${kb} KB).` });
@@ -226,7 +226,7 @@ export const AvatarUploader = ({ open, onOpenChange, onUploaded }: Props) => {
     if (!user) return;
     setUploading(true);
     try {
-      await supabase.from("profiles").update({ avatar_url: null }).eq("user_id", user.id);
+      await supabase.from("profiles").update({ avatar_url: null }).eq("id", user.id);
       toast({ title: "Foto removida" });
       onUploaded?.("");
       onOpenChange(false);

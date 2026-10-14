@@ -15,24 +15,16 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { User, Pencil, Power, Mail, Building2, Briefcase, Shield, X, Save } from "lucide-react";
+import { User, Pencil, Power, Mail, Building2, Briefcase, Shield, X, Save, Check } from "lucide-react";
 import { format } from "date-fns";
+import type { AppRole } from "@/contexts/AuthContext";
+import AcessosPicker from "@/components/admin/AcessosPicker";
+import { APP_TABS, resolveTabs, type AppTab } from "@/lib/permissions";
+import { invokeManageUser } from "@/lib/manage-user";
+import { usePerfis, isStoredPerfilId } from "@/hooks/use-perfis";
+import ClinicasMultiPicker from "@/components/admin/ClinicasMultiPicker";
 
-const ALL_ROLES = ["admin", "clinica_admin", "responsavel_clinica", "terapeuta", "familiar"] as const;
-const roleLabels: Record<string, string> = {
-  admin: "Admin Master",
-  clinica_admin: "Admin Clínica",
-  responsavel_clinica: "Responsável",
-  terapeuta: "Terapeuta",
-  familiar: "Familiar",
-};
-const roleDescriptions: Record<string, string> = {
-  admin: "Acesso total ao sistema, todas as clínicas.",
-  clinica_admin: "Gerencia configurações, usuários e dados da clínica.",
-  responsavel_clinica: "Gestão operacional (pacientes, agenda, câmeras).",
-  terapeuta: "Atende pacientes, registra sessões e objetivos.",
-  familiar: "Visualiza informações e câmeras dos pacientes vinculados.",
-};
+const GLOBAL_ROLES = new Set<string>(["admin", "supervisor_plataforma"]);
 const statusLabel: Record<string, string> = { ativo: "Ativo", pendente: "Pendente", inativo: "Inativo" };
 
 interface Props {
@@ -42,11 +34,29 @@ interface Props {
 }
 
 const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, tabs: myTabs } = useAuth();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", cargo: "", telefone: "", clinica_id: "none", password: "", must_change_password: false });
+  const [form, setForm] = useState({
+    nome: "",
+    email: "",
+    role: "" as string,
+    perfil_id: "",
+    telefone: "",
+    clinica_id: "none",
+    password: "",
+    must_change_password: false,
+    permissions: [] as AppTab[],
+    gestor_clinica_ids: [] as string[],
+  });
   const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
+
+  const { perfis, perfilDoUsuario, nomeDoPerfil } = usePerfis();
+  const assignablePerfis = isAdmin ? perfis : perfis.filter((p) => !GLOBAL_ROLES.has(p.base_role));
+  const grantableTabs: AppTab[] | undefined = isAdmin ? undefined : myTabs;
+
+  const templateFor = (template: AppTab[]): AppTab[] =>
+    grantableTabs ? template.filter((t) => grantableTabs.includes(t)) : template;
 
   useEffect(() => { if (open) { setEditing(false); } }, [open, profileId]);
 
@@ -59,8 +69,8 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
         return {
           ...data,
           nome: (data as any).name,
-          cargo: data.role,
-          clinica_id: (data as any).clinic_id,
+          cargo: (data as any).role ?? (data as any).cargo,
+          clinica_id: (data as any).clinic_id ?? (data as any).clinica_id,
         };
       }
       return data;
@@ -69,59 +79,79 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
   });
 
   const { data: clinicas = [] } = useQuery({
-    queryKey: ["admin-clinicas"],
+    queryKey: ["admin-clinicas", isAdmin],
     queryFn: async () => {
       const { data, error } = await supabase.from("clinics").select("id, nome").order("nome");
       if (error) throw error;
       return data;
     },
-    enabled: open,
+    enabled: open && isAdmin,
   });
 
-  // Derive roles locally from profile.role (since user_roles table does not exist)
-  const roles = profile?.cargo ? [{ id: "role-id", role: profile.cargo }] : [];
+  const isGestorProfile = profile?.cargo === "supervisor_plataforma";
+  const { data: gestorClinicIds = [] } = useQuery({
+    queryKey: ["gestor-clinicas", profileId],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("gestor_clinicas" as any) as any)
+        .select("clinic_id")
+        .eq("profile_id", profileId!);
+      if (error) return [];
+      return ((data ?? []) as { clinic_id: string }[]).map((l) => l.clinic_id);
+    },
+    enabled: !!profileId && open && isAdmin && isGestorProfile,
+  });
+
+  const profileRoles = (profile?.cargo ? [profile.cargo] : []) as AppRole[];
+  const storedPermissions = Array.isArray((profile as any)?.permissions) ? ((profile as any).permissions as string[]) : null;
+  const effectiveTabs = resolveTabs(profileRoles, storedPermissions);
 
   useEffect(() => {
-    if (profile) setForm({
+    if (profile && !editing) setForm({
       nome: profile.nome || "",
       email: profile.email || "",
-      cargo: profile.cargo || "",
+      role: profile.cargo || "",
+      perfil_id: perfilDoUsuario((profile as any).perfil_id, profile.cargo)?.id ?? "",
       telefone: profile.telefone || "",
       clinica_id: profile.clinica_id || "none",
       password: "",
       must_change_password: !!profile.must_change_password,
+      permissions: effectiveTabs,
+      gestor_clinica_ids: gestorClinicIds,
     });
-  }, [profile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, perfis, gestorClinicIds.join(",")]);
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      // Se houver senha, precisa chamar a Edge Function
-      if (payload.password) {
-        const { data, error } = await supabase.functions.invoke("manage-clinic-user", {
-          body: { action: "update", profile_id: profileId, password: payload.password }
-        });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+    mutationFn: async (payload: Record<string, unknown>) => {
+      const body: Record<string, unknown> = {
+        action: "update",
+        profile_id: profileId,
+      };
+      if ("nome" in payload) body.nome = payload.nome;
+      if ("telefone" in payload) body.telefone = payload.telefone;
+      if ("role" in payload) {
+        body.roles = payload.role ? [payload.role] : [];
       }
-
-      // Map form payload back to real database columns
-      const dbPayload: any = {};
-      if ("nome" in payload) dbPayload.name = payload.nome;
-      if ("cargo" in payload) dbPayload.role = payload.cargo;
-      if ("telefone" in payload) dbPayload.telefone = payload.telefone;
-      if ("clinica_id" in payload) dbPayload.clinic_id = payload.clinica_id;
-      if ("status" in payload) dbPayload.status = payload.status;
-      if ("role" in payload) dbPayload.role = payload.role;
-      if ("must_change_password" in payload) dbPayload.must_change_password = payload.must_change_password;
-
-      if (Object.keys(dbPayload).length > 0) {
-        const { error } = await supabase.from("profiles").update(dbPayload).eq("id", profileId!);
-        if (error) throw error;
+      if ("perfil_id" in payload && isStoredPerfilId(payload.perfil_id as string)) {
+        body.perfil_id = payload.perfil_id;
       }
+      if ("permissions" in payload) body.permissions = payload.permissions;
+      if ("clinica_id" in payload && isAdmin) {
+        body.clinica_id = payload.clinica_id ?? "none";
+      }
+      if ("gestor_clinica_ids" in payload && isAdmin) {
+        body.clinica_ids = payload.gestor_clinica_ids;
+      }
+      if ("status" in payload) body.status = payload.status;
+      if ("must_change_password" in payload) body.must_change_password = payload.must_change_password;
+      if ("password" in payload && payload.password) body.password = payload.password;
+
+      await invokeManageUser(body);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-profile", profileId] });
       qc.invalidateQueries({ queryKey: ["admin-usuarios-profiles"] });
+      qc.invalidateQueries({ queryKey: ["gestor-clinicas", profileId] });
       toast({ title: "Usuário atualizado" });
       setEditing(false);
       setConfirmStatusOpen(false);
@@ -130,11 +160,10 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
   });
 
   const inativo = profile?.status !== "ativo";
-  const clinicaNome = clinicas.find((c) => c.id === profile?.clinica_id)?.nome;
-
-  const toggleRole = (role: string, has: boolean) => {
-    updateProfileMutation.mutate({ role: has ? null : role });
-  };
+  const clinicaNome = isGestorProfile
+    ? (gestorClinicIds.map((id) => clinicas.find((c) => c.id === id)?.nome).filter(Boolean).join(", ") || null)
+    : clinicas.find((c) => c.id === profile?.clinica_id)?.nome
+      || (profile?.clinica_id ? "Clínica vinculada" : null);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -174,13 +203,21 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                updateProfileMutation.mutate({ 
-                  nome: form.nome, 
-                  cargo: form.cargo, 
-                  telefone: form.telefone, 
+                const editingGestor = form.role === "supervisor_plataforma";
+                if (editingGestor && isAdmin && form.gestor_clinica_ids.length === 0) {
+                  toast({ title: "Erro", description: "Vincule o gestor a pelo menos uma clínica", variant: "destructive" });
+                  return;
+                }
+                updateProfileMutation.mutate({
+                  ...(editingGestor && isAdmin ? { gestor_clinica_ids: form.gestor_clinica_ids } : {}),
+                  nome: form.nome,
+                  role: form.role || null,
+                  perfil_id: form.perfil_id,
+                  ...(form.role !== "admin" ? { permissions: form.permissions } : {}),
+                  telefone: form.telefone,
                   clinica_id: form.clinica_id === "none" ? null : form.clinica_id,
                   password: form.password || undefined,
-                  must_change_password: form.must_change_password
+                  must_change_password: form.must_change_password,
                 });
               }}
               className="space-y-4"
@@ -188,18 +225,59 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
               <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required /></div>
               <div><Label>Email</Label><Input value={form.email} disabled /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Cargo</Label><Input value={form.cargo} onChange={(e) => setForm({ ...form, cargo: e.target.value })} /></div>
+                <div>
+                  <Label>Perfil</Label>
+                  <Select
+                    value={form.perfil_id || undefined}
+                    onValueChange={(v) => {
+                      const perfil = perfis.find((p) => p.id === v);
+                      if (!perfil) return;
+                      setForm({ ...form, perfil_id: perfil.id, role: perfil.base_role, permissions: templateFor(perfil.abas) });
+                    }}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      {assignablePerfis.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
               </div>
-              <div>
-                <Label>Clínica</Label>
-                <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })} disabled={!isAdmin}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Nenhuma</SelectItem>
-                    {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              {isAdmin && form.role === "supervisor_plataforma" && (
+                <div className="space-y-2">
+                  <Label>Clínicas do gestor *</Label>
+                  <ClinicasMultiPicker
+                    clinicas={clinicas}
+                    value={form.gestor_clinica_ids}
+                    onChange={(gestor_clinica_ids) => setForm({ ...form, gestor_clinica_ids })}
+                  />
+                </div>
+              )}
+              {isAdmin && form.role !== "supervisor_plataforma" && (
+                <div>
+                  <Label>Clínica</Label>
+                  <Select value={form.clinica_id} onValueChange={(v) => setForm({ ...form, clinica_id: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhuma</SelectItem>
+                      {clinicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-2 border-t border-border pt-4">
+                <h4 className="text-sm font-medium">Acessos</h4>
+                {form.role === "admin" ? (
+                  <p className="text-xs text-muted-foreground">Admin Master tem acesso a todas as abas.</p>
+                ) : (
+                  <AcessosPicker
+                    value={form.permissions}
+                    onChange={(permissions) => setForm({ ...form, permissions })}
+                    grantable={grantableTabs}
+                  />
+                )}
               </div>
               <div className="grid grid-cols-1 gap-3 border-t border-border pt-4">
                 <h4 className="text-sm font-medium">Segurança e Acesso</h4>
@@ -230,36 +308,30 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
               <Card>
                 <CardContent className="space-y-4 p-4">
                   <InfoRow icon={<Mail className="w-4 h-4" />} label="Email" value={profile.email} />
-                  <InfoRow icon={<Briefcase className="w-4 h-4" />} label="Cargo" value={profile.cargo} />
-                  <InfoRow icon={<Building2 className="w-4 h-4" />} label="Clínica" value={clinicaNome || "Sem clínica vinculada"} />
+                  <InfoRow icon={<Briefcase className="w-4 h-4" />} label="Perfil" value={profile.cargo ? nomeDoPerfil((profile as any).perfil_id, profile.cargo) : null} />
+                  <InfoRow icon={<Building2 className="w-4 h-4" />} label={isGestorProfile ? "Clínicas do gestor" : "Clínica"} value={clinicaNome || "Sem clínica vinculada"} />
                 </CardContent>
               </Card>
 
               <div>
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><Shield className="w-4 h-4" /> Permissões</h3>
-                <p className="text-xs text-muted-foreground mb-3">Ative ou desative as funções deste usuário. As alterações são salvas automaticamente.</p>
-                <div className="space-y-2">
-                  {ALL_ROLES.map((r) => {
-                    const has = roles.some((ur) => ur.role === r);
-                    const busy = updateProfileMutation.isPending;
-                    const canToggle = isAdmin || r !== "admin";
+                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2"><Shield className="w-4 h-4" /> Acessos</h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {profile.cargo === "admin"
+                    ? "Admin Master tem acesso a todas as abas."
+                    : storedPermissions === null
+                    ? "Usando as abas padrão do perfil. Clique em Editar para personalizar."
+                    : "Abas liberadas para este usuário. Clique em Editar para alterar."}
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {APP_TABS.map((tab) => {
+                    const has = effectiveTabs.includes(tab.id);
                     return (
                       <div
-                        key={r}
-                        className={`flex items-start justify-between gap-3 rounded-lg border p-3 transition-colors ${has ? "border-primary/40 bg-primary/5" : "border-border bg-background hover:bg-muted/40"}`}
+                        key={tab.id}
+                        className={`flex items-center gap-2 rounded-lg border p-2.5 text-sm ${has ? "border-primary/40 bg-primary/5 text-foreground" : "border-border text-muted-foreground"}`}
                       >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-foreground">{roleLabels[r]}</span>
-                            {has && <Badge variant="secondary" className="text-[10px] h-4 px-1.5">Ativa</Badge>}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{roleDescriptions[r]}</p>
-                        </div>
-                        <Switch
-                          checked={has}
-                          disabled={busy || !canToggle}
-                          onCheckedChange={() => toggleRole(r, has)}
-                        />
+                        {has ? <Check className="w-4 h-4 text-primary" /> : <X className="w-4 h-4" />}
+                        {tab.label}
                       </div>
                     );
                   })}

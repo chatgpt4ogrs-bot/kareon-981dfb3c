@@ -12,6 +12,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { deleteWithAudit } from "@/lib/audit";
 import { Building2, Pencil, Power, Trash2, Save, X, Mail, Phone, MapPin, FileText, Users } from "lucide-react";
 import { format } from "date-fns";
 
@@ -26,6 +29,7 @@ const emptyForm = { nome: "", cnpj: "", telefone: "", email: "", endereco: "" };
 
 const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange }: Props) => {
   const qc = useQueryClient();
+  const { isAdmin } = useAuth();
   const [mode, setMode] = useState(initialMode);
   const [form, setForm] = useState(emptyForm);
   const [confirmStatusOpen, setConfirmStatusOpen] = useState(false);
@@ -46,9 +50,13 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
   const { data: usuarios = [] } = useQuery({
     queryKey: ["clinica-usuarios", clinicaId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("id, nome, email, status").eq("clinica_id", clinicaId!);
+      const { data, error } = await (supabase.from("profiles") as any)
+        .select("id, name, email, status, role")
+        .eq("clinic_id", clinicaId!);
       if (error) throw error;
-      return data;
+      return ((data ?? []) as any[])
+        .filter((u) => isAdmin || !["admin", "supervisor_plataforma"].includes(String(u.role ?? "").toLowerCase()))
+        .map((u) => ({ ...u, nome: u.name }));
     },
     enabled: !!clinicaId && open,
   });
@@ -64,18 +72,23 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
     });
   }, [clinica, mode]);
 
+  const cnpjLocked = mode !== "create" && !!(clinica as any)?.cnpj;
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (mode === "create") {
         const { error } = await supabase.from("clinics").insert(form);
         if (error) throw error;
       } else if (clinicaId) {
-        const { error } = await supabase.from("clinics").update(form).eq("id", clinicaId);
+        const { cnpj, ...rest } = form;
+        const payload = cnpjLocked ? rest : form;
+        const { error } = await supabase.from("clinics").update(payload).eq("id", clinicaId);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-clinicas"] });
+      qc.invalidateQueries({ queryKey: ["admin-usuarios-clinicas"] });
       qc.invalidateQueries({ queryKey: ["clinica", clinicaId] });
       toast({ title: mode === "create" ? "Clínica criada" : "Clínica atualizada" });
       if (mode === "create") onOpenChange(false);
@@ -91,6 +104,7 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-clinicas"] });
+      qc.invalidateQueries({ queryKey: ["admin-usuarios-clinicas"] });
       qc.invalidateQueries({ queryKey: ["clinica", clinicaId] });
       toast({ title: "Status atualizado" });
       setConfirmStatusOpen(false);
@@ -99,12 +113,13 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("clinics").delete().eq("id", clinicaId!);
-      if (error) throw error;
+    mutationFn: async (reason: string) => {
+      await deleteWithAudit("clinica", clinicaId!, reason);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-clinicas"] });
+      qc.invalidateQueries({ queryKey: ["admin-usuarios-clinicas"] });
+      qc.invalidateQueries({ queryKey: ["audit-logs"] });
       toast({ title: "Clínica excluída" });
       setConfirmDeleteOpen(false);
       onOpenChange(false);
@@ -139,12 +154,16 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
           {mode === "view" && clinica && (
             <div className="flex flex-wrap gap-2 pt-2">
               <Button size="sm" variant="outline" className="gap-2" onClick={() => setMode("edit")}><Pencil className="w-3.5 h-3.5" /> Editar</Button>
-              <Button size="sm" variant="outline" className="gap-2" onClick={() => setConfirmStatusOpen(true)}>
-                <Power className="w-3.5 h-3.5" /> {inativa ? "Ativar" : "Desativar"}
-              </Button>
-              <Button size="sm" variant="destructive" className="gap-2" onClick={() => setConfirmDeleteOpen(true)}>
-                <Trash2 className="w-3.5 h-3.5" /> Excluir
-              </Button>
+              {isAdmin && (
+                <>
+                  <Button size="sm" variant="outline" className="gap-2" onClick={() => setConfirmStatusOpen(true)}>
+                    <Power className="w-3.5 h-3.5" /> {inativa ? "Ativar" : "Desativar"}
+                  </Button>
+                  <Button size="sm" variant="destructive" className="gap-2" onClick={() => setConfirmDeleteOpen(true)}>
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </SheetHeader>
@@ -184,7 +203,11 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
           ) : (
             <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4">
               <div><Label>Nome</Label><Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} required /></div>
-              <div><Label>CNPJ</Label><Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} /></div>
+              <div>
+                <Label>CNPJ</Label>
+                <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} disabled={cnpjLocked} />
+                {cnpjLocked && <p className="text-xs text-muted-foreground mt-1">O CNPJ não pode ser alterado após o cadastro.{!isAdmin && " Para corrigir, entre em contato com o suporte."}</p>}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
                 <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
@@ -217,18 +240,14 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Excluir clínica?</AlertDialogTitle>
-              <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => deleteMutation.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <ConfirmDeleteDialog
+          open={confirmDeleteOpen}
+          onOpenChange={setConfirmDeleteOpen}
+          title="Excluir clínica?"
+          itemName={clinica?.nome}
+          description="Esta ação não pode ser desfeita. Todos os dados vinculados podem ser perdidos."
+          onConfirm={async (reason) => { await deleteMutation.mutateAsync(reason); }}
+        />
       </SheetContent>
     </Sheet>
   );

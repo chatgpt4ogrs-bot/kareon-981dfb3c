@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
+import VisitModeBanner from "@/components/VisitModeBanner";
 import {
   Users,
   CalendarDays,
@@ -15,6 +17,7 @@ import {
   Shield,
   Camera,
   FileText,
+  Package,
   User as UserIcon,
   ChevronLeft,
   ChevronRight,
@@ -25,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { getNavItems } from "@/lib/permissions";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
 import { useLogout } from "@/hooks/use-logout";
+import { usePerfis } from "@/hooks/use-perfis";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,13 +45,13 @@ import {
 } from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
-  LayoutDashboard, Users, CalendarDays, Camera, FileText, Building2, Shield,
+  LayoutDashboard, Users, CalendarDays, Camera, FileText, Package, Building2, Shield,
 };
 
 const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { profile, isAdmin, hasRole, roles } = useAuth();
+  const { profile, isAdmin, hasTab, roles, tabs, isVisitor, isPlatformSupervisor } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -64,17 +68,12 @@ const AppLayout = () => {
     return location.pathname.startsWith(path);
   };
 
-  const { main: navItems, admin: adminItems } = getNavItems(roles);
+  const { main: navItems, admin: adminItems } = getNavItems(roles, isVisitor, tabs);
 
-  const roleLabel = isAdmin
-    ? "Admin Master"
-    : hasRole("clinica_admin")
-    ? "Admin Clínica"
-    : hasRole("responsavel_clinica")
-    ? "Responsável"
-    : hasRole("familiar")
-    ? "Familiar"
-    : "Terapeuta";
+  const { nomeDoPerfil } = usePerfis();
+  const roleLabel = isVisitor
+    ? "Modo visita"
+    : nomeDoPerfil(profile?.perfil_id, roles[0]);
 
   const allItems = [...navItems, ...adminItems];
 
@@ -114,15 +113,20 @@ const AppLayout = () => {
             <Settings className="w-4 h-4 mr-2" /> Painel administrativo
           </DropdownMenuItem>
         )}
-        {hasRole("clinica_admin") && (
-          <>
-            <DropdownMenuItem onClick={() => navigate("/clinica/detalhes")} className="cursor-pointer">
-              <Building2 className="w-4 h-4 mr-2" /> Dados da clínica
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate("/clinica/usuarios")} className="cursor-pointer">
-              <Users className="w-4 h-4 mr-2" /> Usuários da clínica
-            </DropdownMenuItem>
-          </>
+        {isPlatformSupervisor && !isAdmin && (
+          <DropdownMenuItem onClick={() => navigate("/admin/clinicas")} className="cursor-pointer">
+            <Building2 className="w-4 h-4 mr-2" /> Clínicas
+          </DropdownMenuItem>
+        )}
+        {!isAdmin && hasTab("clinica_detalhes") && (
+          <DropdownMenuItem onClick={() => navigate("/clinica/detalhes")} className="cursor-pointer">
+            <Building2 className="w-4 h-4 mr-2" /> Dados da clínica
+          </DropdownMenuItem>
+        )}
+        {!isAdmin && hasTab("clinica_usuarios") && (
+          <DropdownMenuItem onClick={() => navigate("/clinica/usuarios")} className="cursor-pointer">
+            <Users className="w-4 h-4 mr-2" /> Usuários da clínica
+          </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:text-destructive">
@@ -133,7 +137,9 @@ const AppLayout = () => {
   );
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <div className="min-h-screen flex flex-col bg-background">
+      {isVisitor && <VisitModeBanner />}
+      <div className="flex flex-1 min-h-0">
       {collapsed && (
         <button
           onClick={() => setCollapsed(false)}
@@ -233,7 +239,7 @@ const AppLayout = () => {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-h-screen">
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Cabeçalho mobile */}
         <header className="md:hidden flex items-center justify-between h-14 px-4 border-b border-border/60 bg-card">
           <div className="flex items-center gap-2">
@@ -299,9 +305,12 @@ const AppLayout = () => {
 
         <main className="flex-1 p-4 md:p-8 overflow-auto">
           <div key={location.pathname} className="animate-page-in">
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </div>
         </main>
+      </div>
       </div>
     </div>
   );

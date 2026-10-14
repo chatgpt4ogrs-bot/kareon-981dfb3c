@@ -14,44 +14,45 @@ export interface ClinicProfile {
 
 /** Fetch profiles for the user's clinic. Maps real DB columns to app interface. */
 export function useClinicProfiles() {
-  const { profile, isAdmin } = useAuth();
+  const { clinicScope, canManageUsers } = useAuth();
   return useQuery({
-    queryKey: ["clinic-profiles", isAdmin, profile?.clinica_id],
+    queryKey: ["clinic-profiles", clinicScope],
     queryFn: async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("manage-clinic-user", {
-          body: { action: "list" },
-        });
-        if (!error && data?.profiles) {
-          return data.profiles.map((p: any) => ({
-            id: p.id,
-            user_id: p.id,
-            nome: p.name || p.nome || p.email,
-            email: p.email,
-            cargo: p.role || p.cargo,
-            status: p.status,
-            clinica_id: p.clinic_id || p.clinica_id,
-            roles: p.role ? [p.role] : [],
-          }));
+      if (clinicScope && clinicScope.length === 0) return [];
+
+      if (canManageUsers) {
+        try {
+          const { data, error } = await supabase.functions.invoke("manage-clinic-user", {
+            body: { action: "list" },
+          });
+          if (!error && data?.profiles) {
+            return data.profiles.map((p: any) => ({
+              id: p.id,
+              user_id: p.id,
+              nome: p.name || p.nome || p.email,
+              email: p.email,
+              cargo: p.role || p.cargo,
+              status: p.status,
+              clinica_id: p.clinic_id || p.clinica_id,
+              roles: p.role ? [p.role] : [],
+            }));
+          }
+        } catch (e) {
+          console.warn("Edge function list profiles failed, falling back:", e);
         }
-      } catch (e) {
-        console.warn("Edge function list profiles failed, falling back:", e);
       }
 
-      // Fallback: Real DB columns: id, name, email, role, status, clinic_id
-      let q = supabase
-        .from("profiles")
+      let q = (supabase.from("profiles") as any)
         .select("id, name, email, role, status, clinic_id")
         .order("name");
 
-      if (!isAdmin && profile?.clinica_id) {
-        q = q.eq("clinic_id", profile.clinica_id);
+      if (clinicScope) {
+        q = q.in("clinic_id", clinicScope);
       }
 
       const { data: profiles, error } = await q;
       if (error) throw error;
 
-      // Map real DB column names → app interface
       return (profiles || []).map((p: any) => ({
         id: p.id,
         user_id: p.id,

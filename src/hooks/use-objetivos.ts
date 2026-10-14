@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ObjetivoTerapeutico } from "@/types";
+import { deleteWithAudit } from "@/lib/audit";
 
 function rowToObjetivo(row: any): ObjetivoTerapeutico {
   return {
@@ -62,12 +63,12 @@ export function useSaveObjetivo() {
 export function useDeleteObjetivo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("objetivos").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      await deleteWithAudit("objetivo", id, reason);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["objetivos"] });
+      qc.invalidateQueries({ queryKey: ["audit-logs"] });
     },
   });
 }

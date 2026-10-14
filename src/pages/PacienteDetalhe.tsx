@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +27,7 @@ const PacienteDetalhe = () => {
   const { data: sessoes = [] } = useSessoes(id);
   const { data: objetivos = [] } = useObjetivos(id);
   const deleteObjetivoMutation = useDeleteObjetivo();
+  const [objetivoExcluir, setObjetivoExcluir] = useState<{ id: string; descricao: string } | null>(null);
 
   if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!paciente) return <div className="text-center py-16"><p className="text-muted-foreground">Paciente não encontrado</p><Button variant="outline" className="mt-4" onClick={() => navigate("/pacientes")}>Voltar</Button></div>;
@@ -118,7 +122,7 @@ const PacienteDetalhe = () => {
                         <p className="text-sm font-medium text-foreground">{o.descricao}</p>
                         <span className={cn("inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium", statusColor[o.status])}>{statusLabel[o.status]}</span>
                       </div>
-                      <Button variant="ghost" size="icon" aria-label="Excluir objetivo" className="text-muted-foreground hover:text-destructive" onClick={() => deleteObjetivoMutation.mutate(o.id)}><Trash2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" aria-label="Excluir objetivo" className="text-muted-foreground hover:text-destructive" onClick={() => setObjetivoExcluir({ id: o.id, descricao: o.descricao })}><Trash2 className="w-4 h-4" /></Button>
                     </div>
                     <div className="flex items-center gap-3"><Progress value={o.progresso} className="flex-1 h-2.5" /><span className="text-sm font-semibold text-foreground w-12 text-right">{o.progresso}%</span></div>
                   </CardContent>
@@ -179,6 +183,23 @@ const PacienteDetalhe = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDeleteDialog
+        open={!!objetivoExcluir}
+        onOpenChange={(o) => { if (!o) setObjetivoExcluir(null); }}
+        title="Excluir objetivo?"
+        itemName={objetivoExcluir?.descricao}
+        onConfirm={async (reason) => {
+          if (!objetivoExcluir) return;
+          try {
+            await deleteObjetivoMutation.mutateAsync({ id: objetivoExcluir.id, reason });
+            toast({ title: "Objetivo excluído" });
+          } catch (e: any) {
+            toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+            throw e;
+          }
+        }}
+      />
     </div>
   );
 };

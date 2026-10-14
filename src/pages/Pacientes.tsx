@@ -9,6 +9,8 @@ import { useSessoes } from "@/hooks/use-sessoes";
 import { TAGS_COMUNS } from "@/types";
 import { Plus, Search, Filter, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import VisitExploreNotice from "@/components/VisitExploreNotice";
 
 const Pacientes = () => {
   const [busca, setBusca] = useState("");
@@ -16,6 +18,7 @@ const Pacientes = () => {
   const [showFilters, setShowFilters] = useState(false);
   const { data: pacientes = [], isLoading } = usePacientes();
   const { data: allSessoes = [] } = useSessoes();
+  const { isVisitor } = useAuth();
 
   const filtrados = pacientes.filter((p) => {
     const matchBusca =
@@ -34,11 +37,14 @@ const Pacientes = () => {
 
   return (
     <div className="space-y-6">
+      {isVisitor && <VisitExploreNotice area="pacientes" />}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Pacientes</h1>
-        <Link to="/pacientes/novo">
-          <Button className="gap-2"><Plus className="w-4 h-4" /> Novo paciente</Button>
-        </Link>
+        {!isVisitor && (
+          <Link to="/pacientes/novo">
+            <Button className="gap-2"><Plus className="w-4 h-4" /> Novo paciente</Button>
+          </Link>
+        )}
       </div>
 
       <div className="flex gap-2">
@@ -64,8 +70,14 @@ const Pacientes = () => {
 
       {filtrados.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-muted-foreground mb-4">{pacientes.length === 0 ? "Nenhum paciente cadastrado ainda" : "Nenhum resultado encontrado"}</p>
-          {pacientes.length === 0 && (
+          <p className="text-muted-foreground mb-4">
+            {pacientes.length === 0
+              ? isVisitor
+                ? "Nenhum paciente de demonstração aqui — no acesso completo sua clínica gerencia a lista real."
+                : "Nenhum paciente cadastrado ainda"
+              : "Nenhum resultado encontrado"}
+          </p>
+          {pacientes.length === 0 && !isVisitor && (
             <Link to="/pacientes/novo"><Button variant="outline" className="gap-2"><Plus className="w-4 h-4" /> Cadastrar primeiro paciente</Button></Link>
           )}
         </div>

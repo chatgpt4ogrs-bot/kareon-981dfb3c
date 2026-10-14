@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Loader2, Trash2, Users, X, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 
 interface Props {
   open: boolean;
@@ -40,6 +41,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
   const [horaFim, setHoraFim] = useState("10:00");
   const [categoria, setCategoria] = useState<EventoCategoria>("sessao");
   const [terapeutaIds, setTerapeutaIds] = useState<string[]>([]);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -102,15 +104,15 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (reason: string) => {
     if (!evento) return;
-    if (!confirm("Excluir este evento?")) return;
     try {
-      await del.mutateAsync(evento.id);
+      await del.mutateAsync({ id: evento.id, reason });
       toast.success("Evento excluído");
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e.message || "Erro ao excluir");
+      throw e;
     }
   };
 
@@ -276,7 +278,7 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
           {evento && (
             <Button
               variant="outline"
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
               disabled={del.isPending}
               className="mr-auto text-destructive hover:text-destructive"
             >
@@ -293,6 +295,14 @@ export function EventoModal({ open, onOpenChange, evento, defaultDate }: Props) 
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <ConfirmDeleteDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Excluir evento?"
+        itemName={evento?.titulo}
+        onConfirm={handleDelete}
+      />
     </Dialog>
   );
 }

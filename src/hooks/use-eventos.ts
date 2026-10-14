@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { deleteWithAudit } from "@/lib/audit";
 
 export type EventoCategoria = "sessao" | "avaliacao" | "reuniao" | "pessoal";
 
@@ -46,17 +47,19 @@ export function getCategoriaInfo(value: string) {
 }
 
 export function useEventos() {
-  const { profile, isAdmin } = useAuth();
+  const { clinicScope } = useAuth();
   return useQuery({
-    queryKey: ["eventos", isAdmin, profile?.clinica_id],
+    queryKey: ["eventos", clinicScope],
     queryFn: async () => {
+      if (clinicScope && clinicScope.length === 0) return [];
+
       let q = supabase
         .from("eventos")
         .select("*")
         .order("data_inicio", { ascending: true });
 
-      if (!isAdmin && profile?.clinica_id) {
-        q = q.eq("clinica_id", profile.clinica_id);
+      if (clinicScope) {
+        q = q.in("clinica_id", clinicScope);
       }
 
       const { data, error } = await q;
@@ -163,12 +166,12 @@ export function useSaveEvento() {
 export function useDeleteEvento() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("eventos").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      await deleteWithAudit("evento", id, reason);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["eventos"] });
+      qc.invalidateQueries({ queryKey: ["audit-logs"] });
     },
   });
 }

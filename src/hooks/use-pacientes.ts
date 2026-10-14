@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Paciente } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { deleteWithAudit } from "@/lib/audit";
 
 function rowToPaciente(row: any): Paciente {
   return {
@@ -22,14 +23,39 @@ function rowToPaciente(row: any): Paciente {
   };
 }
 
+/** IDs dos pacientes vinculados a um familiar (paciente_usuarios). */
+async function fetchLinkedPacienteIds(profileId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("paciente_usuarios")
+    .select("paciente_id")
+    .eq("profile_id", profileId)
+    .eq("tipo", "familiar");
+  if (error) throw error;
+  return (data || []).map((v) => v.paciente_id);
+}
+
 export function usePacientes() {
+  const { profile, clinicScope, hasRole } = useAuth();
+  const isFamiliar = hasRole("familiar");
   return useQuery({
-    queryKey: ["pacientes"],
+    queryKey: ["pacientes", clinicScope, isFamiliar ? profile?.id : null],
     queryFn: async () => {
-      const { data, error } = await supabase
+      if (clinicScope && clinicScope.length === 0) return [];
+
+      let q = supabase
         .from("pacientes")
         .select("*")
         .order("created_at", { ascending: false });
+
+      if (isFamiliar) {
+        const ids = await fetchLinkedPacienteIds(profile!.id);
+        if (ids.length === 0) return [];
+        q = q.in("id", ids);
+      } else if (clinicScope) {
+        q = q.in("clinica_id", clinicScope);
+      }
+
+      const { data, error } = await q;
       if (error) throw error;
       return (data || []).map(rowToPaciente);
     },
@@ -37,10 +63,16 @@ export function usePacientes() {
 }
 
 export function usePaciente(id: string | undefined) {
+  const { profile, hasRole } = useAuth();
+  const isFamiliar = hasRole("familiar");
   return useQuery({
-    queryKey: ["pacientes", id],
+    queryKey: ["pacientes", id, isFamiliar ? profile?.id : null],
     queryFn: async () => {
       if (!id) return null;
+      if (isFamiliar) {
+        const ids = profile ? await fetchLinkedPacienteIds(profile.id) : [];
+        if (!ids.includes(id)) throw new Error("Paciente não vinculado à sua conta");
+      }
       const { data, error } = await supabase
         .from("pacientes")
         .select("*")
@@ -104,12 +136,12 @@ export function useSavePaciente() {
 export function useDeletePaciente() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("pacientes").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      await deleteWithAudit("paciente", id, reason);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pacientes"] });
+      qc.invalidateQueries({ queryKey: ["audit-logs"] });
     },
   });
 }

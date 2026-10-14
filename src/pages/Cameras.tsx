@@ -15,6 +15,7 @@ import { Plus, Trash2, Pencil, Camera, Video, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 
 const Cameras = () => {
   const { data: cameras = [], isLoading } = useCameras();
@@ -24,6 +25,7 @@ const Cameras = () => {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [cameraExcluir, setCameraExcluir] = useState<{ id: string; nome: string } | null>(null);
   const [form, setForm] = useState({
     nome: "",
     localizacao: "",
@@ -147,12 +149,14 @@ const Cameras = () => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (reason: string) => {
+    if (!cameraExcluir) return;
     try {
-      await remove.mutateAsync(id);
-      toast({ title: "Câmera removida" });
+      await remove.mutateAsync({ id: cameraExcluir.id, reason });
+      toast({ title: "Câmera excluída" });
     } catch (e: any) {
-      toast({ title: "Erro ao remover", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
+      throw e;
     }
   };
 
@@ -402,7 +406,7 @@ const Cameras = () => {
                             <Button variant="ghost" size="icon" aria-label="Editar câmera" onClick={() => openEdit(cam)}>
                               <Pencil className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon" aria-label="Excluir câmera" onClick={() => handleDelete(cam.id)}>
+                            <Button variant="ghost" size="icon" aria-label="Excluir câmera" onClick={() => setCameraExcluir({ id: cam.id, nome: cam.nome })}>
                               <Trash2 className="w-4 h-4 text-destructive" />
                             </Button>
                           </TableCell>
@@ -416,6 +420,14 @@ const Cameras = () => {
           </TabsContent>
         )}
       </Tabs>
+
+      <ConfirmDeleteDialog
+        open={!!cameraExcluir}
+        onOpenChange={(o) => { if (!o) setCameraExcluir(null); }}
+        title="Excluir câmera?"
+        itemName={cameraExcluir?.nome}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 };

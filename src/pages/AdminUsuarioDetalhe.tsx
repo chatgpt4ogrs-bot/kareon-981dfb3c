@@ -14,6 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { invokeManageUser } from "@/lib/manage-user";
 import { ArrowLeft, User, Pencil, Power, Mail, Building2, Briefcase, Shield, X } from "lucide-react";
 import { format } from "date-fns";
 
@@ -55,8 +56,8 @@ const AdminUsuarioDetalhe = () => {
         return {
           ...data,
           nome: (data as any).name,
-          cargo: data.role,
-          clinica_id: (data as any).clinic_id,
+          cargo: (data as any).role ?? (data as any).cargo,
+          clinica_id: (data as any).clinic_id ?? (data as any).clinica_id,
         };
       }
       return data;
@@ -78,15 +79,17 @@ const AdminUsuarioDetalhe = () => {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const dbPayload: any = {};
-      if ("nome" in payload) dbPayload.name = payload.nome;
-      if ("cargo" in payload) dbPayload.role = payload.cargo;
-      if ("telefone" in payload) dbPayload.telefone = payload.telefone;
-      if ("clinica_id" in payload) dbPayload.clinic_id = payload.clinica_id;
-      if ("status" in payload) dbPayload.status = payload.status;
+      const body: Record<string, unknown> = { action: "update", profile_id: id };
+      if ("nome" in payload) body.nome = payload.nome;
+      if ("cargo" in payload || "role" in payload) {
+        const role = payload.role ?? payload.cargo;
+        body.roles = role ? [role] : [];
+      }
+      if ("telefone" in payload) body.telefone = payload.telefone;
+      if ("clinica_id" in payload) body.clinica_id = payload.clinica_id ?? "none";
+      if ("status" in payload) body.status = payload.status;
 
-      const { error } = await supabase.from("profiles").update(dbPayload).eq("id", id);
-      if (error) throw error;
+      await invokeManageUser(body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-profile", id] });
@@ -99,8 +102,7 @@ const AdminUsuarioDetalhe = () => {
 
   const addRoleMutation = useMutation({
     mutationFn: async (role: string) => {
-      const { error } = await supabase.from("profiles").update({ role }).eq("id", id);
-      if (error) throw error;
+      await invokeManageUser({ action: "update", profile_id: id, roles: [role] });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-profile", id] });
@@ -111,9 +113,8 @@ const AdminUsuarioDetalhe = () => {
   });
 
   const removeRoleMutation = useMutation({
-    mutationFn: async (roleId: string) => {
-      const { error } = await supabase.from("profiles").update({ role: null }).eq("id", id);
-      if (error) throw error;
+    mutationFn: async (_roleId: string) => {
+      await invokeManageUser({ action: "update", profile_id: id, roles: [] });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-profile", id] });

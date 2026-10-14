@@ -21,20 +21,14 @@ function useFamiliarData() {
     queryFn: async () => {
       if (!user?.id) return null;
 
-      // Get profile id
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!profileData) return { pacientes: [], sessoes: [], objetivos: [], cameras: [] };
+      // profiles.id = auth.users.id
+      const profileId = user.id;
 
       // Get linked patients via paciente_usuarios
       const { data: vinculos } = await supabase
         .from("paciente_usuarios")
         .select("paciente_id")
-        .eq("profile_id", profileData.id)
+        .eq("profile_id", profileId)
         .eq("tipo", "familiar");
 
       const pacienteIds = (vinculos || []).map((v: any) => v.paciente_id);
@@ -50,7 +44,7 @@ function useFamiliarData() {
       const { data: cameraVinculos } = await supabase
         .from("camera_usuarios")
         .select("camera_id")
-        .eq("profile_id", profileData.id);
+        .eq("profile_id", profileId);
       const cameraIds = (cameraVinculos || []).map((v: any) => v.camera_id);
       const camerasRes = cameraIds.length > 0
         ? await supabase.from("cameras").select("*").in("id", cameraIds).eq("status", "ativa")

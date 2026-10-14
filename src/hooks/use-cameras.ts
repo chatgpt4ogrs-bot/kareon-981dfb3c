@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { deleteWithAudit } from "@/lib/audit";
 
 export interface Camera {
   id: string;
@@ -27,18 +28,20 @@ export interface Camera {
 }
 
 export function useCameras() {
-  const { profile, isAdmin } = useAuth();
+  const { profile, clinicScope } = useAuth();
 
   const query = useQuery({
-    queryKey: ["cameras", isAdmin, profile?.clinica_id],
+    queryKey: ["cameras", clinicScope],
     queryFn: async () => {
+      if (clinicScope && clinicScope.length === 0) return [];
+
       let q = supabase
         .from("cameras")
         .select("*")
         .order("nome");
 
-      if (!isAdmin && profile?.clinica_id) {
-        q = q.eq("clinica_id", profile.clinica_id);
+      if (clinicScope) {
+        q = q.in("clinica_id", clinicScope);
       }
 
       const { data, error } = await q;
@@ -73,11 +76,13 @@ export function useCameraMutations() {
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("cameras").delete().eq("id", id);
-      if (error) throw error;
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      await deleteWithAudit("camera", id, reason);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cameras"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cameras"] });
+      qc.invalidateQueries({ queryKey: ["audit-logs"] });
+    },
   });
 
   return { create, update, remove };
