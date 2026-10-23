@@ -76,10 +76,12 @@ async function applySchemas(client) {
   const v2 = fs.readFileSync(path.join(__dirname, "schema-clinic-v2.sql"), "utf8");
   const v3 = fs.readFileSync(path.join(__dirname, "schema-multispecialty.sql"), "utf8");
   const v4 = fs.readFileSync(path.join(__dirname, "schema-clinic-v4.sql"), "utf8");
+  const podologia = fs.readFileSync(path.join(__dirname, "schema-podologia.sql"), "utf8");
   await client.query(base);
   await client.query(v2);
   await client.query(v3);
   await client.query(v4);
+  await client.query(podologia);
 }
 
 /** Reaplica schemas em banco já configurado (startup). */

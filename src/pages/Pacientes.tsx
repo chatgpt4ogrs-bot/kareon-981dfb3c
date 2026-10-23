@@ -30,6 +30,15 @@ import {
   type PacienteImportPayload,
   type ParsePacientesResult,
 } from "@/lib/import-pacientes-xlsx";
+import { useClinicPodologia } from "@/hooks/use-clinic-podologia";
+import { FichaPodologiaForm } from "@/components/pacientes/FichaPodologiaForm";
+import {
+  EMPTY_FICHA_PODOLOGIA,
+  fichaToAlertas,
+  fichaToDiagnostico,
+  fichaToTags,
+  type FichaPodologia,
+} from "@/lib/ficha-podologia";
 
 const Pacientes = () => {
   const navigate = useNavigate();
@@ -43,6 +52,10 @@ const Pacientes = () => {
   const [diagnostico, setDiagnostico] = useState("");
   const [respNome, setRespNome] = useState("");
   const [respTel, setRespTel] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [email, setEmail] = useState("");
+  const [endereco, setEndereco] = useState("");
+  const [ficha, setFicha] = useState<FichaPodologia>(EMPTY_FICHA_PODOLOGIA);
 
   const [importOpen, setImportOpen] = useState(false);
   const [parsing, setParsing] = useState(false);
@@ -53,6 +66,7 @@ const Pacientes = () => {
   const { data: pacientes = [], isLoading } = usePacientes();
   const { data: allSessoes = [] } = useSessoes();
   const { isVisitor } = useAuth();
+  const { useFichaPodologia } = useClinicPodologia();
   const savePaciente = useSavePaciente();
   const importPacientes = useImportPacientes();
 
@@ -73,6 +87,10 @@ const Pacientes = () => {
     setDiagnostico("");
     setRespNome("");
     setRespTel("");
+    setCpf("");
+    setEmail("");
+    setEndereco("");
+    setFicha({ ...EMPTY_FICHA_PODOLOGIA });
     setModalOpen(true);
   }
 
@@ -143,18 +161,34 @@ const Pacientes = () => {
       return;
     }
     try {
+      const diag = useFichaPodologia
+        ? fichaToDiagnostico(ficha) || diagnostico
+        : diagnostico;
+      const tags = useFichaPodologia ? fichaToTags(ficha) : [];
       const saved = await savePaciente.mutateAsync({
         id: "",
         nome: nome.trim(),
         dataNascimento,
-        diagnostico,
+        diagnostico: diag,
         status: "ativo",
-        tags: [],
+        tags,
+        cpf: cpf || undefined,
+        telefone: respTel || undefined,
+        email: email || undefined,
+        endereco_rua: endereco || undefined,
+        alergias: useFichaPodologia ? ficha.alergias || undefined : undefined,
+        alertas_clinicos: useFichaPodologia
+          ? fichaToAlertas(ficha) || undefined
+          : undefined,
+        observacoes: useFichaPodologia
+          ? ficha.observacoes_finais || undefined
+          : undefined,
+        fichaPodologia: useFichaPodologia ? ficha : undefined,
         responsavel: {
           nome: respNome,
           telefone: respTel,
-          email: "",
-          parentesco: "",
+          email: email,
+          parentesco: useFichaPodologia && (respTel || email) ? "próprio" : "",
         },
         criadoEm: new Date().toISOString(),
       });
@@ -332,9 +366,17 @@ const Pacientes = () => {
       )}
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent
+          className={
+            useFichaPodologia
+              ? "sm:max-w-2xl max-h-[90vh] overflow-y-auto"
+              : "sm:max-w-md"
+          }
+        >
           <DialogHeader>
-            <DialogTitle>Novo paciente</DialogTitle>
+            <DialogTitle>
+              {useFichaPodologia ? "Novo paciente — Podologia" : "Novo paciente"}
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="space-y-1.5">
@@ -348,45 +390,102 @@ const Pacientes = () => {
                 required
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pac-nasc">Data de nascimento</Label>
-              <Input
-                id="pac-nasc"
-                type="date"
-                value={dataNascimento}
-                onChange={(e) => setDataNascimento(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pac-diag">Diagnóstico / observação</Label>
-              <Textarea
-                id="pac-diag"
-                value={diagnostico}
-                onChange={(e) => setDiagnostico(e.target.value)}
-                rows={2}
-                placeholder="Opcional"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="pac-resp">Responsável</Label>
-                <Input
-                  id="pac-resp"
-                  value={respNome}
-                  onChange={(e) => setRespNome(e.target.value)}
-                  placeholder="Nome"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="pac-tel">Telefone</Label>
-                <Input
-                  id="pac-tel"
-                  value={respTel}
-                  onChange={(e) => setRespTel(e.target.value)}
-                  placeholder="(00) 00000-0000"
-                />
-              </div>
-            </div>
+
+            {useFichaPodologia ? (
+              <>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pac-nasc">Data de nascimento</Label>
+                    <Input
+                      id="pac-nasc"
+                      type="date"
+                      value={dataNascimento}
+                      onChange={(e) => setDataNascimento(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pac-cpf">CPF</Label>
+                    <Input
+                      id="pac-cpf"
+                      value={cpf}
+                      onChange={(e) => setCpf(e.target.value)}
+                      placeholder="000.000.000-00"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pac-tel">Telefone</Label>
+                    <Input
+                      id="pac-tel"
+                      value={respTel}
+                      onChange={(e) => setRespTel(e.target.value)}
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pac-email">E-mail</Label>
+                    <Input
+                      id="pac-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="email@exemplo.com"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pac-end">Endereço</Label>
+                  <Input
+                    id="pac-end"
+                    value={endereco}
+                    onChange={(e) => setEndereco(e.target.value)}
+                    placeholder="Rua, número, bairro"
+                  />
+                </div>
+                <FichaPodologiaForm value={ficha} onChange={setFicha} />
+              </>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pac-nasc">Data de nascimento</Label>
+                  <Input
+                    id="pac-nasc"
+                    type="date"
+                    value={dataNascimento}
+                    onChange={(e) => setDataNascimento(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pac-diag">Diagnóstico / observação</Label>
+                  <Textarea
+                    id="pac-diag"
+                    value={diagnostico}
+                    onChange={(e) => setDiagnostico(e.target.value)}
+                    rows={2}
+                    placeholder="Opcional"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pac-resp">Responsável</Label>
+                    <Input
+                      id="pac-resp"
+                      value={respNome}
+                      onChange={(e) => setRespNome(e.target.value)}
+                      placeholder="Nome"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="pac-tel">Telefone</Label>
+                    <Input
+                      id="pac-tel"
+                      value={respTel}
+                      onChange={(e) => setRespTel(e.target.value)}
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
             <DialogFooter className="gap-2 sm:gap-0">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
                 Cancelar
@@ -436,9 +535,9 @@ const Pacientes = () => {
               ) : null}
             </p>
             <p className="text-xs text-muted-foreground">
-              Nome, nascimento, telefone, e-mail, endereço, CPF, problemas nos pés, observações e
-              alertas clínicos (diabetes, hipertensão etc.) vão para a lista de Pacientes. Quem já
-              existir com o mesmo nome e data de nascimento será ignorado.
+              Importa a ficha completa de podologia: dados pessoais, anamnese, hábitos, condições
+              de saúde e observações finais. Quem já existir com o mesmo nome e data de nascimento
+              será ignorado.
             </p>
 
             {previewRows.length > 0 && (

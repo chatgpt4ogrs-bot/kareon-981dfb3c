@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Paciente } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { normalizeFichaPodologia } from "@/lib/ficha-podologia";
 
 function rowToPaciente(row: any): Paciente {
   return {
@@ -20,10 +21,15 @@ function rowToPaciente(row: any): Paciente {
     terapeutaId: row.terapeuta_id || undefined,
     criadoEm: row.created_at,
     cpf: row.cpf || undefined,
+    telefone: row.telefone || row.responsavel_telefone || undefined,
+    email: row.email || row.responsavel_email || undefined,
     alergias: row.alergias || undefined,
     alertas_clinicos: row.alertas_clinicos || undefined,
     observacoes: row.observacoes || undefined,
     endereco_rua: row.endereco_rua || undefined,
+    fichaPodologia: row.ficha_podologia
+      ? normalizeFichaPodologia(row.ficha_podologia)
+      : undefined,
   };
 }
 
@@ -77,17 +83,20 @@ export function useSavePaciente() {
         diagnostico: p.diagnostico || "",
         tags: p.tags || [],
         responsavel_nome: p.responsavel.nome,
-        responsavel_telefone: p.responsavel.telefone,
-        responsavel_email: p.responsavel.email,
+        responsavel_telefone: p.responsavel.telefone || p.telefone || null,
+        responsavel_email: p.responsavel.email || p.email || null,
         responsavel_parentesco: p.responsavel.parentesco,
         status: p.status,
         clinica_id: clinicaId,
         terapeuta_id: p.terapeutaId || null,
         cpf: p.cpf || null,
+        telefone: p.telefone || p.responsavel.telefone || null,
+        email: p.email || p.responsavel.email || null,
         observacoes: p.observacoes || null,
         alergias: p.alergias || null,
         alertas_clinicos: p.alertas_clinicos || null,
         endereco_rua: p.endereco_rua || null,
+        ficha_podologia: p.fichaPodologia || null,
       };
 
       if (p.existingId) {
@@ -129,7 +138,9 @@ export function useImportPacientes() {
       const keyOf = (nome: string, nasc: string | null | undefined) =>
         `${(nome || "").trim().toLowerCase()}|${nasc || ""}`;
       const known = new Set(
-        existing.map((r) => keyOf(r.nome, r.data_nascimento ? String(r.data_nascimento).slice(0, 10) : ""))
+        existing.map((r) =>
+          keyOf(r.nome, r.data_nascimento ? String(r.data_nascimento).slice(0, 10) : "")
+        )
       );
 
       const progress: ImportPacientesProgress = {

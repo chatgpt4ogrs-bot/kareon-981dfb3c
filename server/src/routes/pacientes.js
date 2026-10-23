@@ -77,8 +77,9 @@ router.post("/", async (req, res) => {
          status, terapeuta_id, cpf, convenio, observacoes,
          sexo, alergias, alertas_clinicos, convenio_plano, convenio_numero,
          emergencia_nome, emergencia_telefone, emergencia_parentesco,
-         endereco_rua, endereco_cidade, endereco_uf, endereco_cep, created_by
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+         endereco_rua, endereco_cidade, endereco_uf, endereco_cep,
+         telefone, email, ficha_podologia, created_by
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29::jsonb,$30)
        RETURNING *`,
       [
         clinicaId,
@@ -107,6 +108,9 @@ router.post("/", async (req, res) => {
         body.endereco_cidade || null,
         body.endereco_uf || null,
         body.endereco_cep || null,
+        body.telefone || null,
+        body.email || null,
+        JSON.stringify(body.ficha_podologia || {}),
         req.profile.id,
       ]
     );
@@ -134,6 +138,12 @@ router.put("/:id", async (req, res) => {
          cpf = COALESCE($12, cpf),
          convenio = COALESCE($13, convenio),
          observacoes = COALESCE($14, observacoes),
+         telefone = COALESCE($15, telefone),
+         email = COALESCE($16, email),
+         endereco_rua = COALESCE($17, endereco_rua),
+         alergias = COALESCE($18, alergias),
+         alertas_clinicos = COALESCE($19, alertas_clinicos),
+         ficha_podologia = COALESCE($20::jsonb, ficha_podologia),
          updated_at = now()
        WHERE id = $1
        RETURNING *`,
@@ -152,6 +162,12 @@ router.put("/:id", async (req, res) => {
         body.cpf,
         body.convenio,
         body.observacoes,
+        body.telefone,
+        body.email,
+        body.endereco_rua,
+        body.alergias,
+        body.alertas_clinicos,
+        body.ficha_podologia != null ? JSON.stringify(body.ficha_podologia) : null,
       ]
     );
     if (!rows[0]) return res.status(404).json({ error: "Paciente não encontrado" });

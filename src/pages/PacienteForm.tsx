@@ -17,6 +17,16 @@ import { Paciente, TAGS_COMUNS } from "@/types";
 import { ArrowLeft, Loader2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { newId } from "@/lib/utils";
+import { useClinicPodologia } from "@/hooks/use-clinic-podologia";
+import { FichaPodologiaForm } from "@/components/pacientes/FichaPodologiaForm";
+import {
+  EMPTY_FICHA_PODOLOGIA,
+  fichaToAlertas,
+  fichaToDiagnostico,
+  fichaToTags,
+  normalizeFichaPodologia,
+  type FichaPodologia,
+} from "@/lib/ficha-podologia";
 
 /** Tag picker isolado — só re-renderiza quando suas tags mudam */
 const TagsPicker = memo(function TagsPicker({
@@ -98,6 +108,10 @@ const PacienteForm = () => {
   const [selectedFamiliares, setSelectedFamiliares] = useState<string[]>([]);
   const [showTerapeutaDialog, setShowTerapeutaDialog] = useState(false);
   const [showFamiliarDialog, setShowFamiliarDialog] = useState(false);
+  const [ficha, setFicha] = useState<FichaPodologia>({ ...EMPTY_FICHA_PODOLOGIA });
+  const [cpf, setCpf] = useState("");
+  const [endereco, setEndereco] = useState("");
+  const { useFichaPodologia } = useClinicPodologia();
 
   // Hidrata refs quando carregar dados existentes
   useEffect(() => {
@@ -106,11 +120,18 @@ const PacienteForm = () => {
     if (dataNascRef.current) dataNascRef.current.value = existing.dataNascimento || "";
     if (diagnosticoRef.current) diagnosticoRef.current.value = existing.diagnostico || "";
     if (respNomeRef.current) respNomeRef.current.value = existing.responsavel.nome || "";
-    if (respTelRef.current) respTelRef.current.value = existing.responsavel.telefone || "";
-    if (respEmailRef.current) respEmailRef.current.value = existing.responsavel.email || "";
+    if (respTelRef.current)
+      respTelRef.current.value = existing.telefone || existing.responsavel.telefone || "";
+    if (respEmailRef.current)
+      respEmailRef.current.value = existing.email || existing.responsavel.email || "";
     setStatus(existing.status || "ativo");
     setParentesco(existing.responsavel.parentesco || "");
     setTags(existing.tags || []);
+    setCpf(existing.cpf || "");
+    setEndereco(existing.endereco_rua || "");
+    if (existing.fichaPodologia) {
+      setFicha(normalizeFichaPodologia(existing.fichaPodologia));
+    }
   }, [existing]);
 
   useEffect(() => {
@@ -165,19 +186,36 @@ const PacienteForm = () => {
       return;
     }
 
+    const telefone = respTelRef.current?.value || "";
+    const email = respEmailRef.current?.value || "";
+    const diagBase = diagnosticoRef.current?.value || "";
     const paciente = {
       id: existing?.id || newId(),
       existingId: existing?.id,
       nome,
       dataNascimento: dataNascRef.current?.value || "",
-      diagnostico: diagnosticoRef.current?.value || "",
+      diagnostico: useFichaPodologia
+        ? fichaToDiagnostico(ficha) || diagBase
+        : diagBase,
       status,
-      tags,
+      tags: useFichaPodologia ? [...new Set([...tags, ...fichaToTags(ficha)])] : tags,
       terapeutaId: selectedTerapeutas[0] || undefined,
+      cpf: cpf || undefined,
+      telefone: telefone || undefined,
+      email: email || undefined,
+      endereco_rua: endereco || undefined,
+      alergias: useFichaPodologia ? ficha.alergias || undefined : undefined,
+      alertas_clinicos: useFichaPodologia
+        ? fichaToAlertas(ficha) || undefined
+        : undefined,
+      observacoes: useFichaPodologia
+        ? ficha.observacoes_finais || undefined
+        : undefined,
+      fichaPodologia: useFichaPodologia ? ficha : existing?.fichaPodologia,
       responsavel: {
         nome: respNomeRef.current?.value || "",
-        telefone: respTelRef.current?.value || "",
-        email: respEmailRef.current?.value || "",
+        telefone,
+        email,
         parentesco,
       },
       criadoEm: existing?.criadoEm || new Date().toISOString(),
@@ -232,7 +270,9 @@ const PacienteForm = () => {
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Dados da criança</CardTitle>
+            <CardTitle className="text-lg">
+              {useFichaPodologia ? "Dados pessoais" : "Dados da criança"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -241,8 +281,13 @@ const PacienteForm = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Data de nascimento *</Label>
-                <Input ref={dataNascRef} type="date" defaultValue="" required />
+                <Label>Data de nascimento {useFichaPodologia ? "" : "*"}</Label>
+                <Input
+                  ref={dataNascRef}
+                  type="date"
+                  defaultValue=""
+                  required={!useFichaPodologia}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
@@ -255,20 +300,66 @@ const PacienteForm = () => {
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Diagnóstico</Label>
-              <Textarea
-                ref={diagnosticoRef}
-                defaultValue=""
-                placeholder="Ex: hipertensão, diabetes, alergia a dipirona..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Tags</Label>
-              <TagsPicker tags={tags} onToggle={toggleTag} />
-            </div>
+            {useFichaPodologia && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>CPF</Label>
+                    <Input value={cpf} onChange={(e) => setCpf(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telefone</Label>
+                    <Input ref={respTelRef} defaultValue="" placeholder="(00) 00000-0000" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>E-mail</Label>
+                  <Input ref={respEmailRef} type="email" defaultValue="" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Endereço</Label>
+                  <Input
+                    value={endereco}
+                    onChange={(e) => setEndereco(e.target.value)}
+                    placeholder="Rua, número, bairro"
+                  />
+                </div>
+              </>
+            )}
+            {!useFichaPodologia && (
+              <>
+                <div className="space-y-2">
+                  <Label>Diagnóstico</Label>
+                  <Textarea
+                    ref={diagnosticoRef}
+                    defaultValue=""
+                    placeholder="Ex: hipertensão, diabetes, alergia a dipirona..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tags</Label>
+                  <TagsPicker tags={tags} onToggle={toggleTag} />
+                </div>
+              </>
+            )}
+            {useFichaPodologia && (
+              <div className="hidden">
+                <Textarea ref={diagnosticoRef} defaultValue="" />
+              </div>
+            )}
           </CardContent>
         </Card>
+
+        {useFichaPodologia && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Anamnese podológica</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FichaPodologiaForm value={ficha} onChange={setFicha} />
+            </CardContent>
+          </Card>
+        )}
 
         {canManage && (
           <Card>
@@ -367,43 +458,51 @@ const PacienteForm = () => {
           </Card>
         )}
 
-        <Card>
-          <CardHeader><CardTitle className="text-lg">Responsável</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nome *</Label>
-                <Input ref={respNomeRef} defaultValue="" required />
+        {!useFichaPodologia && (
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Responsável</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nome *</Label>
+                  <Input ref={respNomeRef} defaultValue="" required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Parentesco</Label>
+                  <Select
+                    value={parentesco || "none"}
+                    onValueChange={(v) => setParentesco(v === "none" ? "" : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Selecione</SelectItem>
+                      <SelectItem value="mae">Mãe</SelectItem>
+                      <SelectItem value="pai">Pai</SelectItem>
+                      <SelectItem value="avo">Avó/Avô</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Parentesco</Label>
-                <Select
-                  value={parentesco || "none"}
-                  onValueChange={(v) => setParentesco(v === "none" ? "" : v)}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Selecione</SelectItem>
-                    <SelectItem value="mae">Mãe</SelectItem>
-                    <SelectItem value="pai">Pai</SelectItem>
-                    <SelectItem value="avo">Avó/Avô</SelectItem>
-                    <SelectItem value="outro">Outro</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Telefone</Label>
+                  <Input ref={respTelRef} defaultValue="" placeholder="(00) 00000-0000" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input ref={respEmailRef} type="email" defaultValue="" />
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Telefone</Label>
-                <Input ref={respTelRef} defaultValue="" placeholder="(00) 00000-0000" />
-              </div>
-              <div className="space-y-2">
-                <Label>Email</Label>
-                <Input ref={respEmailRef} type="email" defaultValue="" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
+
+        {useFichaPodologia && (
+          <div className="hidden">
+            <Input ref={respNomeRef} defaultValue="" />
+          </div>
+        )}
 
         <div className="flex gap-3 justify-end">
           <Button type="button" variant="outline" onClick={() => navigate(-1)}>

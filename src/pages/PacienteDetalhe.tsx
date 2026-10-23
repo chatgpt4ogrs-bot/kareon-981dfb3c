@@ -19,6 +19,7 @@ import {
 import { format, differenceInYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { FichaPodologiaView } from "@/components/pacientes/FichaPodologiaView";
 
 function summaryLine(e: {
   queixa_principal?: string | null;
@@ -179,33 +180,52 @@ const PacienteDetalhe = () => {
         </Card>
       </div>
 
-      {(paciente.responsavel?.nome || paciente.alergias || (paciente as any).alertas_clinicos) && (
-        <Card>
-          <CardContent className="p-4 grid sm:grid-cols-2 gap-4 text-sm">
-            {paciente.responsavel?.nome && (
+      {paciente.fichaPodologia ? (
+        <FichaPodologiaView
+          ficha={paciente.fichaPodologia}
+          pessoais={{
+            cpf: paciente.cpf,
+            dataNascimento: paciente.dataNascimento
+              ? format(new Date(paciente.dataNascimento + "T12:00:00"), "dd/MM/yyyy")
+              : undefined,
+            telefone: paciente.telefone || paciente.responsavel?.telefone,
+            email: paciente.email || paciente.responsavel?.email,
+            endereco: paciente.endereco_rua,
+          }}
+        />
+      ) : (
+        (paciente.responsavel?.nome ||
+          paciente.alergias ||
+          paciente.alertas_clinicos) && (
+          <Card>
+            <CardContent className="p-4 grid sm:grid-cols-2 gap-4 text-sm">
+              {paciente.responsavel?.nome && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Contato / responsável</p>
+                  <p className="font-medium">
+                    {paciente.responsavel.nome}
+                    {paciente.responsavel.parentesco
+                      ? ` (${paciente.responsavel.parentesco})`
+                      : ""}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {[paciente.responsavel.telefone, paciente.responsavel.email]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+              )}
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Contato / responsável</p>
-                <p className="font-medium">
-                  {paciente.responsavel.nome}
-                  {paciente.responsavel.parentesco ? ` (${paciente.responsavel.parentesco})` : ""}
-                </p>
-                <p className="text-muted-foreground">
-                  {[paciente.responsavel.telefone, paciente.responsavel.email]
-                    .filter(Boolean)
-                    .join(" · ")}
+                <p className="text-xs text-muted-foreground mb-1">Alertas clínicos</p>
+                <p className="text-foreground">
+                  {paciente.alergias ||
+                    paciente.alertas_clinicos ||
+                    "Nenhum alerta cadastrado"}
                 </p>
               </div>
-            )}
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Alertas clínicos</p>
-              <p className="text-foreground">
-                {(paciente as any).alergias ||
-                  (paciente as any).alertas_clinicos ||
-                  "Nenhum alerta cadastrado"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )
       )}
 
       <Tabs defaultValue="historico">

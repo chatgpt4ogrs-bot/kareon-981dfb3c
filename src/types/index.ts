@@ -16,10 +16,13 @@ export interface Paciente {
   terapeutaId?: string;
   criadoEm: string;
   cpf?: string;
+  telefone?: string;
+  email?: string;
   alergias?: string;
   alertas_clinicos?: string;
   observacoes?: string;
   endereco_rua?: string;
+  fichaPodologia?: import("@/lib/ficha-podologia").FichaPodologia;
 }
 
 export interface ObjetivoTerapeutico {

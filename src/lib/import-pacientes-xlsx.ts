@@ -1,4 +1,11 @@
 import * as XLSX from "xlsx";
+import {
+  fichaToAlertas,
+  fichaToDiagnostico,
+  fichaToTags,
+  normalizeFichaPodologia,
+  type FichaPodologia,
+} from "@/lib/ficha-podologia";
 
 /** Payload pronto para POST /pacientes */
 export interface PacienteImportPayload {
@@ -12,11 +19,13 @@ export interface PacienteImportPayload {
   responsavel_parentesco: string;
   status: "ativo" | "inativo";
   cpf: string | null;
+  telefone: string | null;
+  email: string | null;
   observacoes: string | null;
   alergias: string | null;
   alertas_clinicos: string | null;
   endereco_rua: string | null;
-  /** id original da planilha (só referência / dedupe) */
+  ficha_podologia: FichaPodologia;
   external_id?: string;
 }
 
@@ -39,18 +48,8 @@ function cell(row: Record<string, unknown>, ...keys: string[]): string {
   return "";
 }
 
-function isYes(value: unknown): boolean {
-  const s = String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "");
-  return s === "sim" || s === "s" || s === "true" || s === "1" || s === "yes";
-}
-
 function normalizeDate(raw: string): string | null {
   if (!raw) return null;
-  // Excel serial date already converted by sheet_to_json with raw:false often as "YYYY-MM-DD" or locale
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
   const br = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
@@ -77,107 +76,62 @@ function formatPhone(raw: string): string {
   return raw.trim();
 }
 
-function buildTags(row: Record<string, unknown>): string[] {
-  const tags: string[] = [];
-  const flags: [string, string][] = [
-    ["diabetes", "Diabetes"],
-    ["diabetes_condicao", "Diabetes"],
-    ["hipertensao", "Hipertensão"],
-    ["pressao_alta", "Hipertensão"],
-    ["gestante", "Gestante"],
-    ["convulsoes", "Convulsões"],
-    ["problemas_circulatorios", "Problemas circulatórios"],
-    ["problemas_cancerigenos", "Problemas cancerígenos"],
-    ["marca_passos_pinos", "Marca-passos / pinos"],
-  ];
-  for (const [key, label] of flags) {
-    const v = cell(row, key);
-    if (isYes(v) && !tags.includes(label)) tags.push(label);
-  }
-  return tags;
-}
-
-function buildAlertas(row: Record<string, unknown>): string | null {
-  const parts: string[] = [];
-  if (isYes(cell(row, "diabetes", "diabetes_condicao"))) parts.push("Diabetes");
-  if (isYes(cell(row, "hipertensao", "pressao_alta"))) parts.push("Hipertensão / pressão alta");
-  if (isYes(cell(row, "gestante"))) parts.push("Gestante");
-  if (isYes(cell(row, "convulsoes"))) parts.push("Convulsões");
-  if (isYes(cell(row, "problemas_circulatorios"))) parts.push("Problemas circulatórios");
-  if (isYes(cell(row, "problemas_cancerigenos"))) parts.push("Problemas cancerígenos");
-  if (isYes(cell(row, "marca_passos_pinos"))) parts.push("Marca-passos / pinos");
-  return parts.length ? parts.join("; ") : null;
-}
-
-function buildObservacoes(row: Record<string, unknown>): string | null {
-  const blocks: string[] = [];
-
-  const finais = cell(row, "observacoes_finais");
-  if (finais) blocks.push(finais);
-
-  const meds = cell(row, "medicamentos", "toma_medicamento_qual");
-  if (meds && meds.toLowerCase() !== "não" && meds.toLowerCase() !== "nao") {
-    blocks.push(`Medicamentos: ${meds}`);
-  } else if (isYes(cell(row, "toma_medicamento")) && meds) {
-    blocks.push(`Medicamentos: ${meds}`);
-  }
-
-  if (isYes(cell(row, "cirurgia_membros_inferiores"))) {
-    const qual = cell(row, "cirurgia_membros_inferiores_qual");
-    blocks.push(qual ? `Cirurgia MMII: ${qual}` : "Cirurgia de membros inferiores");
-  }
-
-  if (isYes(cell(row, "pratica_esporte"))) {
-    const qual = cell(row, "pratica_esporte_qual");
-    blocks.push(qual ? `Esporte: ${qual}` : "Pratica esporte");
-  }
-
-  const calcado = cell(row, "tipo_calcado");
-  const meia = cell(row, "tipo_meia");
-  if (calcado || meia) {
-    blocks.push(
-      ["Calçado: " + (calcado || "—"), "Meia: " + (meia || "—")].join(" · ")
-    );
-  }
-
-  return blocks.length ? blocks.join("\n") : null;
-}
-
-function buildDiagnostico(row: Record<string, unknown>): string {
-  const parts = [
-    cell(row, "problemas_pes"),
-    cell(row, "observacoes_clinicas"),
-  ].filter(Boolean);
-  // dedupe if identical
-  const unique = [...new Set(parts)];
-  return unique.join(" — ");
+function mapFichaFromRow(row: Record<string, unknown>): FichaPodologia {
+  return normalizeFichaPodologia({
+    gestante: cell(row, "gestante"),
+    hipertensao: cell(row, "hipertensao"),
+    cirurgia_membros_inferiores: cell(row, "cirurgia_membros_inferiores"),
+    cirurgia_membros_inferiores_qual: cell(row, "cirurgia_membros_inferiores_qual"),
+    pratica_esporte: cell(row, "pratica_esporte"),
+    pratica_esporte_qual: cell(row, "pratica_esporte_qual"),
+    toma_medicamento: cell(row, "toma_medicamento"),
+    toma_medicamento_qual: cell(row, "toma_medicamento_qual", "medicamentos"),
+    alergias: cell(row, "alergias"),
+    problemas_pes: cell(row, "problemas_pes"),
+    observacoes_clinicas: cell(row, "observacoes_clinicas"),
+    tipo_calcado: cell(row, "tipo_calcado"),
+    tipo_meia: cell(row, "tipo_meia"),
+    marca_passos_pinos: cell(row, "marca_passos_pinos"),
+    problemas_cancerigenos: cell(row, "problemas_cancerigenos"),
+    pressao_alta: cell(row, "pressao_alta"),
+    diabetes: cell(row, "diabetes", "diabetes_condicao"),
+    convulsoes: cell(row, "convulsoes"),
+    problemas_circulatorios: cell(row, "problemas_circulatorios"),
+    alergia: cell(row, "alergia"),
+    observacoes_finais: cell(row, "observacoes_finais"),
+  });
 }
 
 function mapExportRow(row: Record<string, unknown>): PacienteImportPayload | null {
   const nome = cell(row, "nome");
   if (!nome) return null;
 
-  const telefone = cell(row, "telefone");
+  const telefoneRaw = cell(row, "telefone");
+  const telefone = telefoneRaw ? formatPhone(telefoneRaw) : "";
   const email = cell(row, "email");
-  const alergias =
-    cell(row, "alergias", "alergia") ||
-    (isYes(cell(row, "alergia")) ? "Sim (sem detalhe)" : "");
+  const ficha = mapFichaFromRow(row);
+  const alergiasTexto =
+    ficha.alergias ||
+    (ficha.alergia ? "Sim (sem detalhe)" : "");
 
   return {
     nome,
     data_nascimento: normalizeDate(cell(row, "data_nascimento", "dataNascimento")),
-    diagnostico: buildDiagnostico(row),
-    tags: buildTags(row),
+    diagnostico: fichaToDiagnostico(ficha),
+    tags: fichaToTags(ficha),
     responsavel_nome: "",
-    responsavel_telefone: telefone ? formatPhone(telefone) : "",
+    responsavel_telefone: telefone,
     responsavel_email: email,
     responsavel_parentesco: telefone || email ? "próprio" : "",
     status: "ativo",
     cpf: cell(row, "cpf") || null,
-    observacoes: buildObservacoes(row),
-    alergias: alergias || null,
-    alertas_clinicos: buildAlertas(row),
+    telefone: telefone || null,
+    email: email || null,
+    observacoes: ficha.observacoes_finais || null,
+    alergias: alergiasTexto || null,
+    alertas_clinicos: fichaToAlertas(ficha),
     endereco_rua: cell(row, "endereco") || null,
+    ficha_podologia: ficha,
     external_id: cell(row, "id") || undefined,
   };
 }
@@ -190,7 +144,8 @@ export function isPacientesExportSheet(headers: string[]): boolean {
     lower.includes("problemas_pes") ||
     lower.includes("observacoes_clinicas") ||
     lower.includes("observacoes_finais") ||
-    lower.includes("tipo_calcado");
+    lower.includes("tipo_calcado") ||
+    lower.includes("gestante");
   return hasNome && (hasClinical || lower.includes("data_nascimento"));
 }
 
