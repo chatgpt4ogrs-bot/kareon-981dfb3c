@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,24 +39,18 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
 
   const { data: clinica, isLoading } = useQuery({
     queryKey: ["clinica", clinicaId],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("clinics").select("*").eq("id", clinicaId!).maybeSingle();
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => api<any>(`/clinics/${clinicaId}`),
     enabled: !!clinicaId && open,
   });
 
   const { data: usuarios = [] } = useQuery({
     queryKey: ["clinica-usuarios", clinicaId],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("profiles") as any)
-        .select("id, name, email, status, role")
-        .eq("clinic_id", clinicaId!);
-      if (error) throw error;
-      return ((data ?? []) as any[])
-        .filter((u) => isAdmin || !["admin", "supervisor_plataforma"].includes(String(u.role ?? "").toLowerCase()))
-        .map((u) => ({ ...u, nome: u.name }));
+      const data = await api<any[]>("/profiles");
+      return (data ?? [])
+        .filter((u) => u.clinic_id === clinicaId || u.clinica_id === clinicaId)
+        .filter((u) => isAdmin || !["admin", "supervisor_plataforma"].includes(String(u.role ?? u.cargo ?? "").toLowerCase()))
+        .map((u) => ({ ...u, nome: u.nome || u.name, role: u.role || u.cargo }));
     },
     enabled: !!clinicaId && open,
   });
@@ -77,13 +71,11 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (mode === "create") {
-        const { error } = await supabase.from("clinics").insert(form);
-        if (error) throw error;
+        await api("/clinics", { method: "POST", json: form });
       } else if (clinicaId) {
         const { cnpj, ...rest } = form;
         const payload = cnpjLocked ? rest : form;
-        const { error } = await supabase.from("clinics").update(payload).eq("id", clinicaId);
-        if (error) throw error;
+        await api(`/clinics/${clinicaId}`, { method: "PUT", json: payload });
       }
     },
     onSuccess: () => {
@@ -99,8 +91,7 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
 
   const updateStatusMutation = useMutation({
     mutationFn: async (status: string) => {
-      const { error } = await supabase.from("clinics").update({ status }).eq("id", clinicaId!);
-      if (error) throw error;
+      await api(`/clinics/${clinicaId}`, { method: "PUT", json: { status } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-clinicas"] });

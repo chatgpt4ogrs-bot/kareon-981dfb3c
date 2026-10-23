@@ -15,6 +15,14 @@ export interface NavItem {
 export type AppTab =
   | "pacientes"
   | "agenda"
+  | "recepcao"
+  | "sala_espera"
+  | "lista_espera"
+  | "atendimento"
+  | "documentos"
+  | "financeiro"
+  | "profissionais"
+  | "cadastros"
   | "estoque"
   | "cameras"
   | "clinica_usuarios"
@@ -30,12 +38,20 @@ export interface AppTabDef {
 }
 
 export const APP_TABS: AppTabDef[] = [
-  { id: "pacientes", label: "Pacientes", description: "Cadastro, prontuário, sessões e objetivos dos pacientes.", route: "/pacientes", icon: "Users", section: "main" },
-  { id: "agenda", label: "Agenda", description: "Calendário de atendimentos da clínica.", route: "/agenda", icon: "CalendarDays", section: "main" },
-  { id: "estoque", label: "Estoque", description: "Produtos, quantidades e estoque mínimo.", route: "/estoque", icon: "Package", section: "main" },
+  { id: "pacientes", label: "Pacientes", description: "Cadastro e ficha do paciente.", route: "/pacientes", icon: "Users", section: "main" },
+  { id: "agenda", label: "Agenda", description: "Agendamentos diários, semanais e mensais.", route: "/agenda", icon: "CalendarDays", section: "main" },
+  { id: "recepcao", label: "Recepção", description: "Check-in e confirmação de chegada.", route: "/recepcao", icon: "ClipboardCheck", section: "main" },
+  { id: "sala_espera", label: "Sala de espera", description: "Fila operacional em tempo real.", route: "/sala-espera", icon: "Timer", section: "main" },
+  { id: "lista_espera", label: "Lista de espera", description: "Fila para marcar novas consultas.", route: "/lista-espera", icon: "ListOrdered", section: "main" },
+  { id: "atendimento", label: "Atendimento", description: "Prontuário eletrônico e evolução clínica.", route: "/atendimento", icon: "Stethoscope", section: "main" },
+  { id: "documentos", label: "Documentos", description: "Atestados, receitas e encaminhamentos.", route: "/documentos", icon: "FileText", section: "main" },
+  { id: "financeiro", label: "Financeiro", description: "Contas a receber, caixa e recibos.", route: "/financeiro", icon: "Wallet", section: "main" },
+  { id: "profissionais", label: "Profissionais", description: "Especialistas: médicos, dentistas, psicólogos e demais.", route: "/profissionais", icon: "UserCheck", section: "main" },
+  { id: "cadastros", label: "Cadastros", description: "Salas, serviços, convênios e escalas.", route: "/cadastros", icon: "Settings", section: "main" },
+  { id: "estoque", label: "Estoque", description: "Produtos e estoque mínimo.", route: "/estoque", icon: "Package", section: "main" },
   { id: "cameras", label: "Câmeras", description: "Visualização das câmeras da clínica.", route: "/cameras", icon: "Camera", section: "main" },
-  { id: "clinica_detalhes", label: "Dados da clínica", description: "Informações cadastrais da clínica.", route: "/clinica/detalhes", icon: "Building2", section: "admin" },
-  { id: "clinica_usuarios", label: "Usuários da clínica", description: "Criar, editar e desativar usuários da clínica.", route: "/clinica/usuarios", icon: "Users", section: "admin" },
+  { id: "clinica_detalhes", label: "Dados da clínica", description: "Informações cadastrais da unidade.", route: "/clinica/detalhes", icon: "Building2", section: "admin" },
+  { id: "clinica_usuarios", label: "Usuários", description: "Usuários e permissões da clínica.", route: "/clinica/usuarios", icon: "Users", section: "admin" },
 ];
 
 const TAB_IDS = new Set<string>(APP_TABS.map((t) => t.id));
@@ -44,10 +60,16 @@ const ALL_TAB_IDS = APP_TABS.map((t) => t.id);
 /** Modelo de acessos sugerido ao escolher o perfil; quem cadastra pode ajustar livremente. */
 export const ROLE_DEFAULT_TABS: Record<AppRole, AppTab[]> = {
   admin: ALL_TAB_IDS,
-  supervisor_plataforma: ["pacientes", "agenda", "estoque", "cameras", "clinica_usuarios"],
+  supervisor_plataforma: [
+    "pacientes", "agenda", "recepcao", "sala_espera", "lista_espera", "atendimento",
+    "documentos", "financeiro", "profissionais", "cadastros", "estoque", "clinica_usuarios",
+  ],
   clinica_admin: ALL_TAB_IDS,
-  responsavel_clinica: ["pacientes", "agenda", "estoque", "cameras"],
-  terapeuta: ["pacientes", "agenda", "estoque"],
+  responsavel_clinica: [
+    "pacientes", "agenda", "recepcao", "sala_espera", "lista_espera", "atendimento",
+    "documentos", "financeiro", "profissionais", "cadastros", "estoque",
+  ],
+  terapeuta: ["pacientes", "agenda", "sala_espera", "atendimento", "documentos"],
   familiar: ["cameras"],
 };
 
@@ -106,6 +128,15 @@ export function canAccessRoute(roles: AppRole[], path: string, isVisitor = false
     return pathAllowed(VISITOR_ROUTES, path);
   }
   if (roles.length === 0) return false;
+
+  // Admin Master: qualquer rota autenticada
+  if (roles.includes("admin")) return true;
+
+  // Quem tem a aba Pacientes acessa lista, novo, editar e detalhe
+  if (tabs.includes("pacientes") && (path === "/pacientes" || path.startsWith("/pacientes/"))) {
+    return true;
+  }
+
   return pathAllowed(allowedRoutes(roles, tabs), path);
 }
 
@@ -164,7 +195,7 @@ export function getNavItems(roles: AppRole[], isVisitor = false, tabs: AppTab[] 
   }
 
   if (isAdmin) {
-    admin.unshift({ to: "/admin", icon: "Shield", label: "Painel administrativo" });
+    admin.unshift({ to: "/admin?tab=tenants", icon: "Shield", label: "Tenants / Admin" });
   } else if (roles.includes("supervisor_plataforma")) {
     admin.unshift({ to: "/admin/clinicas", icon: "Building2", label: "Minhas clínicas" });
   }

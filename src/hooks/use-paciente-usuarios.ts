@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 
 export interface PacienteUsuario {
   id: string;
@@ -13,13 +13,16 @@ export function usePacienteUsuarios(pacienteId?: string) {
   return useQuery({
     queryKey: ["paciente-usuarios", pacienteId],
     queryFn: async () => {
-      let query = supabase.from("paciente_usuarios").select("*");
-      if (pacienteId) query = query.eq("paciente_id", pacienteId);
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as PacienteUsuario[];
+      // Endpoint dedicado ainda não existe: retorna vazio no cadastro novo
+      // e tenta carregar vínculos via API expandida quando houver id.
+      if (!pacienteId) return [] as PacienteUsuario[];
+      try {
+        return await api<PacienteUsuario[]>(`/pacientes/${pacienteId}/vinculos`);
+      } catch {
+        return [] as PacienteUsuario[];
+      }
     },
-    enabled: pacienteId ? !!pacienteId : true,
+    enabled: !!pacienteId,
   });
 }
 
@@ -35,18 +38,15 @@ export function useSavePacienteUsuarios() {
       terapeutas: string[];
       familiares: string[];
     }) => {
-      // Delete existing bindings
-      await supabase.from("paciente_usuarios").delete().eq("paciente_id", pacienteId);
-
-      // Insert new bindings
-      const rows = [
-        ...terapeutas.map((id) => ({ paciente_id: pacienteId, profile_id: id, tipo: "terapeuta" as const })),
-        ...familiares.map((id) => ({ paciente_id: pacienteId, profile_id: id, tipo: "familiar" as const })),
-      ];
-      if (rows.length > 0) {
-        const { error } = await supabase.from("paciente_usuarios").insert(rows);
-        if (error) throw error;
-      }
+      await api(`/pacientes/${pacienteId}/vinculos`, {
+        method: "PUT",
+        json: { profile_ids: familiares, tipo: "familiar" },
+      });
+      // Terapeutas: também via vínculo (tipo terapeuta)
+      await api(`/pacientes/${pacienteId}/vinculos`, {
+        method: "PUT",
+        json: { profile_ids: terapeutas, tipo: "terapeuta" },
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["paciente-usuarios"] });

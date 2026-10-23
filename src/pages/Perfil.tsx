@@ -17,7 +17,7 @@ const roleLabels: Record<string, string> = {
   admin: "Admin Master",
   clinica_admin: "Admin Clínica",
   responsavel_clinica: "Responsável",
-  terapeuta: "Terapeuta",
+  terapeuta: "Profissional",
   familiar: "Familiar",
 };
 

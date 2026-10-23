@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,12 +24,7 @@ const AdminClinicas = () => {
     queryKey: ["admin-clinicas", clinicScope],
     queryFn: async () => {
       if (clinicScope && clinicScope.length === 0) return [];
-      let q = supabase.from("clinics").select("*").order("nome");
-      // Gestor: somente as clínicas vinculadas a ele
-      if (clinicScope) q = q.in("id", clinicScope);
-      const { data, error } = await q;
-      if (error) throw new Error(error.message);
-      return data;
+      return api<any[]>("/clinics");
     },
     staleTime: 0,
     refetchOnMount: "always",

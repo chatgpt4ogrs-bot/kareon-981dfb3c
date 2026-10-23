@@ -198,7 +198,7 @@ const Cameras = () => {
                     </div>
                     <div>
                       <Label>Localização</Label>
-                      <Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Sala de terapia A" />
+                      <Input value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} placeholder="Consultório 1" />
                     </div>
                   </div>
 

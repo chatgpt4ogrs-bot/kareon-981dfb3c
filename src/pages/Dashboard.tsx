@@ -1,10 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminMasterDashboard from "@/components/dashboard/AdminMasterDashboard";
-import ClinicAdminDashboard from "@/components/dashboard/ClinicAdminDashboard";
-import ResponsavelDashboard from "@/components/dashboard/ResponsavelDashboard";
-import TerapeutaDashboard from "@/components/dashboard/TerapeutaDashboard";
+import OpsDashboard from "@/components/dashboard/OpsDashboard";
 import VisitorDashboard from "@/components/dashboard/VisitorDashboard";
 import FamiliarDashboard from "@/pages/FamiliarDashboard";
 import { Link } from "react-router-dom";
@@ -20,9 +18,8 @@ const PlatformSupervisorDashboard = () => {
     queryKey: ["gestor-clinicas-dashboard", gestorClinicIds],
     queryFn: async () => {
       if (gestorClinicIds.length === 0) return [];
-      const { data, error } = await supabase.from("clinics").select("id, nome").in("id", gestorClinicIds).order("nome");
-      if (error) throw error;
-      return data;
+      const all = await api<{ id: string; nome: string }[]>("/clinics");
+      return all.filter((c) => gestorClinicIds.includes(c.id));
     },
   });
 
@@ -37,12 +34,16 @@ const PlatformSupervisorDashboard = () => {
         <p className="text-muted-foreground text-sm leading-relaxed">
           {gestorClinicIds.length === 0
             ? "Nenhuma clínica está vinculada à sua conta ainda. Entre em contato com o suporte para vincular suas clínicas."
-            : `Você faz a gestão de ${gestorClinicIds.length} clínica(s). Sua conta não aparece para os usuários das clínicas.`}
+            : `Você faz a gestão de ${gestorClinicIds.length} clínica(s).`}
         </p>
         {clinicas.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {clinicas.map((c) => (
-              <Link key={c.id} to={`/admin/clinicas/${c.id}`} className="text-xs rounded-full border border-border px-2.5 py-1 hover:bg-muted">
+              <Link
+                key={c.id}
+                to={`/admin/clinicas/${c.id}`}
+                className="text-xs rounded-full border border-border px-2.5 py-1 hover:bg-muted"
+              >
                 {c.nome}
               </Link>
             ))}
@@ -79,6 +80,10 @@ const PlatformSupervisorDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      <div className="pt-2">
+        <OpsDashboard />
+      </div>
     </div>
   );
 };
@@ -89,10 +94,8 @@ const Dashboard = () => {
   if (isVisitor) return <VisitorDashboard />;
   if (isAdmin) return <AdminMasterDashboard />;
   if (isPlatformSupervisor) return <PlatformSupervisorDashboard />;
-  if (hasRole("clinica_admin")) return <ClinicAdminDashboard />;
-  if (hasRole("responsavel_clinica")) return <ResponsavelDashboard />;
   if (hasRole("familiar")) return <FamiliarDashboard />;
-  return <TerapeutaDashboard />;
+  return <OpsDashboard />;
 };
 
 export default Dashboard;

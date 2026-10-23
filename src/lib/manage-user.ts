@@ -1,42 +1,59 @@
-import { supabase } from "@/integrations/supabase/client";
-
-/** Manter igual a FN_VERSION em supabase/functions/manage-clinic-user/index.ts */
-export const EXPECTED_FN_VERSION = "2026-10-09.familiar-sem-vinculo";
-
-const OUTDATED_HINT =
-  'A Edge Function "manage-clinic-user" publicada no Supabase está desatualizada. Publique a versão atual (supabase functions deploy manage-clinic-user).';
+import { api } from "@/lib/api";
 
 /**
- * Chama a Edge Function manage-clinic-user e lança um Error com a mensagem real
- * devolvida pela função (o supabase-js só expõe "non-2xx status code").
+ * Substitui a Edge Function manage-clinic-user pela API local.
  */
-export async function invokeManageUser<T = any>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("manage-clinic-user", { body });
+export async function invokeManageUser(body: Record<string, unknown>) {
+  const action = String(body.action || "");
 
-  if (error) {
-    let message = error.message;
-    let version: string | undefined;
-    const response = (error as any).context;
-    if (response && typeof response.json === "function") {
-      try {
-        const payload = await response.clone().json();
-        version = payload?.fn_version;
-        if (payload?.error) message = payload.error;
-      } catch {
-        try {
-          const text = await response.text();
-          if (text) message = text;
-        } catch { /* mantém a mensagem original */ }
-      }
-    }
-    if (/failed to send a request/i.test(message)) {
-      message = `${message} — verifique se a Edge Function "manage-clinic-user" está publicada.`;
-    } else if (version !== EXPECTED_FN_VERSION) {
-      message = `${message}\n\n${OUTDATED_HINT}`;
-    }
-    throw new Error(message);
+  if (action === "list") {
+    const profiles = await api<any[]>("/profiles");
+    return { profiles };
   }
 
-  if ((data as any)?.error) throw new Error((data as any).error);
-  return data as T;
+  if (action === "create") {
+    const profile = await api("/profiles", {
+      method: "POST",
+      json: {
+        nome: body.nome || body.name,
+        email: body.email,
+        password: body.password,
+        role: body.role || body.cargo,
+        clinic_id: body.clinic_id || body.clinica_id,
+        status: body.status || "ativo",
+        telefone: body.telefone,
+        permissions: body.permissions,
+        perfil_id: body.perfil_id,
+      },
+    });
+    return { profile };
+  }
+
+  if (action === "update") {
+    const id = body.id || body.profile_id;
+    const profile = await api(`/profiles/${id}`, {
+      method: "PUT",
+      json: {
+        nome: body.nome || body.name,
+        role: body.role || body.cargo,
+        clinic_id: body.clinic_id || body.clinica_id,
+        status: body.status,
+        telefone: body.telefone,
+        permissions: body.permissions,
+        perfil_id: body.perfil_id,
+        must_change_password: body.must_change_password,
+      },
+    });
+    return { profile };
+  }
+
+  if (action === "delete") {
+    await api(`/profiles/${body.id || body.profile_id}`, {
+      method: "DELETE",
+      json: { reason: body.reason || "Exclusão de usuário" },
+    });
+    return { ok: true };
+  }
+
+  throw new Error(`Ação não suportada: ${action}`);
 }

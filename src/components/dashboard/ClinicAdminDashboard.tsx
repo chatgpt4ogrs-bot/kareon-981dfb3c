@@ -4,42 +4,27 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePacientes } from "@/hooks/use-pacientes";
 import { useSessoes } from "@/hooks/use-sessoes";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Users, CalendarDays, ClipboardList, UserCheck, Plus, Loader2 } from "lucide-react";
 import { format, isToday, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-function useClinicTerapeutaCount() {
-  return useQuery({
-    queryKey: ["clinic-terapeuta-count"],
-    queryFn: async () => {
-      // user_roles table doesn't exist; role is on profiles directly
-      const { count } = await supabase
-        .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("role", "terapeuta");
-      return count ?? 0;
-    },
-  });
-}
-
 const ClinicAdminDashboard = () => {
   const { profile } = useAuth();
   const { data: allPacientes = [], isLoading: loadingPac } = usePacientes();
   const { data: sessoes = [], isLoading: loadingSes } = useSessoes();
 
-  // Count terapeutas in clinic
   const { data: terapeutasData } = useQuery({
-    queryKey: ["clinic-terapeutas-count"],
+    queryKey: ["clinic-terapeutas-count", profile?.clinica_id],
     queryFn: async () => {
-      const { count } = await supabase
-        .from("profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("clinic_id", profile?.clinica_id || "")
-        .eq("status", "ativo");
-      return count ?? 0;
+      const profiles = await api<any[]>("/profiles");
+      return profiles.filter(
+        (p) =>
+          (p.clinic_id || p.clinica_id) === profile?.clinica_id &&
+          p.status === "ativo"
+      ).length;
     },
     enabled: !!profile?.clinica_id,
   });
@@ -60,9 +45,9 @@ const ClinicAdminDashboard = () => {
 
   const stats = [
     { label: "Pacientes ativos", value: pacientes.length, icon: Users, color: "text-primary" },
-    { label: "Terapeutas", value: terapeutasData ?? 0, icon: UserCheck, color: "text-accent" },
-    { label: "Sessões hoje", value: sessoesHoje.length, icon: CalendarDays, color: "text-primary" },
-    { label: "Sessões no mês", value: sessoesMes.length, icon: ClipboardList, color: "text-secondary" },
+    { label: "Profissionais", value: terapeutasData ?? 0, icon: UserCheck, color: "text-accent" },
+    { label: "Consultas hoje", value: sessoesHoje.length, icon: CalendarDays, color: "text-primary" },
+    { label: "Consultas no mês", value: sessoesMes.length, icon: ClipboardList, color: "text-secondary" },
   ];
 
   const proximasSessoes = sessoes

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Heart, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 const TermosServico = () => (
   <main className="min-h-screen bg-background">
@@ -10,9 +11,7 @@ const TermosServico = () => (
       </Link>
 
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Heart className="w-5 h-5 text-primary" />
-        </div>
+        <BrandMark variant="icon" size="md" />
         <h1 className="text-3xl font-bold tracking-tight">Termos de Serviço</h1>
       </div>
 
@@ -26,7 +25,7 @@ const TermosServico = () => (
 
         <section>
           <h2 className="text-xl font-semibold mb-2">2. Descrição do Serviço</h2>
-          <p>O Kareon é uma plataforma de gestão clínica destinada a terapeutas ocupacionais e clínicas pediátricas, oferecendo ferramentas de agendamento, registro de sessões, acompanhamento de evolução e geração de relatórios.</p>
+          <p>O Kareon é uma plataforma de gestão para clínicas multiprofissionais — medicina, odontologia, psicologia, podologia, fisioterapia e demais especialidades — com agendamento, recepção, prontuário e acompanhamento clínico.</p>
         </section>
 
         <section>

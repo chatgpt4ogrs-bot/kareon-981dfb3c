@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 
 export interface Produto {
@@ -16,61 +18,80 @@ export interface Produto {
 
 export type ProdutoInput = Omit<Produto, "id" | "createdAt" | "updatedAt">;
 
-/** Persistência local por clínica até existir a tabela de estoque no Supabase. */
-function storageKey(clinicaId: string | null) {
-  return `kareon:estoque:${clinicaId ?? "sem-clinica"}`;
-}
-
-function load(key: string): Produto[] {
-  try {
-    const raw = localStorage.getItem(key);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+function mapRow(row: any): Produto {
+  return {
+    id: row.id,
+    nome: row.nome,
+    categoria: row.categoria || "",
+    unidade: row.unidade || "",
+    quantidade: Number(row.quantidade) || 0,
+    estoqueMinimo: Number(row.estoque_minimo) || 0,
+    precoCusto: row.custo != null ? Number(row.custo) : null,
+    observacoes: row.observacoes || "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
 export function useEstoque() {
   const { profile } = useAuth();
-  const key = storageKey(profile?.clinica_id ?? null);
-  const [produtos, setProdutos] = useState<Produto[]>(() => load(key));
-
-  useEffect(() => {
-    setProdutos(load(key));
-  }, [key]);
-
-  const persist = useCallback(
-    (updater: (prev: Produto[]) => Produto[]) => {
-      setProdutos((prev) => {
-        const next = updater(prev);
-        localStorage.setItem(key, JSON.stringify(next));
-        return next;
-      });
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: ["estoque", profile?.clinica_id],
+    queryFn: async () => {
+      const rows = await api<any[]>("/estoque");
+      return rows.map(mapRow);
     },
-    [key],
-  );
+  });
+
+  const produtos = query.data || [];
 
   const criar = useCallback(
-    (input: ProdutoInput) => {
-      const now = new Date().toISOString();
-      persist((prev) => [...prev, { ...input, id: crypto.randomUUID(), createdAt: now, updatedAt: now }]);
+    async (input: ProdutoInput) => {
+      await api("/estoque", {
+        method: "POST",
+        json: {
+          clinica_id: profile?.clinica_id,
+          nome: input.nome,
+          categoria: input.categoria,
+          unidade: input.unidade,
+          quantidade: input.quantidade,
+          estoque_minimo: input.estoqueMinimo,
+          custo: input.precoCusto,
+          observacoes: input.observacoes,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["estoque"] });
     },
-    [persist],
+    [profile?.clinica_id, qc]
   );
 
   const atualizar = useCallback(
-    (id: string, input: ProdutoInput) => {
-      const now = new Date().toISOString();
-      persist((prev) => prev.map((p) => (p.id === id ? { ...p, ...input, updatedAt: now } : p)));
+    async (id: string, input: ProdutoInput) => {
+      await api(`/estoque/${id}`, {
+        method: "PUT",
+        json: {
+          nome: input.nome,
+          categoria: input.categoria,
+          unidade: input.unidade,
+          quantidade: input.quantidade,
+          estoque_minimo: input.estoqueMinimo,
+          custo: input.precoCusto,
+          observacoes: input.observacoes,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["estoque"] });
     },
-    [persist],
+    [qc]
   );
 
   const remover = useCallback(
-    (id: string) => persist((prev) => prev.filter((p) => p.id !== id)),
-    [persist],
+    async (id: string) => {
+      await api(`/estoque/${id}`, { method: "DELETE", json: { reason: "Remoção de produto" } });
+      qc.invalidateQueries({ queryKey: ["estoque"] });
+    },
+    [qc]
   );
 
-  return { produtos, criar, atualizar, remover };
+  return { produtos, criar, atualizar, remover, isLoading: query.isLoading };
 }

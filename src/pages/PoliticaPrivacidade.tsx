@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Heart, ArrowLeft, Shield } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 const PoliticaPrivacidade = () => (
   <main className="min-h-screen bg-background">
@@ -10,9 +11,7 @@ const PoliticaPrivacidade = () => (
       </Link>
 
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Shield className="w-5 h-5 text-primary" />
-        </div>
+        <BrandMark variant="icon" size="md" />
         <h1 className="text-3xl font-bold tracking-tight">Política de Privacidade</h1>
       </div>
 
@@ -31,7 +30,7 @@ const PoliticaPrivacidade = () => (
 
         <section>
           <h2 className="text-xl font-semibold mb-2">3. Finalidade do Tratamento</h2>
-          <p>Os dados são utilizados para permitir o acesso à plataforma, gestão de clínicas, registro terapêutico, geração de relatórios e comunicação com usuários.</p>
+          <p>Os dados são utilizados para permitir o acesso à plataforma, gestão de clínicas, registro clínico, geração de relatórios e comunicação com usuários.</p>
         </section>
 
         <section>

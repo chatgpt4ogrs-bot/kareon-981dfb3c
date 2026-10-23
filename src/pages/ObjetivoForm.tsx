@@ -10,6 +10,7 @@ import { usePaciente } from "@/hooks/use-pacientes";
 import { useSaveObjetivo } from "@/hooks/use-objetivos";
 import { ObjetivoTerapeutico } from "@/types";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { newId } from "@/lib/utils";
 
 const ObjetivoForm = () => {
   const { pacienteId } = useParams();
@@ -26,7 +27,7 @@ const ObjetivoForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const objetivo: ObjetivoTerapeutico = {
-      id: crypto.randomUUID(),
+      id: newId(),
       pacienteId: paciente.id,
       descricao,
       status,

@@ -2,103 +2,98 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @layer base {
   :root {
-    --background: 220 25% 98%;
-    --foreground: 222 20% 18%;
+    /* Kareon brand — ciano → azul → violeta (logo) */
+    /* Cyan #00D2FF · Primary #2B59FF · Violet #7A2BFF · Deep #1A2B8C */
+    --background: 220 45% 97%;
+    --foreground: 230 28% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 20% 18%;
+    --card-foreground: 230 28% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 20% 18%;
+    --popover-foreground: 230 28% 12%;
 
-    --primary: 217 89% 58%;
+    --primary: 226 100% 58%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 152 52% 42%;
-    --secondary-foreground: 0 0% 100%;
+    --secondary: 226 55% 95%;
+    --secondary-foreground: 230 55% 32%;
 
-    --muted: 220 20% 96%;
-    --muted-foreground: 220 9% 50%;
+    --muted: 220 35% 95%;
+    --muted-foreground: 225 12% 42%;
 
-    --accent: 28 90% 62%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 192 100% 50%;
+    --accent-foreground: 230 40% 12%;
 
-    --destructive: 0 70% 56%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 15% 92%;
-    --input: 220 15% 92%;
-    --ring: 217 89% 58%;
+    --border: 226 28% 88%;
+    --input: 226 28% 88%;
+    --ring: 226 100% 58%;
 
-    --radius: 0.875rem;
+    --radius: 0.5rem;
 
-    --success: 152 52% 42%;
+    --success: 152 60% 40%;
     --success-foreground: 0 0% 100%;
-    --warning: 28 90% 62%;
+    --warning: 32 95% 50%;
     --warning-foreground: 0 0% 100%;
 
-    /* Soft shadows for modern SaaS look */
-    --shadow-xs: 0 1px 2px 0 hsl(220 25% 20% / 0.04);
-    --shadow-sm: 0 1px 3px 0 hsl(220 25% 20% / 0.05), 0 1px 2px -1px hsl(220 25% 20% / 0.04);
-    --shadow-md: 0 4px 12px -2px hsl(220 25% 20% / 0.06), 0 2px 4px -2px hsl(220 25% 20% / 0.04);
-    --shadow-lg: 0 12px 24px -8px hsl(220 25% 20% / 0.08), 0 4px 8px -4px hsl(220 25% 20% / 0.04);
+    --brand-deep: 230 70% 32%;
+    --brand-cyan: 192 100% 50%;
+    --brand-violet: 262 100% 58%;
+    --brand-lead: 230 28% 12%;
+
+    --shadow-xs: 0 1px 2px 0 hsl(230 28% 12% / 0.04);
+    --shadow-sm: 0 1px 3px 0 hsl(230 28% 12% / 0.05), 0 1px 2px -1px hsl(230 28% 12% / 0.04);
+    --shadow-md: 0 4px 14px -2px hsl(226 100% 50% / 0.14), 0 2px 6px -2px hsl(230 28% 12% / 0.04);
+    --shadow-lg: 0 12px 28px -8px hsl(262 80% 40% / 0.2);
 
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 20% 18%;
-    --sidebar-primary: 217 89% 58%;
+    --sidebar-foreground: 230 22% 22%;
+    --sidebar-primary: 226 100% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 70% 96%;
-    --sidebar-accent-foreground: 217 89% 50%;
-    --sidebar-border: 220 15% 94%;
-    --sidebar-ring: 217 89% 58%;
+    --sidebar-accent: 226 90% 96%;
+    --sidebar-accent-foreground: 230 70% 32%;
+    --sidebar-border: 226 28% 92%;
+    --sidebar-ring: 226 100% 58%;
   }
 
   .dark {
-    --background: 222 22% 9%;
-    --foreground: 210 20% 96%;
-
-    --card: 222 20% 13%;
-    --card-foreground: 210 20% 96%;
-
-    --popover: 222 20% 13%;
-    --popover-foreground: 210 20% 96%;
-
-    --primary: 217 89% 60%;
+    --background: 230 28% 8%;
+    --foreground: 220 40% 96%;
+    --card: 230 24% 11%;
+    --card-foreground: 220 40% 96%;
+    --popover: 230 24% 11%;
+    --popover-foreground: 220 40% 96%;
+    --primary: 226 100% 64%;
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 145 50% 38%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 222 15% 17%;
-    --muted-foreground: 215 12% 60%;
-
-    --accent: 29 80% 55%;
+    --secondary: 230 20% 16%;
+    --secondary-foreground: 220 40% 92%;
+    --muted: 230 16% 15%;
+    --muted-foreground: 225 12% 60%;
+    --accent: 192 90% 45%;
     --accent-foreground: 0 0% 100%;
-
     --destructive: 0 65% 45%;
     --destructive-foreground: 0 0% 100%;
-
-    --border: 222 14% 20%;
-    --input: 222 14% 20%;
-    --ring: 217 89% 60%;
-
-    --success: 145 50% 38%;
-    --success-foreground: 0 0% 100%;
-    --warning: 29 80% 55%;
-    --warning-foreground: 0 0% 100%;
-
-    --sidebar-background: 222 22% 11%;
-    --sidebar-foreground: 210 20% 90%;
-    --sidebar-primary: 217 89% 60%;
+    --border: 230 16% 18%;
+    --input: 230 16% 18%;
+    --ring: 226 100% 64%;
+    --brand-deep: 226 70% 55%;
+    --brand-cyan: 192 100% 55%;
+    --brand-violet: 262 90% 68%;
+    --sidebar-background: 230 28% 9%;
+    --sidebar-foreground: 220 30% 90%;
+    --sidebar-primary: 226 100% 64%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 18% 17%;
-    --sidebar-accent-foreground: 217 89% 70%;
-    --sidebar-border: 222 14% 20%;
-    --sidebar-ring: 217 89% 60%;
+    --sidebar-accent: 230 20% 14%;
+    --sidebar-accent-foreground: 192 90% 70%;
+    --sidebar-border: 230 16% 16%;
+    --sidebar-ring: 226 100% 64%;
   }
 }
 
@@ -108,16 +103,14 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
+    color: hsl(var(--foreground));
   }
 }
 
@@ -131,11 +124,28 @@
   .shadow-soft-lg {
     box-shadow: var(--shadow-lg);
   }
+  .brand-gradient {
+    background: linear-gradient(135deg, #7A2BFF 0%, #2B59FF 48%, #00D2FF 100%);
+  }
+  .brand-gradient-soft {
+    background: linear-gradient(145deg, #1A2B8C 0%, #2B59FF 52%, #5B3DFF 100%);
+  }
+  .brand-text-gradient {
+    background: linear-gradient(90deg, #1A47BB 0%, #2B59FF 45%, #00AEEF 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
   .animate-page-in {
-    animation: page-in 0.25s ease-out;
+    animation: page-in 0.22s ease-out;
   }
   @keyframes page-in {
-    from { opacity: 0; transform: translateY(4px); }
+    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
+  }
+  .stat-spark {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: none;
   }
 }

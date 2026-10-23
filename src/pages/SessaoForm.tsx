@@ -12,7 +12,7 @@ import { useObjetivos } from "@/hooks/use-objetivos";
 import { useSessoes, useSaveSessao, useUltimaSessao } from "@/hooks/use-sessoes";
 import { Sessao, COMPORTAMENTOS, ATIVIDADES_COMUNS, NivelEngajamento, ProgressoObservado } from "@/types";
 import { ArrowLeft, Copy, X, Sparkles, CalendarCheck, Target, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, newId } from "@/lib/utils";
 import { format, differenceInYears, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 
 const engajamentoOptions: { value: NivelEngajamento; label: string; emoji: string; color: string }[] = [
@@ -228,7 +228,7 @@ const SessaoForm = () => {
     const observacoes = obsRef.current?.value || "";
 
     const sessao: Sessao = {
-      id: crypto.randomUUID(),
+      id: newId(),
       pacienteId: paciente.id,
       dataHora: new Date(`${data}T${hora}`).toISOString(),
       objetivoIds,

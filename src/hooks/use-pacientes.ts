@@ -1,8 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Paciente } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { deleteWithAudit } from "@/lib/audit";
 
 function rowToPaciente(row: any): Paciente {
   return {
@@ -23,65 +22,39 @@ function rowToPaciente(row: any): Paciente {
   };
 }
 
-/** IDs dos pacientes vinculados a um familiar (paciente_usuarios). */
-async function fetchLinkedPacienteIds(profileId: string): Promise<string[]> {
-  const { data, error } = await supabase
-    .from("paciente_usuarios")
-    .select("paciente_id")
-    .eq("profile_id", profileId)
-    .eq("tipo", "familiar");
-  if (error) throw error;
-  return (data || []).map((v) => v.paciente_id);
+async function resolveClinicaId(preferred?: string | null): Promise<string> {
+  if (preferred) return preferred;
+  const clinics = await api<{ id: string }[]>("/clinics");
+  if (!clinics.length) {
+    throw new Error(
+      "Nenhuma clínica cadastrada. Crie uma clínica no painel administrativo antes de cadastrar pacientes."
+    );
+  }
+  return clinics[0].id;
 }
 
 export function usePacientes() {
-  const { profile, clinicScope, hasRole } = useAuth();
+  const { clinicScope, hasRole, profile } = useAuth();
   const isFamiliar = hasRole("familiar");
   return useQuery({
     queryKey: ["pacientes", clinicScope, isFamiliar ? profile?.id : null],
     queryFn: async () => {
-      if (clinicScope && clinicScope.length === 0) return [];
-
-      let q = supabase
-        .from("pacientes")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (isFamiliar) {
-        const ids = await fetchLinkedPacienteIds(profile!.id);
-        if (ids.length === 0) return [];
-        q = q.in("id", ids);
-      } else if (clinicScope) {
-        q = q.in("clinica_id", clinicScope);
-      }
-
-      const { data, error } = await q;
-      if (error) throw error;
-      return (data || []).map(rowToPaciente);
+      const rows = await api<any[]>("/pacientes");
+      return rows.map(rowToPaciente);
     },
   });
 }
 
 export function usePaciente(id: string | undefined) {
-  const { profile, hasRole } = useAuth();
-  const isFamiliar = hasRole("familiar");
+  const validId = id && id !== "novo" ? id : undefined;
   return useQuery({
-    queryKey: ["pacientes", id, isFamiliar ? profile?.id : null],
+    queryKey: ["pacientes", validId],
     queryFn: async () => {
-      if (!id) return null;
-      if (isFamiliar) {
-        const ids = profile ? await fetchLinkedPacienteIds(profile.id) : [];
-        if (!ids.includes(id)) throw new Error("Paciente não vinculado à sua conta");
-      }
-      const { data, error } = await supabase
-        .from("pacientes")
-        .select("*")
-        .eq("id", id)
-        .single();
-      if (error) throw error;
-      return rowToPaciente(data);
+      if (!validId) return null;
+      const row = await api<any>(`/pacientes/${validId}`);
+      return rowToPaciente(row);
     },
-    enabled: !!id,
+    enabled: !!validId,
   });
 }
 
@@ -90,9 +63,8 @@ export function useSavePaciente() {
   const { profile } = useAuth();
 
   return useMutation({
-    mutationFn: async (p: Paciente & { existingId?: string }) => {
-      const clinicaId = profile?.clinica_id;
-      if (!clinicaId) throw new Error("Sem clínica vinculada");
+    mutationFn: async (p: Paciente & { existingId?: string; clinica_id?: string }) => {
+      const clinicaId = await resolveClinicaId(p.clinica_id || profile?.clinica_id);
 
       const row = {
         nome: p.nome,
@@ -109,23 +81,11 @@ export function useSavePaciente() {
       };
 
       if (p.existingId) {
-        const { data, error } = await supabase
-          .from("pacientes")
-          .update(row)
-          .eq("id", p.existingId)
-          .select()
-          .single();
-        if (error) throw error;
-        return rowToPaciente(data);
-      } else {
-        const { data, error } = await supabase
-          .from("pacientes")
-          .insert(row)
-          .select()
-          .single();
-        if (error) throw error;
+        const data = await api<any>(`/pacientes/${p.existingId}`, { method: "PUT", json: row });
         return rowToPaciente(data);
       }
+      const data = await api<any>("/pacientes", { method: "POST", json: row });
+      return rowToPaciente(data);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pacientes"] });
@@ -137,7 +97,7 @@ export function useDeletePaciente() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      await deleteWithAudit("paciente", id, reason);
+      await api(`/pacientes/${id}`, { method: "DELETE", json: { reason } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pacientes"] });

@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import type { AppRole } from "@/contexts/AuthContext";
 import { ROLE_DEFAULT_TABS, sanitizeTabs, type AppTab } from "@/lib/permissions";
 
@@ -23,7 +23,7 @@ export const BASE_ROLE_LABELS: Record<AppRole, string> = {
   supervisor_plataforma: "Gestor",
   clinica_admin: "Admin Clínica",
   responsavel_clinica: "Responsável",
-  terapeuta: "Terapeuta",
+  terapeuta: "Profissional",
   familiar: "Familiar",
 };
 
@@ -31,8 +31,8 @@ export const BASE_ROLE_DESCRIPTIONS: Record<AppRole, string> = {
   admin: "Acesso total ao sistema, todas as clínicas.",
   supervisor_plataforma: "Dono de uma ou mais clínicas: faz a gestão apenas das clínicas vinculadas pelo Admin Master; invisível para os usuários das clínicas.",
   clinica_admin: "Gerencia configurações, usuários e dados da clínica.",
-  responsavel_clinica: "Gestão operacional da clínica (pacientes, agenda, câmeras).",
-  terapeuta: "Atende pacientes designados, registra sessões e objetivos.",
+  responsavel_clinica: "Gestão operacional da clínica (pacientes, agenda, profissionais).",
+  terapeuta: "Atende pacientes: médico, dentista, psicólogo, podólogo ou outro especialista.",
   familiar: "Visualiza apenas os pacientes vinculados a ele.",
 };
 
@@ -56,16 +56,16 @@ export function usePerfis() {
   const query = useQuery({
     queryKey: ["perfis-acesso"],
     queryFn: async (): Promise<{ perfis: PerfilAcesso[]; missingTable: boolean }> => {
-      const { data, error } = await (supabase.from("perfis_acesso" as any) as any)
-        .select("*")
-        .order("ordem")
-        .order("nome");
-      if (error) return { perfis: FALLBACK_PERFIS, missingTable: true };
-      const perfis = (data ?? []).map((p: any) => ({
-        ...p,
-        abas: sanitizeTabs(p.abas),
-      })) as PerfilAcesso[];
-      return { perfis: perfis.length ? perfis : FALLBACK_PERFIS, missingTable: perfis.length === 0 };
+      try {
+        const data = await api<any[]>("/perfis-acesso");
+        const perfis = (data ?? []).map((p: any) => ({
+          ...p,
+          abas: sanitizeTabs(p.abas),
+        })) as PerfilAcesso[];
+        return { perfis: perfis.length ? perfis : FALLBACK_PERFIS, missingTable: perfis.length === 0 };
+      } catch {
+        return { perfis: FALLBACK_PERFIS, missingTable: true };
+      }
     },
     staleTime: 60_000,
   });

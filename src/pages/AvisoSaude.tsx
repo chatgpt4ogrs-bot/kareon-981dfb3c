@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Heart, ArrowLeft, Stethoscope } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 const AvisoSaude = () => (
   <main className="min-h-screen bg-background">
@@ -10,9 +11,7 @@ const AvisoSaude = () => (
       </Link>
 
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Stethoscope className="w-5 h-5 text-primary" />
-        </div>
+        <BrandMark variant="icon" size="md" />
         <h1 className="text-3xl font-bold tracking-tight">Aviso de Saúde</h1>
       </div>
 
@@ -21,7 +20,7 @@ const AvisoSaude = () => (
       <div className="prose prose-sm max-w-none text-foreground/90 space-y-6">
         <section>
           <h2 className="text-xl font-semibold mb-2">1. Natureza da Plataforma</h2>
-          <p>O Kareon é uma ferramenta de gestão e registro clínico. Não substitui o julgamento profissional de terapeutas ocupacionais, médicos ou outros profissionais de saúde.</p>
+          <p>O Kareon é uma ferramenta de gestão e registro clínico. Não substitui o julgamento profissional de médicos, dentistas, psicólogos, podólogos ou demais profissionais de saúde.</p>
         </section>
 
         <section>

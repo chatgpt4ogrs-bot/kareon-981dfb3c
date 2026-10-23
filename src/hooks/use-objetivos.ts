@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { ObjetivoTerapeutico } from "@/types";
-import { deleteWithAudit } from "@/lib/audit";
 
 function rowToObjetivo(row: any): ObjetivoTerapeutico {
   return {
@@ -19,11 +18,9 @@ export function useObjetivos(pacienteId?: string) {
   return useQuery({
     queryKey: ["objetivos", pacienteId],
     queryFn: async () => {
-      let query = supabase.from("objetivos").select("*").order("created_at", { ascending: false });
-      if (pacienteId) query = query.eq("paciente_id", pacienteId);
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []).map(rowToObjetivo);
+      const qs = pacienteId ? `?paciente_id=${pacienteId}` : "";
+      const rows = await api<any[]>(`/objetivos${qs}`);
+      return rows.map(rowToObjetivo);
     },
   });
 }
@@ -35,23 +32,17 @@ export function useSaveObjetivo() {
       const row = {
         paciente_id: o.pacienteId,
         titulo: o.descricao,
+        descricao: o.descricao,
         status: o.status,
         progresso: o.progresso,
       };
 
-      // Check if exists
-      const { data: existing } = await supabase
-        .from("objetivos")
-        .select("id")
-        .eq("id", o.id)
-        .maybeSingle();
-
-      if (existing) {
-        const { error } = await supabase.from("objetivos").update(row).eq("id", o.id);
-        if (error) throw error;
+      const list = await api<any[]>(`/objetivos?paciente_id=${o.pacienteId}`);
+      const exists = list.some((r) => r.id === o.id);
+      if (exists) {
+        await api(`/objetivos/${o.id}`, { method: "PUT", json: row });
       } else {
-        const { error } = await supabase.from("objetivos").insert({ ...row, id: o.id });
-        if (error) throw error;
+        await api("/objetivos", { method: "POST", json: { ...row, id: o.id } });
       }
     },
     onSuccess: () => {
@@ -64,7 +55,7 @@ export function useDeleteObjetivo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      await deleteWithAudit("objetivo", id, reason);
+      await api(`/objetivos/${id}`, { method: "DELETE", json: { reason } });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["objetivos"] });

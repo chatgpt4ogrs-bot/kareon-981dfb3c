@@ -15,7 +15,7 @@ const formatQtd = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigi
 const formatPreco = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const Estoque = () => {
-  const { produtos, criar, atualizar, remover } = useEstoque();
+  const { produtos, criar, atualizar } = useEstoque();
   const { profile } = useAuth();
   const [busca, setBusca] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -43,13 +43,17 @@ const Estoque = () => {
     setModalOpen(true);
   };
 
-  const handleSave = (input: ProdutoInput) => {
-    if (editando) {
-      atualizar(editando.id, input);
-      toast({ title: "Produto atualizado", description: input.nome });
-    } else {
-      criar(input);
-      toast({ title: "Produto cadastrado", description: input.nome });
+  const handleSave = async (input: ProdutoInput) => {
+    try {
+      if (editando) {
+        await atualizar(editando.id, input);
+        toast({ title: "Produto atualizado", description: input.nome });
+      } else {
+        await criar(input);
+        toast({ title: "Produto cadastrado", description: input.nome });
+      }
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
     }
   };
 
@@ -64,13 +68,12 @@ const Estoque = () => {
         snapshot: excluindo,
         clinicId: profile?.clinica_id ?? null,
       });
+      toast({ title: "Produto excluído", description: excluindo.nome });
+      setExcluindo(null);
     } catch (e: any) {
       toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
       throw e;
     }
-    remover(excluindo.id);
-    toast({ title: "Produto excluído", description: excluindo.nome });
-    setExcluindo(null);
   };
 
   return (

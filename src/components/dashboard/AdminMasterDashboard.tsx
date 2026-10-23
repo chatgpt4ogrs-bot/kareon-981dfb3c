@@ -1,221 +1,120 @@
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Shield, Loader2 } from "lucide-react";
+import { Building2, Shield, Users, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
+import OpsDashboard from "@/components/dashboard/OpsDashboard";
 
 function useAdminMetrics() {
   return useQuery({
     queryKey: ["admin-metrics"],
     queryFn: async () => {
       const [clinicas, profiles] = await Promise.all([
-        supabase.from("clinics").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
+        api<any[]>("/clinics"),
+        api<any[]>("/profiles"),
       ]);
       return {
-        clinicas: clinicas.count ?? 0,
-        usuarios: profiles.count ?? 0,
+        clinicas: clinicas.length,
+        usuarios: profiles.length,
+        recent: profiles
+          .slice()
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+          .slice(0, 5),
       };
     },
   });
 }
 
-function useRecentUsers() {
-  return useQuery({
-    queryKey: ["recent-users"],
-    queryFn: async () => {
-      // Real DB columns: id, name, email, role, status, clinic_id, created_at
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, name, email, role, status, clinic_id, created_at")
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-
-      // Fetch clinic names
-      const clinicaIds = [...new Set((data || []).map((p: any) => p.clinic_id).filter(Boolean))];
-      const { data: clinicas } = clinicaIds.length > 0
-        ? await supabase.from("clinics").select("id, nome").in("id", clinicaIds)
-        : { data: [] };
-      const clinicaMap: Record<string, string> = {};
-      (clinicas || []).forEach((c: any) => { clinicaMap[c.id] = c.nome; });
-
-      // Map real DB columns → app interface
-      return (data || []).map((p: any) => ({
-        id: p.id,
-        user_id: p.id,
-        nome: p.name,
-        email: p.email,
-        cargo: p.role,
-        status: p.status,
-        clinica_id: p.clinic_id,
-        created_at: p.created_at,
-        roles: p.role ? [p.role] : [],
-        clinica_nome: p.clinic_id ? clinicaMap[p.clinic_id] || "—" : "—",
-      }));
-    },
-  });
-}
-
-const roleLabels: Record<string, string> = {
-  admin: "Admin Master",
-  clinica_admin: "Admin Clínica",
-  responsavel_clinica: "Responsável",
-  terapeuta: "Terapeuta",
-  familiar: "Familiar",
-};
-
-const statusColors: Record<string, string> = {
-  ativo: "bg-green-500/10 text-green-700",
-  pendente: "bg-yellow-500/10 text-yellow-700",
-  bloqueado: "bg-red-500/10 text-red-700",
-};
-
 const AdminMasterDashboard = () => {
-  const { data: metrics } = useAdminMetrics();
-  const { data: recentUsers = [], isLoading } = useRecentUsers();
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-
-  const stats = [
-    { label: "Clínicas", value: metrics?.clinicas ?? 0, icon: Building2, color: "text-primary" },
-    { label: "Usuários", value: metrics?.usuarios ?? 0, icon: Shield, color: "text-accent" },
-  ];
+  const { data, isLoading } = useAdminMetrics();
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Painel Administrativo 🛡️</h1>
-        <p className="text-muted-foreground">{format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}</p>
+      <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-primary to-indigo-700 text-primary-foreground p-6 shadow-soft-md">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <p className="text-sm text-white/80 capitalize">
+              {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+            </p>
+            <h1 className="text-2xl font-bold mt-1">Superadmin · Tenants</h1>
+            <p className="text-sm text-white/75 mt-1">
+              Visão global das clínicas (tenants), usuários e operação
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild variant="secondary" size="sm" className="bg-white text-primary hover:bg-white/90">
+              <Link to="/admin?tab=tenants">
+                <Building2 className="w-4 h-4 mr-1" /> Tenants
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="border-white/40 text-white hover:bg-white/10">
+              <Link to="/admin/usuarios">
+                <Users className="w-4 h-4 mr-1" /> Usuários
+              </Link>
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-6">
+          <div className="rounded-xl bg-white/10 backdrop-blur px-4 py-3">
+            <p className="text-xs text-white/70">Clínicas</p>
+            <p className="text-2xl font-bold tabular-nums">
+              {isLoading ? "…" : data?.clinicas ?? 0}
+            </p>
+          </div>
+          <div className="rounded-xl bg-white/10 backdrop-blur px-4 py-3">
+            <p className="text-xs text-white/70">Usuários</p>
+            <p className="text-2xl font-bold tabular-nums">
+              {isLoading ? "…" : data?.usuarios ?? 0}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {stats.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{stat.label}</p>
-                  <p className="text-3xl font-semibold text-foreground mt-2 tracking-tight">{stat.value}</p>
-                </div>
-                <div className="w-9 h-9 rounded-lg bg-primary/8 flex items-center justify-center">
-                  <stat.icon className={cn("w-[18px] h-[18px]", stat.color)} strokeWidth={1.85} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Usuários recentes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-            ) : (
-              <div className="space-y-2">
-                {recentUsers.slice(0, 6).map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => setSelectedUser(u)}
-                    className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors text-left"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-sm">
-                      {u.nome.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{u.nome}</p>
-                      <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                    </div>
-                    <Badge variant="outline" className={cn("text-xs", statusColors[u.status])}>
-                      {u.status}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Acesso rápido</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Link to="/admin?tab=clinicas">
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <Building2 className="w-4 h-4" /> Gerenciar clínicas
-              </Button>
-            </Link>
-            <Link to="/admin?tab=usuarios">
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <Shield className="w-4 h-4" /> Gerenciar usuários
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* User detail dialog */}
-      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Detalhes do usuário</DialogTitle>
-          </DialogHeader>
-          {selectedUser && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xl">
-                  {selectedUser.nome.charAt(0)}
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-foreground">{selectedUser.nome}</p>
-                  <p className="text-sm text-muted-foreground">{selectedUser.email}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Status</p>
-                  <Badge variant="outline" className={cn("mt-1", statusColors[selectedUser.status])}>
-                    {selectedUser.status}
+      <Card className="shadow-soft border-border/70">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-primary" />
+              <p className="font-semibold text-sm">Usuários recentes</p>
+            </div>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/admin/usuarios">Ver todos</Link>
+            </Button>
+          </div>
+          {isLoading ? (
+            <div className="py-8 text-center text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+              Carregando…
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {(data?.recent || []).map((u: any) => (
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-2.5"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{u.nome || u.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                  </div>
+                  <Badge variant="secondary" className="font-normal capitalize shrink-0">
+                    {u.role || u.cargo || "—"}
                   </Badge>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Cargo</p>
-                  <p className="text-sm text-foreground mt-1">{selectedUser.cargo || "—"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Clínica</p>
-                  <p className="text-sm text-foreground mt-1">{selectedUser.clinica_nome}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Perfis</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {selectedUser.roles.length > 0 ? selectedUser.roles.map((r: string) => (
-                      <Badge key={r} variant="secondary" className="text-xs">{roleLabels[r] || r}</Badge>
-                    )) : <span className="text-sm text-muted-foreground">Sem perfil</span>}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Criado em</p>
-                <p className="text-sm text-foreground mt-1">
-                  {format(new Date(selectedUser.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                </p>
-              </div>
+              ))}
+              {(data?.recent || []).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-6">Nenhum usuário</p>
+              )}
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+      </Card>
+
+      <OpsDashboard />
     </div>
   );
 };

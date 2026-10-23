@@ -5,9 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { Loader2, LogIn, Mail, ShieldCheck, Heart, CalendarCheck, BarChart3, User, Phone } from "lucide-react";
+import { Loader2, LogIn, Mail, ShieldCheck, CalendarCheck, BarChart3, User, Phone } from "lucide-react";
 import PasswordInput from "@/components/PasswordInput";
 import { Input } from "@/components/ui/input";
+import { BrandMark } from "@/components/BrandMark";
 
 const GoogleIcon = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
@@ -126,7 +127,7 @@ const Login = () => {
 
   return (
     <main className="min-h-screen w-full bg-background relative overflow-hidden">
-      <h1 className="sr-only">Kareon — Acesso à plataforma de gestão terapêutica pediátrica</h1>
+      <h1 className="sr-only">Kareon — Acesso à plataforma de gestão para clínicas multiprofissionais</h1>
       {/* Background decorativo */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-32 -left-32 w-[28rem] h-[28rem] rounded-full bg-primary/20 blur-3xl opacity-60" />
@@ -137,17 +138,13 @@ const Login = () => {
       <div className="min-h-screen grid grid-cols-1 lg:grid-cols-12">
         {/* Lado esquerdo — Branding */}
         <div className="relative hidden lg:flex lg:col-span-5 flex-col justify-between p-12 xl:p-16 text-primary-foreground overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-[hsl(217_89%_42%)]" />
-          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_20%_20%,white,transparent_45%)]" />
-          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_80%_80%,white,transparent_40%)]" />
+          <div className="absolute inset-0 brand-gradient-soft" />
+          <div className="absolute inset-0 opacity-40 bg-[radial-gradient(circle_at_20%_20%,#00D2FF,transparent_45%)]" />
+          <div className="absolute inset-0 opacity-30 bg-[radial-gradient(circle_at_80%_80%,#7A2BFF,transparent_40%)]" />
+          <div className="absolute -bottom-24 -right-16 w-[28rem] h-[28rem] rounded-full bg-[#00D2FF]/20 blur-3xl" />
 
           <div className="relative z-10 animate-fade-in">
-            <div className="inline-flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-white/15 backdrop-blur-sm flex items-center justify-center ring-1 ring-white/25">
-                <Heart className="w-5 h-5" />
-              </div>
-              <span className="text-2xl font-bold tracking-tight">Kareon</span>
-            </div>
+            <BrandMark variant="wordmark" tone="dark" size="lg" showTagline />
           </div>
 
           <div className="relative z-10 space-y-8 animate-fade-in">
@@ -176,8 +173,11 @@ const Login = () => {
             </div>
           </div>
 
-          <div className="relative z-10 text-xs text-white/80">
-            © {new Date().getFullYear()} Kareon · Todos os direitos reservados
+          <div className="relative z-10 text-xs text-white/80 space-y-1">
+            <p>© {new Date().getFullYear()} Kareon · Todos os direitos reservados</p>
+            <p className="text-white/55 tracking-wide uppercase text-[10px]">
+              Marca Darevo · Tecnologia em Sistemas
+            </p>
           </div>
         </div>
 
@@ -186,13 +186,8 @@ const Login = () => {
           <div className="w-full max-w-md space-y-6 animate-fade-in">
             {/* Logo mobile */}
             <div className="flex lg:hidden flex-col items-center gap-3 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-soft-md">
-                <Heart className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold tracking-tight">Kareon</p>
-                <p className="text-sm text-muted-foreground">Gestão inteligente para clínicas modernas</p>
-              </div>
+              <BrandMark variant="stacked" size="lg" showTagline />
+              <p className="text-sm text-muted-foreground">Gestão inteligente para clínicas modernas</p>
             </div>
 
             <div className="border border-border/60 bg-card/80 backdrop-blur-xl shadow-soft-lg p-7 sm:p-9 space-y-6 rounded-2xl shadow-2xl">

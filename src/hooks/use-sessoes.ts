@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Sessao } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -9,7 +9,7 @@ function rowToSessao(row: any): Sessao {
     pacienteId: row.paciente_id,
     dataHora: row.data_hora,
     objetivoIds: row.objetivo_ids || [],
-    atividades: row.atividades_lista || [],
+    atividades: row.atividades || row.atividades_lista || [],
     comportamentos: row.comportamentos || [],
     engajamento: row.engajamento || "medio",
     progressoObservado: row.progresso_observado || "manteve",
@@ -22,11 +22,9 @@ export function useSessoes(pacienteId?: string) {
   return useQuery({
     queryKey: ["sessoes", pacienteId],
     queryFn: async () => {
-      let query = supabase.from("sessoes").select("*").order("data_hora", { ascending: false });
-      if (pacienteId) query = query.eq("paciente_id", pacienteId);
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []).map(rowToSessao);
+      const qs = pacienteId ? `?paciente_id=${pacienteId}` : "";
+      const rows = await api<any[]>(`/sessoes${qs}`);
+      return rows.map(rowToSessao);
     },
   });
 }
@@ -37,19 +35,20 @@ export function useSaveSessao() {
 
   return useMutation({
     mutationFn: async (s: Sessao) => {
-      const row = {
-        paciente_id: s.pacienteId,
-        data_hora: s.dataHora,
-        objetivo_ids: s.objetivoIds,
-        atividades_lista: s.atividades,
-        comportamentos: s.comportamentos,
-        engajamento: s.engajamento,
-        progresso_observado: s.progressoObservado,
-        observacoes: s.observacoes,
-        terapeuta_id: profile?.id || null,
-      };
-      const { error } = await supabase.from("sessoes").insert(row);
-      if (error) throw error;
+      await api("/sessoes", {
+        method: "POST",
+        json: {
+          paciente_id: s.pacienteId,
+          data_hora: s.dataHora,
+          objetivo_ids: s.objetivoIds,
+          atividades: s.atividades,
+          comportamentos: s.comportamentos,
+          engajamento: s.engajamento,
+          progresso_observado: s.progressoObservado,
+          observacoes: s.observacoes,
+          terapeuta_id: profile?.id || null,
+        },
+      });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["sessoes"] });
@@ -62,15 +61,8 @@ export function useUltimaSessao(pacienteId: string | undefined) {
     queryKey: ["ultimaSessao", pacienteId],
     queryFn: async () => {
       if (!pacienteId) return null;
-      const { data, error } = await supabase
-        .from("sessoes")
-        .select("*")
-        .eq("paciente_id", pacienteId)
-        .order("data_hora", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data ? rowToSessao(data) : null;
+      const rows = await api<any[]>(`/sessoes?paciente_id=${pacienteId}`);
+      return rows[0] ? rowToSessao(rows[0]) : null;
     },
     enabled: !!pacienteId,
   });

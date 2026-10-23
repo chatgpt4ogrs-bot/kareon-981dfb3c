@@ -58,6 +58,12 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        brand: {
+          cyan: "hsl(var(--brand-cyan))",
+          deep: "hsl(var(--brand-deep))",
+          violet: "hsl(var(--brand-violet))",
+          lead: "hsl(var(--brand-lead))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

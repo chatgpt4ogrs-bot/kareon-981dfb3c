@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Heart, Loader2, Mail } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 const EsqueciSenha = () => {
   const navigate = useNavigate();
@@ -37,11 +38,8 @@ const EsqueciSenha = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Heart className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Kareon</h1>
+        <div className="text-center space-y-3">
+          <BrandMark variant="stacked" size="lg" className="mx-auto" />
           <p className="text-muted-foreground">Recupere o acesso à sua conta</p>
         </div>
 

@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { Heart, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordValidation, { isPasswordValid } from "@/components/PasswordValidation";
+import { BrandMark } from "@/components/BrandMark";
 
 import { useToast } from "@/hooks/use-toast";
 
@@ -67,12 +68,10 @@ const Cadastro = () => {
   return (
     <main className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Heart className="w-8 h-8 text-primary" />
-          </div>
+        <div className="text-center space-y-3">
+          <BrandMark variant="stacked" size="lg" className="mx-auto" />
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Crie sua conta na Kareon</h1>
-          <p className="text-muted-foreground">Comece a gerenciar sua clínica de terapia pediátrica</p>
+          <p className="text-muted-foreground">Comece a gerenciar sua clínica multiprofissional</p>
         </div>
 
         <Card>

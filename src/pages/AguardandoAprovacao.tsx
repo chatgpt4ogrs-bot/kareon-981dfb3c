@@ -3,7 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { SUPPORT_EMAIL } from "@/lib/permissions";
 import { useNavigate } from "react-router-dom";
-import { Ban, LogOut, Heart, Mail } from "lucide-react";
+import { Ban, LogOut, Mail } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 type Props = {
   /** Conta inativa/bloqueada (não é modo visita) */
@@ -30,9 +31,8 @@ const AguardandoAprovacao = ({ variant = "blocked" }: Props) => {
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Heart className="w-5 h-5 text-primary" />
-              <span className="font-bold text-lg text-foreground">Kareon</span>
+            <div className="flex justify-center mb-4">
+              <BrandMark variant="wordmark" size="md" showTagline={false} />
             </div>
             <h1 className="text-xl font-bold text-foreground">Conta desativada</h1>
             <p className="text-muted-foreground text-sm leading-relaxed">

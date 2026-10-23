@@ -4,13 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { authApi } from "@/lib/api";
 import { Loader2, Lock, CheckCircle } from "lucide-react";
 import PasswordInput from "@/components/PasswordInput";
 import PasswordValidation, { isPasswordValid } from "@/components/PasswordValidation";
 
 const AlterarSenha = () => {
-  const { profile, refreshProfile } = useAuth();
+  const { profile, refreshProfile, user } = useAuth();
   const navigate = useNavigate();
   const forced = !!profile?.must_change_password;
   const [senhaAtual, setSenhaAtual] = useState("");
@@ -32,45 +32,24 @@ const AlterarSenha = () => {
       setErro("As senhas não coincidem");
       return;
     }
+    if (!user) {
+      setErro("Usuário não encontrado");
+      return;
+    }
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) {
-        setErro("Usuário não encontrado");
-        return;
+      await authApi.changePassword(forced ? null : senhaAtual, novaSenha);
+      await refreshProfile();
+      setSucesso(true);
+      setSenhaAtual("");
+      setNovaSenha("");
+      setConfirmar("");
+      if (forced) {
+        setTimeout(() => navigate("/", { replace: true }), 800);
       }
-
-      // Quando não é troca obrigatória, valida a senha atual reautenticando
-      if (!forced) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: user.email,
-          password: senhaAtual,
-        });
-        if (signInError) {
-          setErro("Senha atual incorreta");
-          return;
-        }
-      }
-
-      const { error } = await supabase.auth.updateUser({ password: novaSenha });
-      if (error) {
-        setErro(error.message);
-      } else {
-        if (profile?.id) {
-          await supabase.from("profiles").update({ must_change_password: false }).eq("id", profile.id);
-          await refreshProfile();
-        }
-        setSucesso(true);
-        setSenhaAtual("");
-        setNovaSenha("");
-        setConfirmar("");
-        if (forced) {
-          setTimeout(() => navigate("/", { replace: true }), 800);
-        }
-      }
-    } catch {
-      setErro("Erro ao alterar senha");
+    } catch (err: any) {
+      setErro(err.message || "Erro ao alterar senha");
     } finally {
       setLoading(false);
     }

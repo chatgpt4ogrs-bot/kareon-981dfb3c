@@ -15,6 +15,8 @@ import { usePacienteUsuarios, useSavePacienteUsuarios } from "@/hooks/use-pacien
 import { useAuth } from "@/contexts/AuthContext";
 import { Paciente, TAGS_COMUNS } from "@/types";
 import { ArrowLeft, Loader2, UserPlus, X } from "lucide-react";
+import { toast } from "sonner";
+import { newId } from "@/lib/utils";
 
 /** Tag picker isolado — só re-renderiza quando suas tags mudam */
 const TagsPicker = memo(function TagsPicker({
@@ -121,11 +123,19 @@ const PacienteForm = () => {
   const canManage = isAdmin || hasRole("clinica_admin") || hasRole("responsavel_clinica");
 
   const terapeutaProfiles = useMemo(
-    () => allProfiles.filter((p: any) => p.roles.includes("terapeuta") && p.status === "ativo"),
+    () =>
+      allProfiles.filter(
+        (p: any) =>
+          Array.isArray(p.roles) && p.roles.includes("terapeuta") && p.status === "ativo"
+      ),
     [allProfiles]
   );
   const familiarProfiles = useMemo(
-    () => allProfiles.filter((p: any) => p.roles.includes("familiar") && p.status === "ativo"),
+    () =>
+      allProfiles.filter(
+        (p: any) =>
+          Array.isArray(p.roles) && p.roles.includes("familiar") && p.status === "ativo"
+      ),
     [allProfiles]
   );
 
@@ -149,10 +159,16 @@ const PacienteForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const nome = nomeRef.current?.value?.trim() || "";
+    if (!nome) {
+      toast.error("Informe o nome do paciente");
+      return;
+    }
+
     const paciente = {
-      id: existing?.id || crypto.randomUUID(),
+      id: existing?.id || newId(),
       existingId: existing?.id,
-      nome: nomeRef.current?.value || "",
+      nome,
       dataNascimento: dataNascRef.current?.value || "",
       diagnostico: diagnosticoRef.current?.value || "",
       status,
@@ -167,18 +183,31 @@ const PacienteForm = () => {
       criadoEm: existing?.criadoEm || new Date().toISOString(),
     } as Paciente & { existingId?: string };
 
-    const saved = await saveMutation.mutateAsync(paciente);
-    const pacienteId = paciente.existingId || saved.id;
+    try {
+      const saved = await saveMutation.mutateAsync(paciente);
+      const pacienteId = paciente.existingId || saved.id;
 
-    if (canManage) {
-      await saveVinculos.mutateAsync({
-        pacienteId,
-        terapeutas: selectedTerapeutas,
-        familiares: selectedFamiliares,
-      });
+      if (canManage && (selectedTerapeutas.length > 0 || selectedFamiliares.length > 0)) {
+        try {
+          await saveVinculos.mutateAsync({
+            pacienteId,
+            terapeutas: selectedTerapeutas,
+            familiares: selectedFamiliares,
+          });
+        } catch (vinculoErr: any) {
+          toast.warning(
+            `Paciente salvo, mas vínculos falharam: ${vinculoErr.message || "erro desconhecido"}`
+          );
+          navigate(`/pacientes/${pacienteId}`);
+          return;
+        }
+      }
+
+      toast.success(existing ? "Paciente atualizado" : "Paciente cadastrado");
+      navigate(`/pacientes/${pacienteId}`);
+    } catch (err: any) {
+      toast.error(err.message || "Não foi possível salvar o paciente");
     }
-
-    navigate(`/pacientes/${pacienteId}`);
   };
 
   if (id && loadingExisting) {
@@ -231,7 +260,7 @@ const PacienteForm = () => {
               <Textarea
                 ref={diagnosticoRef}
                 defaultValue=""
-                placeholder="Ex: TEA, TDAH, atraso no desenvolvimento motor..."
+                placeholder="Ex: hipertensão, diabetes, alergia a dipirona..."
               />
             </div>
             <div className="space-y-2">
@@ -247,7 +276,7 @@ const PacienteForm = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label>Terapeutas vinculados</Label>
+                  <Label>Profissionais vinculados</Label>
                   <Dialog open={showTerapeutaDialog} onOpenChange={setShowTerapeutaDialog}>
                     <DialogTrigger asChild>
                       <Button type="button" variant="outline" size="sm" className="gap-1">
@@ -255,13 +284,13 @@ const PacienteForm = () => {
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
-                      <DialogHeader><DialogTitle>Selecionar terapeutas</DialogTitle></DialogHeader>
+                      <DialogHeader><DialogTitle>Selecionar profissionais</DialogTitle></DialogHeader>
                       <div className="space-y-2 max-h-64 overflow-auto">
                         <ProfilePickerList
                           profiles={terapeutaProfiles}
                           selected={selectedTerapeutas}
                           onToggle={toggleTerapeuta}
-                          emptyMsg="Nenhum terapeuta disponível"
+                          emptyMsg="Nenhum profissional disponível"
                         />
                       </div>
                       <Button type="button" onClick={() => setShowTerapeutaDialog(false)} className="w-full">
@@ -286,7 +315,7 @@ const PacienteForm = () => {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Nenhum terapeuta vinculado</p>
+                  <p className="text-sm text-muted-foreground">Nenhum profissional vinculado</p>
                 )}
               </div>
 

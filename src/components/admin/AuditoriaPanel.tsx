@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +33,7 @@ const ROLE_LABELS: Record<string, string> = {
   supervisor_plataforma: "Gestor",
   clinica_admin: "Admin Clínica",
   responsavel_clinica: "Responsável",
-  terapeuta: "Terapeuta",
+  terapeuta: "Profissional",
   familiar: "Familiar",
 };
 
@@ -58,25 +58,14 @@ const AuditoriaPanel = () => {
 
   const { data: logs = [], isLoading, error } = useQuery({
     queryKey: ["audit-logs"],
-    queryFn: async () => {
-      const { data, error } = await (supabase.from("audit_logs" as any) as any)
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(1000);
-      if (error) throw error;
-      return (data || []) as AuditLog[];
-    },
+    queryFn: async () => api<AuditLog[]>("/audit-logs"),
     staleTime: 0,
     refetchOnMount: "always",
   });
 
   const { data: clinicas = [] } = useQuery({
     queryKey: ["audit-clinicas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("clinics").select("id, nome");
-      if (error) throw error;
-      return data || [];
-    },
+    queryFn: async () => api<{ id: string; nome: string }[]>("/clinics"),
   });
 
   const clinicNome = (log: AuditLog) => {

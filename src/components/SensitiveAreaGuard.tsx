@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { authApi } from "@/lib/api";
 import { Lock, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
@@ -53,12 +53,14 @@ export default function SensitiveAreaGuard({ area, children }: Props) {
     e.preventDefault();
     if (!user?.email || !password) return;
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: user.email, password });
-    setSubmitting(false);
-    if (error) {
+    try {
+      await authApi.verifyPassword(password);
+    } catch {
+      setSubmitting(false);
       toast({ title: "Senha incorreta", description: "Tente novamente.", variant: "destructive" });
       return;
     }
+    setSubmitting(false);
     sessionStorage.setItem(storageKey(area, user.id), Date.now().toString());
     setPassword("");
     setUnlocked(true);

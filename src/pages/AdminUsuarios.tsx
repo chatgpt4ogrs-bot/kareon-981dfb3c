@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth, type AppRole } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,16 +98,7 @@ const AdminUsuarios = () => {
 
   const { data: clinicas = [] } = useQuery({
     queryKey: ["admin-usuarios-clinicas", scopeKey],
-    queryFn: async () => {
-      let q = supabase.from("clinics").select("id, nome").order("nome");
-      if (!isAdmin) {
-        if (scope.length === 0) return [];
-        q = q.in("id", scope);
-      }
-      const { data, error } = await q;
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => api<any[]>("/clinics"),
     enabled: canManageUsers,
     staleTime: 0,
     refetchOnMount: "always",
@@ -118,38 +109,8 @@ const AdminUsuarios = () => {
     enabled: canManageUsers && (isAdmin || scope.length > 0),
     queryFn: async () => {
       if (!isAdmin && scope.length === 0) return [];
-
-      let mapped: ReturnType<typeof mapProfileRow>[] = [];
-
-      try {
-        const { data, error } = await supabase.functions.invoke("manage-clinic-user", {
-          body: { action: "list", include_hidden: isAdmin },
-        });
-        if (!error && Array.isArray(data?.profiles)) {
-          mapped = data.profiles.map(mapProfileRow);
-        } else if (data?.error) {
-          throw new Error(data.error);
-        }
-      } catch (e) {
-        console.warn("Edge function list profiles failed, using direct query:", e);
-      }
-
-      if (mapped.length === 0) {
-        let q = (supabase.from("profiles") as any)
-          .select("*")
-          .order("name");
-
-        // Admin de clínica: filtro no banco, não só na UI
-        if (!isAdmin) {
-          q = q.in("clinic_id", scope);
-        }
-
-        const { data, error } = await q;
-        if (error) throw error;
-        mapped = (data || []).map(mapProfileRow);
-      }
-
-      // Sempre reaplica escopo no client (protege contra edge antiga / RLS frouxo)
+      const data = await api<any[]>("/profiles");
+      const mapped = (data || []).map(mapProfileRow);
       return scopeProfilesForCaller(mapped, { isAdmin, scope }).filter((p) => !isPendingUser(p));
     },
   });

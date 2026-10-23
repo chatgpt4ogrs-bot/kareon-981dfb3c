@@ -2,6 +2,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Mail, ArrowLeft } from "lucide-react";
+import { BrandMark } from "@/components/BrandMark";
 
 const VerificarEmail = () => {
   const navigate = useNavigate();
@@ -16,9 +17,10 @@ const VerificarEmail = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Mail className="w-8 h-8 text-primary" />
+        <div className="text-center space-y-3">
+          <BrandMark variant="stacked" size="lg" className="mx-auto" showTagline={false} />
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10">
+            <Mail className="w-6 h-6 text-primary" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Verifique seu email</h1>
           <p className="text-muted-foreground">

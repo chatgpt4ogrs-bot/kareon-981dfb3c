@@ -1,205 +1,320 @@
-import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
-import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePaciente } from "@/hooks/use-pacientes";
-import { useSessoes } from "@/hooks/use-sessoes";
-import { useObjetivos, useDeleteObjetivo } from "@/hooks/use-objetivos";
-import { ArrowLeft, Plus, Pencil, Target, ClipboardList, TrendingUp, Trash2, Play, FileText, Loader2 } from "lucide-react";
-import { format, differenceInYears, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
+import { useEncounters } from "@/hooks/use-encounters";
+import { useDocuments } from "@/hooks/use-documents";
+import {
+  ArrowLeft,
+  Pencil,
+  FileText,
+  Loader2,
+  Stethoscope,
+  Clock,
+  AlertCircle,
+  ChevronRight,
+} from "lucide-react";
+import { format, differenceInYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-const statusLabel: Record<string, string> = { nao_iniciado: "Não iniciado", em_andamento: "Em andamento", concluido: "Concluído" };
-const statusColor: Record<string, string> = { nao_iniciado: "bg-muted text-muted-foreground", em_andamento: "bg-primary/10 text-primary", concluido: "bg-success/10 text-success" };
-const engajamentoLabel: Record<string, { label: string; emoji: string }> = { baixo: { label: "Baixo", emoji: "😔" }, medio: { label: "Médio", emoji: "😐" }, alto: { label: "Alto", emoji: "😊" } };
-const progressoLabel: Record<string, { label: string; emoji: string }> = { regressao: { label: "Regressão", emoji: "📉" }, manteve: { label: "Manteve", emoji: "➡️" }, progresso_leve: { label: "Progresso leve", emoji: "📈" }, progresso_significativo: { label: "Progresso significativo", emoji: "🚀" } };
+function summaryLine(e: {
+  queixa_principal?: string | null;
+  motivo_consulta?: string | null;
+  diagnosticos?: string | null;
+  conduta?: string | null;
+  plano_terapeutico?: string | null;
+  retorno_sugerido?: string | null;
+  orientacoes?: string | null;
+}) {
+  return (
+    e.queixa_principal ||
+    e.motivo_consulta ||
+    e.diagnosticos ||
+    e.conduta ||
+    e.plano_terapeutico ||
+    e.orientacoes ||
+    "Sem resumo registrado"
+  );
+}
 
 const PacienteDetalhe = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: paciente, isLoading } = usePaciente(id);
-  const { data: sessoes = [] } = useSessoes(id);
-  const { data: objetivos = [] } = useObjetivos(id);
-  const deleteObjetivoMutation = useDeleteObjetivo();
-  const [objetivoExcluir, setObjetivoExcluir] = useState<{ id: string; descricao: string } | null>(null);
+  const { data: encounters = [], isLoading: loadingEnc } = useEncounters(id);
+  const { data: docs = [] } = useDocuments({ patient_id: id });
 
-  if (isLoading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
-  if (!paciente) return <div className="text-center py-16"><p className="text-muted-foreground">Paciente não encontrado</p><Button variant="outline" className="mt-4" onClick={() => navigate("/pacientes")}>Voltar</Button></div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (!paciente) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-muted-foreground">Paciente não encontrado</p>
+        <Button variant="outline" className="mt-4" onClick={() => navigate("/pacientes")}>
+          Voltar
+        </Button>
+      </div>
+    );
+  }
 
-  const sortedSessoes = [...sessoes].sort((a, b) => new Date(b.dataHora).getTime() - new Date(a.dataHora).getTime());
-  const idade = differenceInYears(new Date(), new Date(paciente.dataNascimento));
-  const now = new Date();
-  const mesAtual = { start: startOfMonth(now), end: endOfMonth(now) };
-  const sessoesMes = sortedSessoes.filter((s) => isWithinInterval(new Date(s.dataHora), mesAtual));
-  const objetivosAtivos = objetivos.filter((o) => o.status === "em_andamento");
-  const objetivosConcluidos = objetivos.filter((o) => o.status === "concluido");
-  const progressoMedio = objetivos.length > 0 ? Math.round(objetivos.reduce((sum, o) => sum + o.progresso, 0) / objetivos.length) : 0;
+  const idade = paciente.dataNascimento
+    ? differenceInYears(new Date(), new Date(paciente.dataNascimento))
+    : null;
+  const ultimo = encounters[0];
+  const finalizados = encounters.filter((e) => e.status === "finalizado");
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" aria-label="Voltar para pacientes" onClick={() => navigate("/pacientes")}><ArrowLeft className="w-5 h-5" /></Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Voltar"
+          onClick={() => navigate("/pacientes")}
+          className="shrink-0"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-bold text-foreground">{paciente.nome}</h1>
-            <Badge variant={paciente.status === "ativo" ? "default" : "secondary"}>{paciente.status}</Badge>
+            <Badge variant={paciente.status === "ativo" ? "default" : "secondary"}>
+              {paciente.status}
+            </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{idade} anos · {paciente.diagnostico}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {idade != null ? `${idade} anos` : "Idade não informada"}
+            {paciente.diagnostico ? ` · ${paciente.diagnostico}` : ""}
+          </p>
         </div>
-        <Link to={`/pacientes/${paciente.id}/sessao?modo=sessao`}><Button size="sm" className="gap-2"><Play className="w-4 h-4" /> Iniciar sessão</Button></Link>
-        <Link to={`/pacientes/${paciente.id}/relatorio`}><Button variant="outline" size="sm" className="gap-2"><FileText className="w-4 h-4" /> Relatório</Button></Link>
-        <Link to={`/pacientes/${paciente.id}/editar`}><Button variant="ghost" size="sm" className="gap-2"><Pencil className="w-4 h-4" /> Editar</Button></Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to={`/pacientes/${paciente.id}/editar`}>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Pencil className="w-4 h-4" /> Editar
+            </Button>
+          </Link>
+          <Link to="/documentos">
+            <Button variant="outline" size="sm" className="gap-2">
+              <FileText className="w-4 h-4" /> Documentos
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-primary">{sessoesMes.length}</p><p className="text-xs text-muted-foreground">Sessões este mês</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{sortedSessoes.length}</p><p className="text-xs text-muted-foreground">Total de sessões</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{objetivosAtivos.length}/{objetivos.length}</p><p className="text-xs text-muted-foreground">Objetivos ativos</p></CardContent></Card>
-        <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-primary">{progressoMedio}%</p><p className="text-xs text-muted-foreground">Progresso médio</p></CardContent></Card>
-      </div>
-
-      <Card>
-        <CardContent className="p-4">
-          <p className="text-xs text-muted-foreground mb-1">Responsável</p>
-          <p className="text-sm font-medium text-foreground">{paciente.responsavel.nome} ({paciente.responsavel.parentesco})</p>
-          <p className="text-sm text-muted-foreground">{paciente.responsavel.telefone} · {paciente.responsavel.email}</p>
+      {/* Resumo rápido para o médico */}
+      <Card className="border-primary/20 bg-primary/[0.03] shadow-soft">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+            <Stethoscope className="w-4 h-4" />
+            Onde paramos
+          </div>
+          {!ultimo ? (
+            <p className="text-sm text-muted-foreground">
+              Ainda não há atendimentos clínicos registrados para este paciente.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm">
+                <span className="text-muted-foreground">Último atendimento: </span>
+                <strong>
+                  {format(new Date(ultimo.finalized_at || (ultimo as any).updated_at || (ultimo as any).created_at), "dd/MM/yyyy HH:mm", {
+                    locale: ptBR,
+                  })}
+                </strong>
+                {ultimo.professional_nome ? ` · ${ultimo.professional_nome}` : ""}
+              </p>
+              <p className="text-sm leading-relaxed">{summaryLine(ultimo)}</p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {ultimo.diagnostico_cid && (
+                  <Badge variant="secondary">CID {ultimo.diagnostico_cid}</Badge>
+                )}
+                {ultimo.retorno_sugerido && (
+                  <Badge variant="outline">Retorno: {ultimo.retorno_sugerido}</Badge>
+                )}
+                {ultimo.alergias && (
+                  <Badge variant="destructive" className="gap-1">
+                    <AlertCircle className="w-3 h-3" /> Alergias: {ultimo.alergias}
+                  </Badge>
+                )}
+              </div>
+              <Button
+                size="sm"
+                variant="link"
+                className="px-0 h-auto"
+                onClick={() => navigate(`/atendimento/clinico/${ultimo.id}`)}
+              >
+                Abrir prontuário completo <ChevronRight className="w-4 h-4 ml-0.5" />
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="sessoes">
-        <TabsList className="grid grid-cols-3 w-full">
-          <TabsTrigger value="sessoes" className="gap-2"><ClipboardList className="w-4 h-4" /> Sessões</TabsTrigger>
-          <TabsTrigger value="objetivos" className="gap-2"><Target className="w-4 h-4" /> Objetivos</TabsTrigger>
-          <TabsTrigger value="evolucao" className="gap-2"><TrendingUp className="w-4 h-4" /> Evolução</TabsTrigger>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-primary">{encounters.length}</p>
+            <p className="text-xs text-muted-foreground">Atendimentos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-foreground">{finalizados.length}</p>
+            <p className="text-xs text-muted-foreground">Finalizados</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-foreground">{docs.length}</p>
+            <p className="text-xs text-muted-foreground">Documentos</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {(paciente.responsavel?.nome || paciente.alergias || (paciente as any).alertas_clinicos) && (
+        <Card>
+          <CardContent className="p-4 grid sm:grid-cols-2 gap-4 text-sm">
+            {paciente.responsavel?.nome && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Contato / responsável</p>
+                <p className="font-medium">
+                  {paciente.responsavel.nome}
+                  {paciente.responsavel.parentesco ? ` (${paciente.responsavel.parentesco})` : ""}
+                </p>
+                <p className="text-muted-foreground">
+                  {[paciente.responsavel.telefone, paciente.responsavel.email]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Alertas clínicos</p>
+              <p className="text-foreground">
+                {(paciente as any).alergias ||
+                  (paciente as any).alertas_clinicos ||
+                  "Nenhum alerta cadastrado"}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="historico">
+        <TabsList className="grid grid-cols-2 w-full max-w-md">
+          <TabsTrigger value="historico" className="gap-2">
+            <Clock className="w-4 h-4" /> Histórico de atendimentos
+          </TabsTrigger>
+          <TabsTrigger value="documentos" className="gap-2">
+            <FileText className="w-4 h-4" /> Documentos
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="sessoes" className="space-y-4 mt-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">{sortedSessoes.length} sessões registradas</p>
-            <Link to={`/pacientes/${paciente.id}/sessao`}><Button size="sm" className="gap-2"><Plus className="w-4 h-4" /> Nova sessão</Button></Link>
-          </div>
-          {sortedSessoes.length === 0 ? <div className="text-center py-10"><p className="text-muted-foreground text-sm">Nenhuma sessão registrada</p></div> : (
-            <div className="space-y-3">
-              {sortedSessoes.map((s) => {
-                const eng = engajamentoLabel[s.engajamento] || engajamentoLabel.medio;
-                const prog = progressoLabel[s.progressoObservado] || progressoLabel.manteve;
-                return (
-                  <Card key={s.id}>
-                    <CardContent className="p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-foreground">{format(new Date(s.dataHora), "dd/MM/yyyy · HH:mm", { locale: ptBR })}</p>
-                        <div className="flex gap-2 items-center"><span className="text-sm">{eng.emoji}</span><span className="text-sm">{prog.emoji}</span></div>
-                      </div>
-                      <div className="flex flex-wrap gap-1">{s.atividades.map((a) => <Badge key={a} variant="secondary" className="text-xs font-normal">{a}</Badge>)}</div>
-                      {s.comportamentos.length > 0 && <p className="text-xs text-muted-foreground">Comportamento: {s.comportamentos.join(", ")}</p>}
-                      {s.observacoes && <p className="text-sm text-muted-foreground">{s.observacoes}</p>}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+        <TabsContent value="historico" className="space-y-3 mt-4">
+          {loadingEnc ? (
+            <div className="py-10 text-center text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
+              Carregando histórico…
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="objetivos" className="space-y-4 mt-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">{objetivos.length} objetivos · {objetivosConcluidos.length} concluídos</p>
-            <Link to={`/pacientes/${paciente.id}/objetivo`}><Button size="sm" className="gap-2"><Plus className="w-4 h-4" /> Novo objetivo</Button></Link>
-          </div>
-          {objetivos.length === 0 ? <div className="text-center py-10"><p className="text-muted-foreground text-sm">Nenhum objetivo definido</p></div> : (
-            <div className="space-y-3">
-              {objetivos.map((o) => (
-                <Card key={o.id} className={cn(o.status === "concluido" && "opacity-60")}>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground">{o.descricao}</p>
-                        <span className={cn("inline-block mt-1 text-xs px-2 py-0.5 rounded-full font-medium", statusColor[o.status])}>{statusLabel[o.status]}</span>
-                      </div>
-                      <Button variant="ghost" size="icon" aria-label="Excluir objetivo" className="text-muted-foreground hover:text-destructive" onClick={() => setObjetivoExcluir({ id: o.id, descricao: o.descricao })}><Trash2 className="w-4 h-4" /></Button>
-                    </div>
-                    <div className="flex items-center gap-3"><Progress value={o.progresso} className="flex-1 h-2.5" /><span className="text-sm font-semibold text-foreground w-12 text-right">{o.progresso}%</span></div>
-                  </CardContent>
-                </Card>
-              ))}
+          ) : encounters.length === 0 ? (
+            <div className="rounded-xl border border-dashed py-12 text-center text-sm text-muted-foreground">
+              Nenhum atendimento clínico ainda.
+              <br />
+              Use a Agenda → Recepção → Atendimento para registrar consultas.
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="evolucao" className="mt-4">
-          {sortedSessoes.length === 0 && objetivos.length === 0 ? <div className="text-center py-10"><p className="text-muted-foreground text-sm">Registre sessões e objetivos para ver a evolução</p></div> : (
-            <div className="space-y-6">
-              {objetivos.length > 0 && (
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="p-4">
-                    <p className="text-sm font-medium text-foreground mb-3">Progresso geral dos objetivos</p>
-                    <div className="flex items-center gap-3 mb-2"><Progress value={progressoMedio} className="flex-1 h-3" /><span className="text-lg font-bold text-primary">{progressoMedio}%</span></div>
-                    <div className="flex gap-4 text-xs text-muted-foreground">
-                      <span>{objetivosAtivos.length} em andamento</span>
-                      <span>{objetivosConcluidos.length} concluídos</span>
-                      <span>{objetivos.filter(o => o.status === "nao_iniciado").length} não iniciados</span>
+          ) : (
+            encounters.map((e, idx) => (
+              <button
+                key={e.id}
+                type="button"
+                onClick={() => navigate(`/atendimento/clinico/${e.id}`)}
+                className={cn(
+                  "w-full text-left rounded-2xl border bg-card p-4 shadow-soft hover:border-primary/40 transition-colors",
+                  idx === 0 && "border-primary/30"
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium">
+                        {format(
+                          new Date(
+                            e.finalized_at || (e as any).updated_at || (e as any).created_at
+                          ),
+                          "dd/MM/yyyy · HH:mm",
+                          { locale: ptBR }
+                        )}
+                      </p>
+                      <Badge variant="secondary" className="capitalize">
+                        {e.status.replace(/_/g, " ")}
+                      </Badge>
+                      {idx === 0 && <Badge>Mais recente</Badge>}
                     </div>
-                  </CardContent>
-                </Card>
-              )}
-              <div className="relative pl-6 space-y-6">
-                <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-border" />
-                {[...sortedSessoes.map((s) => ({ tipo: "sessao" as const, data: s.dataHora, item: s })),
-                  ...objetivos.map((o) => ({ tipo: "objetivo" as const, data: o.criadoEm, item: o }))]
-                  .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())
-                  .map((evento, i) => (
-                    <div key={i} className="relative">
-                      <div className={cn("absolute -left-6 top-1 w-4 h-4 rounded-full border-2", evento.tipo === "sessao" ? "bg-primary border-primary" : "bg-accent border-accent")} />
-                      <div className="bg-card rounded-lg p-3 border border-border">
-                        <p className="text-xs text-muted-foreground mb-1">{format(new Date(evento.data), "dd/MM/yyyy · HH:mm", { locale: ptBR })}</p>
-                        {evento.tipo === "sessao" ? (
-                          <>
-                            <p className="text-sm font-medium text-foreground">Sessão realizada</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span>{(engajamentoLabel[(evento.item as any).engajamento] || engajamentoLabel.medio).emoji}</span>
-                              <span className="text-xs text-muted-foreground">{(engajamentoLabel[(evento.item as any).engajamento] || engajamentoLabel.medio).label}</span>
-                              <span className="text-muted-foreground">·</span>
-                              <span>{(progressoLabel[(evento.item as any).progressoObservado] || progressoLabel.manteve).emoji}</span>
-                              <span className="text-xs text-muted-foreground">{(progressoLabel[(evento.item as any).progressoObservado] || progressoLabel.manteve).label}</span>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <p className="text-sm font-medium text-foreground">Objetivo criado</p>
-                            <p className="text-xs text-muted-foreground">{(evento.item as any).descricao}</p>
-                          </>
+                    <p className="text-sm text-muted-foreground">
+                      {e.professional_nome || "Profissional não informado"}
+                    </p>
+                    <p className="text-sm line-clamp-2">{summaryLine(e)}</p>
+                    {(e.diagnosticos || e.conduta || e.prescricoes) && (
+                      <div className="grid sm:grid-cols-3 gap-2 pt-2 text-xs">
+                        {e.diagnosticos && (
+                          <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+                            <p className="text-muted-foreground mb-0.5">Diagnóstico</p>
+                            <p className="line-clamp-2">{e.diagnosticos}</p>
+                          </div>
+                        )}
+                        {e.conduta && (
+                          <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+                            <p className="text-muted-foreground mb-0.5">Conduta</p>
+                            <p className="line-clamp-2">{e.conduta}</p>
+                          </div>
+                        )}
+                        {e.prescricoes && (
+                          <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+                            <p className="text-muted-foreground mb-0.5">Prescrição</p>
+                            <p className="line-clamp-2">{e.prescricoes}</p>
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0 mt-1" />
+                </div>
+              </button>
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="documentos" className="mt-4 space-y-2">
+          {docs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">
+              Nenhum documento emitido para este paciente.
+            </p>
+          ) : (
+            docs.map((d) => (
+              <div
+                key={d.id}
+                className="rounded-xl border bg-card px-4 py-3 flex items-center justify-between gap-3"
+              >
+                <div>
+                  <p className="font-medium text-sm">{d.titulo}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.tipo} · {format(new Date(d.created_at), "dd/MM/yyyy")}
+                  </p>
+                </div>
+                <Badge variant="secondary">{d.numero || "—"}</Badge>
               </div>
-            </div>
+            ))
           )}
         </TabsContent>
       </Tabs>
-
-      <ConfirmDeleteDialog
-        open={!!objetivoExcluir}
-        onOpenChange={(o) => { if (!o) setObjetivoExcluir(null); }}
-        title="Excluir objetivo?"
-        itemName={objetivoExcluir?.descricao}
-        onConfirm={async (reason) => {
-          if (!objetivoExcluir) return;
-          try {
-            await deleteObjetivoMutation.mutateAsync({ id: objetivoExcluir.id, reason });
-            toast({ title: "Objetivo excluído" });
-          } catch (e: any) {
-            toast({ title: "Erro ao excluir", description: e.message, variant: "destructive" });
-            throw e;
-          }
-        }}
-      />
     </div>
   );
 };
