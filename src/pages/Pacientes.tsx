@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,16 +13,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { usePacientes, useSavePaciente } from "@/hooks/use-pacientes";
+import {
+  usePacientes,
+  useSavePaciente,
+  useImportPacientes,
+  type ImportPacientesProgress,
+} from "@/hooks/use-pacientes";
 import { useSessoes } from "@/hooks/use-sessoes";
-import { Plus, Search, Filter, Loader2 } from "lucide-react";
+import { Plus, Search, Filter, Loader2, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import VisitExploreNotice from "@/components/VisitExploreNotice";
 import { toast } from "sonner";
+import {
+  parsePacientesXlsx,
+  type PacienteImportPayload,
+  type ParsePacientesResult,
+} from "@/lib/import-pacientes-xlsx";
 
 const Pacientes = () => {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [busca, setBusca] = useState("");
   const [tagFiltro, setTagFiltro] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
@@ -32,10 +43,18 @@ const Pacientes = () => {
   const [diagnostico, setDiagnostico] = useState("");
   const [respNome, setRespNome] = useState("");
   const [respTel, setRespTel] = useState("");
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [parsing, setParsing] = useState(false);
+  const [parsed, setParsed] = useState<ParsePacientesResult | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [importProgress, setImportProgress] = useState<ImportPacientesProgress | null>(null);
+
   const { data: pacientes = [], isLoading } = usePacientes();
   const { data: allSessoes = [] } = useSessoes();
   const { isVisitor } = useAuth();
   const savePaciente = useSavePaciente();
+  const importPacientes = useImportPacientes();
 
   const filtrados = pacientes.filter((p) => {
     const matchBusca =
@@ -55,6 +74,66 @@ const Pacientes = () => {
     setRespNome("");
     setRespTel("");
     setModalOpen(true);
+  }
+
+  function resetImport() {
+    setParsed(null);
+    setFileName("");
+    setImportProgress(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleFileSelected(file: File | undefined) {
+    if (!file) return;
+    const lower = file.name.toLowerCase();
+    if (!lower.endsWith(".xlsx") && !lower.endsWith(".xls") && !lower.endsWith(".csv")) {
+      toast.error("Use uma planilha .xlsx (export pacientes_export)");
+      return;
+    }
+    setParsing(true);
+    setImportProgress(null);
+    try {
+      const result = await parsePacientesXlsx(file);
+      setParsed(result);
+      setFileName(file.name);
+      setImportOpen(true);
+      if (result.warnings.length) {
+        result.warnings.forEach((w) => toast.message(w));
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Não foi possível ler a planilha");
+      resetImport();
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  async function handleConfirmImport() {
+    if (!parsed?.rows.length) return;
+    try {
+      const result = await importPacientes.mutateAsync({
+        rows: parsed.rows,
+        onProgress: setImportProgress,
+      });
+      const parts = [
+        `${result.created} importado${result.created === 1 ? "" : "s"}`,
+        result.skipped ? `${result.skipped} já existia${result.skipped === 1 ? "" : "m"}` : null,
+        result.errors.length ? `${result.errors.length} com erro` : null,
+      ].filter(Boolean);
+      if (result.created > 0) {
+        toast.success(parts.join(" · "));
+      } else if (result.errors.length) {
+        toast.error(parts.join(" · "));
+      } else {
+        toast.message(parts.join(" · ") || "Nada a importar");
+      }
+      if (!result.errors.length) {
+        setImportOpen(false);
+        resetImport();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Falha na importação");
+    }
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -95,10 +174,13 @@ const Pacientes = () => {
     );
   }
 
+  const previewRows: PacienteImportPayload[] = parsed?.rows.slice(0, 8) || [];
+  const importing = importPacientes.isPending;
+
   return (
     <div className="space-y-6">
       {isVisitor && <VisitExploreNotice area="pacientes" />}
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pacientes</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -106,9 +188,32 @@ const Pacientes = () => {
           </p>
         </div>
         {!isVisitor && (
-          <Button className="gap-2 shadow-sm" type="button" onClick={openCreate}>
-            <Plus className="w-4 h-4" /> Novo paciente
-          </Button>
+          <div className="flex items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              className="hidden"
+              onChange={(e) => handleFileSelected(e.target.files?.[0])}
+            />
+            <Button
+              variant="outline"
+              className="gap-2"
+              type="button"
+              disabled={parsing}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {parsing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              Importar dados
+            </Button>
+            <Button className="gap-2 shadow-sm" type="button" onClick={openCreate}>
+              <Plus className="w-4 h-4" /> Novo paciente
+            </Button>
+          </div>
         )}
       </div>
 
@@ -167,9 +272,20 @@ const Pacientes = () => {
               : "Nenhum resultado encontrado"}
           </p>
           {pacientes.length === 0 && !isVisitor && (
-            <Button variant="outline" className="gap-2" type="button" onClick={openCreate}>
-              <Plus className="w-4 h-4" /> Cadastrar primeiro paciente
-            </Button>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <Button
+                variant="outline"
+                className="gap-2"
+                type="button"
+                disabled={parsing}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4" /> Importar planilha
+              </Button>
+              <Button variant="outline" className="gap-2" type="button" onClick={openCreate}>
+                <Plus className="w-4 h-4" /> Cadastrar primeiro paciente
+              </Button>
+            </div>
           )}
         </div>
       ) : (
@@ -287,6 +403,136 @@ const Pacientes = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={importOpen}
+        onOpenChange={(open) => {
+          if (importing) return;
+          setImportOpen(open);
+          if (!open) resetImport();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Importar pacientes</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm">
+            <p className="text-muted-foreground">
+              Planilha reconhecida
+              {fileName ? (
+                <>
+                  : <span className="text-foreground font-medium">{fileName}</span>
+                </>
+              ) : null}
+              {parsed ? (
+                <>
+                  {" "}
+                  · aba <span className="font-medium text-foreground">{parsed.sheetName}</span> ·{" "}
+                  <span className="font-medium text-foreground">{parsed.rows.length}</span> paciente
+                  {parsed.rows.length === 1 ? "" : "s"}
+                </>
+              ) : null}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Nome, nascimento, telefone, e-mail, endereço, CPF, problemas nos pés, observações e
+              alertas clínicos (diabetes, hipertensão etc.) vão para a lista de Pacientes. Quem já
+              existir com o mesmo nome e data de nascimento será ignorado.
+            </p>
+
+            {previewRows.length > 0 && (
+              <div className="rounded-lg border border-border/70 max-h-48 overflow-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="text-left p-2 font-medium">Nome</th>
+                      <th className="text-left p-2 font-medium">Nascimento</th>
+                      <th className="text-left p-2 font-medium">Telefone</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((r, i) => (
+                      <tr key={`${r.nome}-${i}`} className="border-t border-border/50">
+                        <td className="p-2 truncate max-w-[10rem]">{r.nome}</td>
+                        <td className="p-2 whitespace-nowrap">{r.data_nascimento || "—"}</td>
+                        <td className="p-2 whitespace-nowrap">{r.responsavel_telefone || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {parsed && parsed.rows.length > previewRows.length && (
+                  <p className="text-xs text-muted-foreground p-2 border-t">
+                    + {parsed.rows.length - previewRows.length} na lista completa
+                  </p>
+                )}
+              </div>
+            )}
+
+            {importProgress && (
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>
+                    {importProgress.done}/{importProgress.total}
+                  </span>
+                  <span>
+                    {importProgress.created} novos · {importProgress.skipped} ignorados
+                    {importProgress.errors.length
+                      ? ` · ${importProgress.errors.length} erros`
+                      : ""}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{
+                      width: `${
+                        importProgress.total
+                          ? Math.round((importProgress.done / importProgress.total) * 100)
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+                {importProgress.errors.length > 0 && (
+                  <ul className="text-xs text-destructive max-h-24 overflow-auto space-y-0.5">
+                    {importProgress.errors.slice(0, 5).map((e) => (
+                      <li key={e.nome + e.message}>
+                        {e.nome}: {e.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={importing}
+              onClick={() => {
+                setImportOpen(false);
+                resetImport();
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={!parsed?.rows.length || importing}
+              onClick={handleConfirmImport}
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Importando…
+                </>
+              ) : (
+                `Importar ${parsed?.rows.length || 0}`
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

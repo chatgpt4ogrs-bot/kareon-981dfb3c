@@ -15,6 +15,11 @@ export interface Paciente {
   status: "ativo" | "inativo";
   terapeutaId?: string;
   criadoEm: string;
+  cpf?: string;
+  alergias?: string;
+  alertas_clinicos?: string;
+  observacoes?: string;
+  endereco_rua?: string;
 }
 
 export interface ObjetivoTerapeutico {

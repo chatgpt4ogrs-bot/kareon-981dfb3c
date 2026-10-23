@@ -19,6 +19,11 @@ function rowToPaciente(row: any): Paciente {
     status: row.status || "ativo",
     terapeutaId: row.terapeuta_id || undefined,
     criadoEm: row.created_at,
+    cpf: row.cpf || undefined,
+    alergias: row.alergias || undefined,
+    alertas_clinicos: row.alertas_clinicos || undefined,
+    observacoes: row.observacoes || undefined,
+    endereco_rua: row.endereco_rua || undefined,
   };
 }
 
@@ -78,6 +83,11 @@ export function useSavePaciente() {
         status: p.status,
         clinica_id: clinicaId,
         terapeuta_id: p.terapeutaId || null,
+        cpf: p.cpf || null,
+        observacoes: p.observacoes || null,
+        alergias: p.alergias || null,
+        alertas_clinicos: p.alertas_clinicos || null,
+        endereco_rua: p.endereco_rua || null,
       };
 
       if (p.existingId) {
@@ -86,6 +96,80 @@ export function useSavePaciente() {
       }
       const data = await api<any>("/pacientes", { method: "POST", json: row });
       return rowToPaciente(data);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pacientes"] });
+    },
+  });
+}
+
+export type ImportPacientesProgress = {
+  total: number;
+  done: number;
+  created: number;
+  skipped: number;
+  errors: { nome: string; message: string }[];
+};
+
+/** Importa em lote payloads já mapeados da planilha (evita duplicar por nome+nascimento). */
+export function useImportPacientes() {
+  const qc = useQueryClient();
+  const { profile } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({
+      rows,
+      onProgress,
+    }: {
+      rows: import("@/lib/import-pacientes-xlsx").PacienteImportPayload[];
+      onProgress?: (p: ImportPacientesProgress) => void;
+    }) => {
+      const clinicaId = await resolveClinicaId(profile?.clinica_id);
+      const existing = await api<any[]>("/pacientes");
+      const keyOf = (nome: string, nasc: string | null | undefined) =>
+        `${(nome || "").trim().toLowerCase()}|${nasc || ""}`;
+      const known = new Set(
+        existing.map((r) => keyOf(r.nome, r.data_nascimento ? String(r.data_nascimento).slice(0, 10) : ""))
+      );
+
+      const progress: ImportPacientesProgress = {
+        total: rows.length,
+        done: 0,
+        created: 0,
+        skipped: 0,
+        errors: [],
+      };
+      onProgress?.({ ...progress });
+
+      for (const row of rows) {
+        const key = keyOf(row.nome, row.data_nascimento);
+        if (known.has(key)) {
+          progress.skipped += 1;
+          progress.done += 1;
+          onProgress?.({ ...progress, errors: [...progress.errors] });
+          continue;
+        }
+        try {
+          await api("/pacientes", {
+            method: "POST",
+            json: {
+              ...row,
+              clinica_id: clinicaId,
+            },
+          });
+          known.add(key);
+          progress.created += 1;
+        } catch (err: any) {
+          progress.errors.push({
+            nome: row.nome,
+            message: err?.message || "Falha ao cadastrar",
+          });
+        }
+        progress.done += 1;
+        onProgress?.({ ...progress, errors: [...progress.errors] });
+      }
+
+      return progress;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pacientes"] });
