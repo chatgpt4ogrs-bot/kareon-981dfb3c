@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,8 +76,9 @@ const AdminClinicaDetalhe = () => {
 
   const updateMutation = useMutation({
     mutationFn: async (payload: any) => {
-      const { error } = await supabase.from("clinics").update(payload).eq("id", id);
-      if (error) throw error;
+      const body = { ...payload };
+      if (!isAdmin) delete body.email;
+      await api(`/clinics/${id}`, { method: "PUT", json: body });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["clinica", id] });
@@ -244,8 +246,12 @@ const AdminClinicaDetalhe = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const { cnpj, ...rest } = form;
-              updateMutation.mutate(cnpjLocked ? rest : form);
+              const { cnpj, email, ...rest } = form;
+              const payload = {
+                ...(cnpjLocked ? rest : { ...rest, cnpj }),
+                ...(isAdmin ? { email } : {}),
+              };
+              updateMutation.mutate(payload);
             }}
             className="space-y-4"
           >
@@ -257,7 +263,24 @@ const AdminClinicaDetalhe = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
-              <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+              <div>
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
+                  disabled={!isAdmin}
+                />
+                {isAdmin ? (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Atenção: este e-mail é usado em comunicações e login da clínica. Altere com cuidado.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Somente o Admin Master pode alterar o e-mail da clínica.
+                  </p>
+                )}
+              </div>
             </div>
             <div><Label>Endereço</Label><Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} /></div>
             <DialogFooter>

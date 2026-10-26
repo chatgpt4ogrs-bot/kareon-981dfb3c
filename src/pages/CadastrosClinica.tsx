@@ -32,6 +32,7 @@ import {
 import { useSpecialties } from "@/hooks/use-specialties";
 import { useProfessionals } from "@/hooks/use-professionals";
 import { useAuth } from "@/contexts/AuthContext";
+import PreDocumentosPanel from "@/components/PreDocumentosPanel";
 import { toast } from "sonner";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -69,16 +70,17 @@ export default function CadastrosClinica() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Cadastros da clínica</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Salas, serviços, convênios e escala dos profissionais
+          Salas, serviços, convênios, escalas e pré-documentos
         </p>
       </div>
 
       <Tabs defaultValue="rooms">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="rooms">Salas</TabsTrigger>
           <TabsTrigger value="services">Serviços</TabsTrigger>
           <TabsTrigger value="insurance">Convênios</TabsTrigger>
           <TabsTrigger value="schedules">Escalas</TabsTrigger>
+          <TabsTrigger value="predocs">Pré-documentos</TabsTrigger>
         </TabsList>
 
         <TabsContent value="rooms" className="space-y-3 mt-4">
@@ -177,6 +179,10 @@ export default function CadastrosClinica() {
               ))}
             </TableBlock>
           )}
+        </TabsContent>
+
+        <TabsContent value="predocs" className="mt-4">
+          <PreDocumentosPanel />
         </TabsContent>
       </Tabs>
 

@@ -25,6 +25,7 @@ router.get("/profiles", async (req, res) => {
 
     let sql = `SELECT * FROM profiles`;
     const params = [];
+    // Com tenant ativo (X-Clinic-Id), isola usuários daquela clínica
     if (scope !== null) {
       params.push(scope);
       sql += ` WHERE clinic_id = ANY($1::uuid[])`;
@@ -83,12 +84,13 @@ router.post("/profiles/:id/approve", async (req, res) => {
     }
     const b = req.body || {};
     const role = Array.isArray(b.roles) ? b.roles[0] : b.role;
-    const clinicId = b.clinica_id || b.clinic_id || null;
+    const isGestor = role === "supervisor_plataforma";
+    const clinicId = isGestor ? null : b.clinica_id || b.clinic_id || null;
     const { rows } = await query(
       `UPDATE profiles SET
          status = 'ativo',
          role = COALESCE($2, role),
-         clinic_id = COALESCE($3, clinic_id),
+         clinic_id = $3,
          permissions = COALESCE($4, permissions),
          perfil_id = COALESCE($5, perfil_id),
          updated_at = now()
@@ -97,9 +99,10 @@ router.post("/profiles/:id/approve", async (req, res) => {
     );
     if (!rows[0]) return res.status(404).json({ error: "Não encontrado" });
 
-    if (role === "supervisor_plataforma" && Array.isArray(b.clinica_ids)) {
+    if (isGestor && Array.isArray(b.clinica_ids)) {
       await query(`DELETE FROM gestor_clinicas WHERE profile_id = $1`, [req.params.id]);
       for (const cid of b.clinica_ids) {
+        if (!cid) continue;
         await query(
           `INSERT INTO gestor_clinicas (profile_id, clinic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
           [req.params.id, cid]
@@ -193,22 +196,37 @@ router.post("/profiles", async (req, res) => {
       `INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id`,
       [email, hash]
     );
+    const role = b.role || (Array.isArray(b.roles) ? b.roles[0] : null) || "terapeuta";
+    const clinicId =
+      role === "supervisor_plataforma" ? null : b.clinic_id || b.clinica_id || null;
     const profileRes = await query(
       `INSERT INTO profiles (user_id, name, email, role, clinic_id, status, telefone, must_change_password, permissions, perfil_id)
-       VALUES ($1,$2,$3,COALESCE($4,'terapeuta'),$5,COALESCE($6,'ativo'),$7,true,$8,$9)
+       VALUES ($1,$2,$3,$4,$5,COALESCE($6,'ativo'),$7,true,$8,$9)
        RETURNING *`,
       [
         userRes.rows[0].id,
         b.nome,
         email,
-        b.role,
-        b.clinic_id || b.clinica_id || null,
+        role,
+        clinicId,
         b.status,
         b.telefone || null,
         b.permissions || null,
         b.perfil_id || null,
       ]
     );
+
+    // Gestor: vincular clínicas (clinica_ids)
+    if (role === "supervisor_plataforma" && Array.isArray(b.clinica_ids)) {
+      for (const cid of b.clinica_ids) {
+        if (!cid) continue;
+        await query(
+          `INSERT INTO gestor_clinicas (profile_id, clinic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [profileRes.rows[0].id, cid]
+        );
+      }
+    }
+
     res.status(201).json(mapProfile(profileRes.rows[0]));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -255,13 +273,41 @@ router.put("/profiles/:id", async (req, res) => {
     );
     if (!rows[0]) return res.status(404).json({ error: "Não encontrado" });
 
-    if (Array.isArray(b.clinica_ids) && req.profile.role === "admin") {
-      await query(`DELETE FROM gestor_clinicas WHERE profile_id = $1`, [req.params.id]);
-      for (const cid of b.clinica_ids) {
-        await query(
-          `INSERT INTO gestor_clinicas (profile_id, clinic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [req.params.id, cid]
+    if (req.profile.role === "admin") {
+      if (role && role !== "supervisor_plataforma") {
+        await query(`DELETE FROM gestor_clinicas WHERE profile_id = $1`, [req.params.id]);
+      } else if (Array.isArray(b.clinica_ids)) {
+        await query(`DELETE FROM gestor_clinicas WHERE profile_id = $1`, [req.params.id]);
+        for (const cid of b.clinica_ids) {
+          if (!cid) continue;
+          await query(
+            `INSERT INTO gestor_clinicas (profile_id, clinic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+            [req.params.id, cid]
+          );
+        }
+      }
+      if (role === "supervisor_plataforma") {
+        await query(`UPDATE profiles SET clinic_id = NULL WHERE id = $1`, [req.params.id]);
+        rows[0].clinic_id = null;
+      }
+    }
+
+    if (b.email && (req.params.id === req.profile.id || req.profile.role === "admin")) {
+      const newEmail = String(b.email).toLowerCase().trim();
+      if (newEmail && newEmail !== rows[0].email) {
+        const clash = await query(
+          `SELECT id FROM users WHERE lower(email) = $1 AND id <> $2`,
+          [newEmail, rows[0].user_id]
         );
+        if (clash.rowCount) {
+          return res.status(409).json({ error: "E-mail já em uso" });
+        }
+        await query(`UPDATE users SET email = $2, updated_at = now() WHERE id = $1`, [
+          rows[0].user_id,
+          newEmail,
+        ]);
+        await query(`UPDATE profiles SET email = $2 WHERE id = $1`, [req.params.id, newEmail]);
+        rows[0].email = newEmail;
       }
     }
 

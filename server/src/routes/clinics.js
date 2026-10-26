@@ -78,17 +78,36 @@ router.put("/:id", async (req, res) => {
       });
     }
 
+    const emailArg =
+      b.email !== undefined && req.profile.role === "admin"
+        ? b.email
+        : undefined;
+    if (b.email !== undefined && req.profile.role !== "admin") {
+      return res.status(403).json({
+        error: "Somente o Admin Master pode alterar o e-mail da clínica",
+      });
+    }
+
     const { rows } = await query(
       `UPDATE clinics SET
          nome = COALESCE($2, nome),
          cnpj = CASE WHEN cnpj IS NULL OR cnpj = '' THEN COALESCE($3, cnpj) ELSE cnpj END,
          telefone = COALESCE($4, telefone),
-         email = COALESCE($5, email),
-         endereco = COALESCE($6, endereco),
-         status = COALESCE($7, status),
+         email = CASE WHEN $5::boolean THEN $6 ELSE email END,
+         endereco = COALESCE($7, endereco),
+         status = COALESCE($8, status),
          updated_at = now()
        WHERE id = $1 RETURNING *`,
-      [req.params.id, b.nome, b.cnpj, b.telefone, b.email, b.endereco, b.status]
+      [
+        req.params.id,
+        b.nome,
+        b.cnpj,
+        b.telefone,
+        emailArg !== undefined,
+        emailArg ?? null,
+        b.endereco,
+        b.status,
+      ]
     );
     res.json(rows[0]);
   } catch (err) {

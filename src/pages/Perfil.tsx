@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,12 +34,7 @@ const Perfil = () => {
     queryKey: ["clinica-perfil", profile?.clinica_id],
     queryFn: async () => {
       if (!profile?.clinica_id) return null;
-      const { data } = await supabase
-        .from("clinics")
-        .select("nome")
-        .eq("id", profile.clinica_id)
-        .single();
-      return data;
+      return api<{ nome: string }>(`/clinics/${profile.clinica_id}`);
     },
     enabled: !!profile?.clinica_id,
   });
@@ -87,31 +82,15 @@ const Perfil = () => {
 
     setSaving(true);
     try {
-      const emailChanged = emailTrim !== (profile.email || "").toLowerCase();
-      const nomeChanged = nomeTrim !== (profile.nome || "");
-      const telefoneChanged = telefoneTrim !== (profile.telefone || "");
-
-      if (nomeChanged || telefoneChanged) {
-        const { error } = await supabase
-          .from("profiles")
-          .update({ nome: nomeTrim, telefone: telefoneTrim || null })
-          .eq("id", profile.id);
-        if (error) throw error;
-      }
-
-      if (emailChanged) {
-        const { error } = await supabase.auth.updateUser({ email: emailTrim });
-        if (error) throw error;
-        toast({
-          title: "Confirme seu novo email",
-          description: "Enviamos um link de confirmação para o novo endereço. O email só será alterado após a confirmação.",
-        });
-      }
-
-      if ((nomeChanged || telefoneChanged) && !emailChanged) {
-        toast({ title: "Perfil atualizado" });
-      }
-
+      await api(`/profiles/${profile.id}`, {
+        method: "PUT",
+        json: {
+          nome: nomeTrim,
+          telefone: telefoneTrim || null,
+          email: emailTrim,
+        },
+      });
+      toast({ title: "Perfil atualizado" });
       await refreshProfile();
       setEditing(false);
     } catch (err: any) {

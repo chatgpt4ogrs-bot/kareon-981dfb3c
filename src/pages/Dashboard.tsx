@@ -24,7 +24,7 @@ const PlatformSupervisorDashboard = () => {
   });
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div className="space-y-2">
         <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-semibold">
           <EyeOff className="w-3.5 h-3.5" />

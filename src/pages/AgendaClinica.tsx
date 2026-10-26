@@ -5,7 +5,17 @@ import {
   endOfDay,
   addDays,
   subDays,
+  addWeeks,
+  subWeeks,
+  addMonths,
+  subMonths,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
   isSameDay,
+  isSameMonth,
   parseISO,
   differenceInMinutes,
 } from "date-fns";
@@ -19,6 +29,7 @@ import {
   Loader2,
   Plus,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -120,13 +131,70 @@ export default function AgendaClinica() {
   const needsClinic = isAdmin && !unitId;
 
   const [day, setDay] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [view, setView] = useState<"dia" | "semana" | "mes">("dia");
   const dayDate = useMemo(() => new Date(day + "T12:00:00"), [day]);
   const [proFilter, setProFilter] = useState("all");
   const [now, setNow] = useState(() => new Date());
 
-  const from = startOfDay(dayDate).toISOString();
-  const to = endOfDay(dayDate).toISOString();
-  const { data = [], isLoading } = useAppointments({ from, to, unit_id: unitId });
+  const range = useMemo(() => {
+    if (view === "semana") {
+      const start = startOfWeek(dayDate, { weekStartsOn: 1 });
+      const end = endOfWeek(dayDate, { weekStartsOn: 1 });
+      return { from: startOfDay(start), to: endOfDay(end), start, end };
+    }
+    if (view === "mes") {
+      const start = startOfMonth(dayDate);
+      const end = endOfMonth(dayDate);
+      return { from: startOfDay(start), to: endOfDay(end), start, end };
+    }
+    return {
+      from: startOfDay(dayDate),
+      to: endOfDay(dayDate),
+      start: dayDate,
+      end: dayDate,
+    };
+  }, [dayDate, view]);
+
+  const { data = [], isLoading } = useAppointments({
+    from: range.from.toISOString(),
+    to: range.to.toISOString(),
+    unit_id: unitId,
+  });
+
+  const weekDays = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfWeek(dayDate, { weekStartsOn: 1 }),
+        end: endOfWeek(dayDate, { weekStartsOn: 1 }),
+      }),
+    [dayDate]
+  );
+
+  const monthDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(dayDate), { weekStartsOn: 1 });
+    const end = endOfWeek(endOfMonth(dayDate), { weekStartsOn: 1 });
+    return eachDayOfInterval({ start, end });
+  }, [dayDate]);
+
+  function goPrev() {
+    if (view === "semana") setDay(format(subWeeks(dayDate, 1), "yyyy-MM-dd"));
+    else if (view === "mes") setDay(format(subMonths(dayDate, 1), "yyyy-MM-dd"));
+    else setDay(format(subDays(dayDate, 1), "yyyy-MM-dd"));
+  }
+
+  function goNext() {
+    if (view === "semana") setDay(format(addWeeks(dayDate, 1), "yyyy-MM-dd"));
+    else if (view === "mes") setDay(format(addMonths(dayDate, 1), "yyyy-MM-dd"));
+    else setDay(format(addDays(dayDate, 1), "yyyy-MM-dd"));
+  }
+
+  function periodLabel() {
+    if (view === "semana") {
+      return `${format(weekDays[0], "dd MMM", { locale: ptBR })} — ${format(weekDays[6], "dd MMM yyyy", { locale: ptBR })}`;
+    }
+    if (view === "mes") return format(dayDate, "MMMM yyyy", { locale: ptBR });
+    return format(dayDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
+  }
   const { data: pacientes = [] } = usePacientes();
   const { data: specialties = [] } = useSpecialties();
   const { data: profissionais = [] } = useProfessionals();
@@ -197,7 +265,12 @@ export default function AgendaClinica() {
   const isToday = isSameDay(dayDate, now);
   const nowTop = isToday ? minutesFromStart(now.toISOString(), dayDate) * PX_PER_MIN : null;
 
-  function openCreate(opts?: { hora?: string; professional_profile_id?: string }) {
+  function openCreate(opts?: {
+    hora?: string;
+    professional_profile_id?: string;
+    day?: string;
+  }) {
+    if (opts?.day) setDay(opts.day);
     const pr = profissionais.find((p) => p.profile_id === opts?.professional_profile_id);
     setForm({
       patient_id: "",
@@ -256,12 +329,23 @@ export default function AgendaClinica() {
     }
   }
 
-  function apptsForColumn(colId: string) {
+  function apptsForColumn(colId: string, onDay?: Date) {
     return data.filter((a) => {
       if (a.status === "cancelado") return false;
+      if (onDay && !isSameDay(new Date(a.inicio), onDay)) return false;
+      if (proFilter !== "all" && a.professional_profile_id !== proFilter) return false;
       if (colId === "__none__") return !a.professional_profile_id;
       return a.professional_profile_id === colId;
     });
+  }
+
+  function apptsOnDay(d: Date) {
+    return data.filter(
+      (a) =>
+        a.status !== "cancelado" &&
+        isSameDay(new Date(a.inicio), d) &&
+        (proFilter === "all" || a.professional_profile_id === proFilter)
+    );
   }
 
   return (
@@ -281,13 +365,25 @@ export default function AgendaClinica() {
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 min-w-0">
           <h1 className="text-2xl font-bold tracking-tight mr-2">Agenda</h1>
+          <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
+            {(["dia", "semana", "mes"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={cn(
+                  "px-3 h-8 text-xs font-medium rounded-md capitalize transition-colors",
+                  view === v
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {v === "dia" ? "Dia" : v === "semana" ? "Semana" : "Mês"}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9"
-              onClick={() => setDay(format(subDays(dayDate, 1), "yyyy-MM-dd"))}
-            >
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={goPrev}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <Button
@@ -298,24 +394,19 @@ export default function AgendaClinica() {
             >
               Hoje
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9"
-              onClick={() => setDay(format(addDays(dayDate, 1), "yyyy-MM-dd"))}
-            >
+            <Button variant="outline" size="icon" className="h-9 w-9" onClick={goNext}>
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
-          <Input
-            type="date"
-            className="w-auto h-9 bg-card"
-            value={day}
-            onChange={(e) => setDay(e.target.value)}
-          />
-          <p className="text-sm text-muted-foreground capitalize pl-1">
-            {format(dayDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </p>
+          {view === "dia" && (
+            <Input
+              type="date"
+              className="w-auto h-9 bg-card"
+              value={day}
+              onChange={(e) => setDay(e.target.value)}
+            />
+          )}
+          <p className="text-sm text-muted-foreground capitalize pl-1">{periodLabel()}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -382,6 +473,240 @@ export default function AgendaClinica() {
             <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
             Carregando…
           </div>
+        ) : view === "mes" ? (
+          <div className="p-3 sm:p-4">
+            <div className="grid grid-cols-7 gap-px mb-1">
+              {["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"].map((d) => (
+                <div
+                  key={d}
+                  className="text-center text-[11px] font-medium text-muted-foreground py-2"
+                >
+                  {d}
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7 gap-px bg-border/50 rounded-xl overflow-hidden border border-border/60">
+              {monthDays.map((d) => {
+                const list = apptsOnDay(d);
+                const inMonth = isSameMonth(d, dayDate);
+                const selected = isSameDay(d, dayDate);
+                const today = isSameDay(d, now);
+                return (
+                  <div
+                    key={d.toISOString()}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setDay(format(d, "yyyy-MM-dd"));
+                      setView("dia");
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setDay(format(d, "yyyy-MM-dd"));
+                        setView("dia");
+                      }
+                    }}
+                    className={cn(
+                      "min-h-[88px] sm:min-h-[110px] p-1.5 sm:p-2 text-left bg-card hover:bg-muted/40 transition-colors cursor-pointer",
+                      !inMonth && "bg-muted/20 text-muted-foreground",
+                      selected && "ring-2 ring-inset ring-primary/40"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span
+                        className={cn(
+                          "text-xs font-semibold w-6 h-6 inline-flex items-center justify-center rounded-full",
+                          today && "bg-primary text-primary-foreground"
+                        )}
+                      >
+                        {format(d, "d")}
+                      </span>
+                      {list.length > 0 && (
+                        <span className="text-[10px] text-muted-foreground">{list.length}</span>
+                      )}
+                    </div>
+                    <div className="space-y-0.5">
+                      {list.slice(0, 3).map((a, i) => {
+                        const color = PRO_COLORS[i % PRO_COLORS.length];
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            className={cn(
+                              "w-full text-left text-[10px] truncate rounded px-1 py-0.5 border",
+                              color.bg,
+                              color.border,
+                              color.text
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedAppt(a);
+                            }}
+                          >
+                            {format(new Date(a.inicio), "HH:mm")} {a.patient_nome || "Paciente"}
+                          </button>
+                        );
+                      })}
+                      {list.length > 3 && (
+                        <p className="text-[10px] text-muted-foreground pl-0.5">
+                          +{list.length - 3} mais
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : view === "semana" ? (
+          <div className="overflow-auto max-h-[calc(100vh-220px)]">
+            <div
+              className="min-w-max"
+              style={{
+                display: "grid",
+                gridTemplateColumns: `64px repeat(7, minmax(140px, 1fr))`,
+              }}
+            >
+              <div className="sticky top-0 z-20 bg-card border-b border-border/70 h-14" />
+              {weekDays.map((d) => {
+                const count = apptsOnDay(d).length;
+                const today = isSameDay(d, now);
+                const selected = isSameDay(d, dayDate);
+                return (
+                  <button
+                    key={d.toISOString()}
+                    type="button"
+                    onClick={() => {
+                      setDay(format(d, "yyyy-MM-dd"));
+                      setView("dia");
+                    }}
+                    className={cn(
+                      "sticky top-0 z-20 bg-card border-b border-l border-border/70 h-14 px-2 flex flex-col items-center justify-center hover:bg-muted/30 transition-colors",
+                      selected && "bg-muted/40"
+                    )}
+                  >
+                    <span className="text-[10px] uppercase text-muted-foreground tracking-wide">
+                      {format(d, "EEE", { locale: ptBR })}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-sm font-semibold w-7 h-7 inline-flex items-center justify-center rounded-full",
+                        today && "bg-primary text-primary-foreground"
+                      )}
+                    >
+                      {format(d, "d")}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">{count} ag.</span>
+                  </button>
+                );
+              })}
+
+              <div
+                className="relative border-r border-border/60 bg-muted/20"
+                style={{ height: GRID_HEIGHT }}
+              >
+                {hours.map((h) => (
+                  <div
+                    key={h}
+                    className="absolute left-0 right-0 text-[11px] text-muted-foreground pr-2 text-right -translate-y-1/2"
+                    style={{ top: (h - START_HOUR) * 60 * PX_PER_MIN }}
+                  >
+                    {String(h).padStart(2, "0")}:00
+                  </div>
+                ))}
+              </div>
+
+              {weekDays.map((d, dayIdx) => {
+                const appts = apptsOnDay(d);
+                const dayNowTop = isSameDay(d, now)
+                  ? minutesFromStart(now.toISOString(), d) * PX_PER_MIN
+                  : null;
+                return (
+                  <div
+                    key={d.toISOString()}
+                    className="relative border-l border-border/60"
+                    style={{ height: GRID_HEIGHT }}
+                    onClick={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      const y = e.clientY - rect.top;
+                      const mins = Math.round(y / PX_PER_MIN / 15) * 15;
+                      const h = START_HOUR + Math.floor(mins / 60);
+                      const m = mins % 60;
+                      if (h < START_HOUR || h >= END_HOUR) return;
+                      openCreate({
+                        day: format(d, "yyyy-MM-dd"),
+                        hora: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+                        professional_profile_id: proFilter === "all" ? "" : proFilter,
+                      });
+                    }}
+                  >
+                    {hours.map((h) => (
+                      <div
+                        key={h}
+                        className="absolute left-0 right-0 border-t border-border/40 pointer-events-none"
+                        style={{ top: (h - START_HOUR) * 60 * PX_PER_MIN }}
+                      />
+                    ))}
+                    {hours.map((h) => (
+                      <div
+                        key={`${h}-half`}
+                        className="absolute left-0 right-0 border-t border-dashed border-border/25 pointer-events-none"
+                        style={{ top: ((h - START_HOUR) * 60 + 30) * PX_PER_MIN }}
+                      />
+                    ))}
+
+                    {dayNowTop != null && (
+                      <div
+                        className="absolute left-0 right-0 z-10 pointer-events-none"
+                        style={{ top: dayNowTop }}
+                      >
+                        <div className="relative h-0 border-t-2 border-rose-500">
+                          <span className="absolute -left-1.5 -top-1.5 w-3 h-3 rounded-full bg-rose-500" />
+                        </div>
+                      </div>
+                    )}
+
+                    {appts.map((a, i) => {
+                      const { top, height } = appointmentTopHeight(a, d);
+                      const color = PRO_COLORS[(dayIdx + i) % PRO_COLORS.length];
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAppt(a);
+                          }}
+                          className={cn(
+                            "absolute left-1 right-1 rounded-lg border text-left px-1.5 py-1 shadow-sm overflow-hidden transition-shadow hover:shadow-md z-[5]",
+                            color.bg,
+                            color.border,
+                            color.text
+                          )}
+                          style={{ top, height: Math.max(height, 28) }}
+                        >
+                          <span
+                            className={cn(
+                              "absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full",
+                              statusDot(a.status)
+                            )}
+                          />
+                          <p className="text-[10px] font-semibold leading-tight pr-2 truncate">
+                            {format(new Date(a.inicio), "HH:mm")} {a.patient_nome || "Paciente"}
+                          </p>
+                          <p className="text-[9px] opacity-75 truncate">
+                            {a.professional_nome || a.specialty_nome || ""}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ) : columns.length === 0 ? (
           <div className="py-20 text-center text-muted-foreground space-y-3">
             <p>Nenhum profissional nesta unidade.</p>
@@ -398,7 +723,6 @@ export default function AgendaClinica() {
                 gridTemplateColumns: `64px repeat(${columns.length}, minmax(200px, 1fr))`,
               }}
             >
-              {/* Header */}
               <div className="sticky top-0 z-20 bg-card border-b border-border/70 h-16" />
               {columns.map((col, idx) => {
                 const color = PRO_COLORS[idx % PRO_COLORS.length];
@@ -426,8 +750,10 @@ export default function AgendaClinica() {
                 );
               })}
 
-              {/* Time gutter */}
-              <div className="relative border-r border-border/60 bg-muted/20" style={{ height: GRID_HEIGHT }}>
+              <div
+                className="relative border-r border-border/60 bg-muted/20"
+                style={{ height: GRID_HEIGHT }}
+              >
                 {hours.map((h) => (
                   <div
                     key={h}
@@ -439,7 +765,6 @@ export default function AgendaClinica() {
                 ))}
               </div>
 
-              {/* Columns */}
               {columns.map((col, idx) => {
                 const color = PRO_COLORS[idx % PRO_COLORS.length];
                 const appts = apptsForColumn(col.id);

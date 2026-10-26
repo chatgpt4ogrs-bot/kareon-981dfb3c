@@ -83,7 +83,8 @@ export function sanitizeTabs(value: unknown): AppTab[] {
  * salva no perfil ou, se nunca foi definida, o modelo do perfil.
  */
 export function resolveTabs(roles: AppRole[], permissions: string[] | null | undefined): AppTab[] {
-  if (roles.includes("admin")) return ALL_TAB_IDS;
+  // Admin Master opera só Dashboard + Admin (sem abas operacionais)
+  if (roles.includes("admin")) return [];
   if (Array.isArray(permissions)) return sanitizeTabs(permissions);
   const role = roles[0];
   // role pode vir do banco com valor fora dos 6 tipos (ex.: "therapist")
@@ -174,15 +175,21 @@ export function getNavItems(roles: AppRole[], isVisitor = false, tabs: AppTab[] 
     };
   }
 
-  const main: NavEntry[] = [{ to: "/", icon: "LayoutDashboard", label: "Início" }];
-  const admin: NavEntry[] = [];
-
   const isAdmin = roles.includes("admin");
   const isGestor = roles.includes("supervisor_plataforma");
 
+  if (isAdmin) {
+    return {
+      main: [{ to: "/", icon: "LayoutDashboard", label: "Início" }],
+      admin: [{ to: "/admin?tab=tenants", icon: "Shield", label: "Admin" }],
+    };
+  }
+
+  const main: NavEntry[] = [{ to: "/", icon: "LayoutDashboard", label: "Início" }];
+  const admin: NavEntry[] = [];
+
   for (const tab of APP_TABS) {
     if (!tabs.includes(tab.id)) continue;
-    if (isAdmin && tab.section === "admin") continue;
     // Gestor não tem clínica própria: os dados de cada clínica ficam em "Minhas clínicas"
     if (isGestor && tab.id === "clinica_detalhes") continue;
     const entry: NavEntry = { to: tab.route, icon: tab.icon, label: tab.label };
@@ -194,9 +201,7 @@ export function getNavItems(roles: AppRole[], isVisitor = false, tabs: AppTab[] 
     (tab.section === "main" ? main : admin).push(entry);
   }
 
-  if (isAdmin) {
-    admin.unshift({ to: "/admin?tab=tenants", icon: "Shield", label: "Tenants / Admin" });
-  } else if (roles.includes("supervisor_plataforma")) {
+  if (isGestor) {
     admin.unshift({ to: "/admin/clinicas", icon: "Building2", label: "Minhas clínicas" });
   }
 

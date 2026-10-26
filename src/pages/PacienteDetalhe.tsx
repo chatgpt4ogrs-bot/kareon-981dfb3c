@@ -339,7 +339,15 @@ const PacienteDetalhe = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="documentos" className="mt-4 space-y-2">
+        <TabsContent value="documentos" className="mt-4 space-y-3">
+          <div className="flex justify-end">
+            <Button asChild size="sm" variant="outline">
+              <Link to="/documentos">
+                <FileText className="w-4 h-4 mr-1" />
+                Emitir em Documentos
+              </Link>
+            </Button>
+          </div>
           {docs.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
               Nenhum documento emitido para este paciente.

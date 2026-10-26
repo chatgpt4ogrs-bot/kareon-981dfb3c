@@ -7,6 +7,7 @@ export async function invokeManageUser(body: Record<string, unknown>) {
   const action = String(body.action || "");
 
   if (action === "list") {
+    // Painel admin global: sem X-Clinic-Id o backend devolve todos (scope null)
     const profiles = await api<any[]>("/profiles");
     return { profiles };
   }
@@ -49,7 +50,9 @@ export async function invokeManageUser(body: Record<string, unknown>) {
         email: body.email,
         password: body.password,
         role: body.role || body.cargo || (Array.isArray(body.roles) ? body.roles[0] : undefined),
+        roles: body.roles,
         clinic_id: body.clinic_id || body.clinica_id,
+        clinica_ids: body.clinica_ids,
         status: body.status || "ativo",
         telefone: body.telefone,
         permissions: body.permissions,

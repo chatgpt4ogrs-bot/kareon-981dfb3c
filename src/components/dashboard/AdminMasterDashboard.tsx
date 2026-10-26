@@ -7,8 +7,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Building2, Shield, Users, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import OpsDashboard from "@/components/dashboard/OpsDashboard";
-
 function useAdminMetrics() {
   return useQuery({
     queryKey: ["admin-metrics"],
@@ -113,8 +111,6 @@ const AdminMasterDashboard = () => {
           )}
         </CardContent>
       </Card>
-
-      <OpsDashboard />
     </div>
   );
 };

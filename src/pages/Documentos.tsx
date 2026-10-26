@@ -45,8 +45,12 @@ export default function Documentos() {
 
   const [open, setOpen] = useState(false);
   const [preview, setPreview] = useState<any>(null);
+  const [modo, setModo] = useState<"template" | "livre">("template");
   const [form, setForm] = useState({
     tipo: "atestado",
+    template_id: "",
+    titulo: "",
+    conteudo: "",
     patient_id: "",
     dias: "1",
     cid: "",
@@ -59,13 +63,22 @@ export default function Documentos() {
     indicacao: "",
   });
 
+  const templatesDoTipo = templates.filter((t) => t.tipo === form.tipo);
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     try {
+      if (modo === "livre" && !form.conteudo.trim()) {
+        toast.error("Informe o texto do documento");
+        return;
+      }
       const doc = await create.mutateAsync({
         unit_id: profile?.clinica_id,
         patient_id: form.patient_id,
         tipo: form.tipo,
+        template_id: modo === "template" ? form.template_id || undefined : undefined,
+        titulo: form.titulo || undefined,
+        conteudo: modo === "livre" ? form.conteudo : undefined,
         dias: form.dias,
         cid: form.cid,
         prescricao: form.prescricao,
@@ -192,9 +205,33 @@ export default function Documentos() {
             <DialogTitle>Emitir documento</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-3">
+            <div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5 w-full">
+              <button
+                type="button"
+                onClick={() => setModo("template")}
+                className={`flex-1 h-8 text-xs font-medium rounded-md transition-colors ${
+                  modo === "template" ? "bg-card shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                Pré-documento
+              </button>
+              <button
+                type="button"
+                onClick={() => setModo("livre")}
+                className={`flex-1 h-8 text-xs font-medium rounded-md transition-colors ${
+                  modo === "livre" ? "bg-card shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                Texto livre
+              </button>
+            </div>
+
             <div className="space-y-1.5">
               <Label>Tipo</Label>
-              <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+              <Select
+                value={form.tipo}
+                onValueChange={(v) => setForm((f) => ({ ...f, tipo: v, template_id: "" }))}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -202,7 +239,6 @@ export default function Documentos() {
                   {TIPOS.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.label}
-                      {templates.some((x) => x.tipo === t.id) ? "" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -227,7 +263,53 @@ export default function Documentos() {
               </Select>
             </div>
 
-            {form.tipo === "atestado" && (
+            {modo === "template" && templatesDoTipo.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Modelo</Label>
+                <Select
+                  value={form.template_id || "auto"}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, template_id: v === "auto" ? "" : v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Padrão do tipo</SelectItem>
+                    {templatesDoTipo.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {modo === "livre" && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Título</Label>
+                  <Input
+                    value={form.titulo}
+                    onChange={(e) => setForm((f) => ({ ...f, titulo: e.target.value }))}
+                    placeholder="Ex.: Atestado personalizado"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Texto do documento</Label>
+                  <Textarea
+                    rows={8}
+                    value={form.conteudo}
+                    onChange={(e) => setForm((f) => ({ ...f, conteudo: e.target.value }))}
+                    required
+                  />
+                </div>
+              </>
+            )}
+
+            {modo === "template" && form.tipo === "atestado" && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Dias</Label>
@@ -245,7 +327,7 @@ export default function Documentos() {
                 </div>
               </div>
             )}
-            {form.tipo === "receita" && (
+            {modo === "template" && form.tipo === "receita" && (
               <>
                 <div className="space-y-1.5">
                   <Label>Prescrição</Label>
@@ -266,7 +348,7 @@ export default function Documentos() {
                 </div>
               </>
             )}
-            {form.tipo === "encaminhamento" && (
+            {modo === "template" && form.tipo === "encaminhamento" && (
               <>
                 <div className="space-y-1.5">
                   <Label>Especialidade destino</Label>
@@ -288,7 +370,7 @@ export default function Documentos() {
                 </div>
               </>
             )}
-            {form.tipo === "pedido_exame" && (
+            {modo === "template" && form.tipo === "pedido_exame" && (
               <>
                 <div className="space-y-1.5">
                   <Label>Exames</Label>

@@ -29,12 +29,80 @@ function dataExtenso(d = new Date()) {
   });
 }
 
-router.get("/templates", async (_req, res) => {
+function canManageTemplates(req) {
+  return ["admin", "supervisor_plataforma", "clinica_admin", "responsavel_clinica"].includes(
+    req.profile.role
+  );
+}
+
+router.get("/templates", async (req, res) => {
   try {
+    const all = req.query.all === "1" && canManageTemplates(req);
     const { rows } = await query(
-      `SELECT * FROM document_templates WHERE ativo = true ORDER BY tipo, nome`
+      all
+        ? `SELECT * FROM document_templates ORDER BY tipo, nome`
+        : `SELECT * FROM document_templates WHERE ativo = true ORDER BY tipo, nome`
     );
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/templates", async (req, res) => {
+  try {
+    if (!canManageTemplates(req)) {
+      return res.status(403).json({ error: "Sem permissão para criar pré-documentos" });
+    }
+    const b = req.body || {};
+    if (!b.tipo || !b.nome || !b.corpo) {
+      return res.status(400).json({ error: "Tipo, nome e corpo obrigatórios" });
+    }
+    const { rows } = await query(
+      `INSERT INTO document_templates (tipo, nome, corpo, ativo)
+       VALUES ($1, $2, $3, COALESCE($4, true)) RETURNING *`,
+      [b.tipo, b.nome, b.corpo, b.ativo]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/templates/:id", async (req, res) => {
+  try {
+    if (!canManageTemplates(req)) {
+      return res.status(403).json({ error: "Sem permissão para editar pré-documentos" });
+    }
+    const b = req.body || {};
+    const { rows } = await query(
+      `UPDATE document_templates SET
+         tipo = COALESCE($2, tipo),
+         nome = COALESCE($3, nome),
+         corpo = COALESCE($4, corpo),
+         ativo = COALESCE($5, ativo)
+       WHERE id = $1 RETURNING *`,
+      [req.params.id, b.tipo || null, b.nome || null, b.corpo || null, b.ativo]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Não encontrado" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/templates/:id", async (req, res) => {
+  try {
+    if (!canManageTemplates(req)) {
+      return res.status(403).json({ error: "Sem permissão para excluir pré-documentos" });
+    }
+    // Soft-delete: desativa (templates seed permanecem recuperáveis)
+    const { rows } = await query(
+      `UPDATE document_templates SET ativo = false WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Não encontrado" });
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

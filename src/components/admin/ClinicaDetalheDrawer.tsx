@@ -73,8 +73,11 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
       if (mode === "create") {
         await api("/clinics", { method: "POST", json: form });
       } else if (clinicaId) {
-        const { cnpj, ...rest } = form;
-        const payload = cnpjLocked ? rest : form;
+        const { cnpj, email, ...rest } = form;
+        const payload = {
+          ...(cnpjLocked ? rest : { ...rest, cnpj }),
+          ...(isAdmin ? { email } : {}),
+        };
         await api(`/clinics/${clinicaId}`, { method: "PUT", json: payload });
       }
     },
@@ -206,7 +209,26 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Telefone</Label><Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} /></div>
-                <div><Label>Email</Label><Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div>
+                <div>
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    disabled={mode !== "create" && !isAdmin}
+                  />
+                  {mode !== "create" && (
+                    isAdmin ? (
+                      <p className="text-xs text-amber-700 mt-1">
+                        Atenção: este e-mail é usado em comunicações e login da clínica.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Somente o Admin Master pode alterar o e-mail da clínica.
+                      </p>
+                    )
+                  )}
+                </div>
               </div>
               <div><Label>Endereço</Label><Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} /></div>
               <div className="flex justify-end gap-2 pt-2">
