@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface ProfessionalSpecialty {
   id: string;
@@ -29,14 +30,17 @@ export interface Professional {
 }
 
 export function useProfessionals(filters?: { specialty_id?: string; area?: string }) {
+  const { profile, activeTenantId, clinicScope } = useAuth();
+  const unitId = profile?.clinica_id || activeTenantId || undefined;
   const qs = new URLSearchParams();
   if (filters?.specialty_id) qs.set("specialty_id", filters.specialty_id);
   if (filters?.area) qs.set("area", filters.area);
   const q = qs.toString();
 
   return useQuery({
-    queryKey: ["professionals", filters],
+    queryKey: ["professionals", filters, unitId, clinicScope],
     queryFn: () => api<Professional[]>(`/professionals${q ? `?${q}` : ""}`),
+    enabled: clinicScope === null ? !!unitId : clinicScope.length > 0,
   });
 }
 

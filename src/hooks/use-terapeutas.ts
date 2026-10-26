@@ -10,18 +10,34 @@ export interface Terapeuta {
 }
 
 export function useTerapeutas() {
-  const { clinicScope } = useAuth();
+  const { clinicScope, activeTenantId, profile } = useAuth();
+  const unitId = profile?.clinica_id || activeTenantId || undefined;
+
   return useQuery({
-    queryKey: ["terapeutas", clinicScope],
+    queryKey: ["terapeutas", clinicScope, unitId],
     queryFn: async () => {
+      // Sem clínica ativa não mistura usuários de todos os tenants
+      if (clinicScope === null && !unitId) return [];
       if (clinicScope && clinicScope.length === 0) return [];
       const data = await api<any[]>("/profiles");
-      return data.map((p: any) => ({
-        id: p.id,
-        nome: p.nome || p.name,
-        email: p.email,
-        cargo: p.role || p.cargo,
-      })) as Terapeuta[];
+      const allowed =
+        clinicScope !== null
+          ? new Set(clinicScope)
+          : unitId
+          ? new Set([unitId])
+          : null;
+      return data
+        .filter((p: any) => {
+          if (!allowed) return false;
+          const cid = p.clinic_id || p.clinica_id;
+          return cid && allowed.has(cid);
+        })
+        .map((p: any) => ({
+          id: p.id,
+          nome: p.nome || p.name,
+          email: p.email,
+          cargo: p.role || p.cargo,
+        })) as Terapeuta[];
     },
   });
 }

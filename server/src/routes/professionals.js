@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { query } from "../db/pool.js";
 import { requireAuth, requireConfigured } from "../middleware/auth.js";
-import { clinicScope } from "../lib/scope.js";
+import { clinicScope, resolveUnitId } from "../lib/scope.js";
 
 const router = Router();
 router.use(requireConfigured, requireAuth);
@@ -21,19 +21,30 @@ router.get("/", async (req, res) => {
     const scope = clinicScope(req.profile, gids);
     const { specialty_id, area } = req.query;
 
+    // Sem clínica ativa: não mistura profissionais de todas as unidades
+    if (scope === null) return res.json([]);
+    if (scope.length === 0) return res.json([]);
+
     const params = [];
     const where = [`pr.ativo = true`, `p.status = 'ativo'`];
 
-    if (scope !== null) {
-      if (scope.length === 0) return res.json([]);
-      params.push(scope);
-      where.push(
-        `(p.clinic_id = ANY($${params.length}::uuid[]) OR EXISTS (
+    // Isolamento por clínica: professional_units OU (sem units) clinic_id do perfil
+    params.push(scope);
+    where.push(
+      `(
+         EXISTS (
            SELECT 1 FROM professional_units pu
            WHERE pu.professional_id = pr.id AND pu.unit_id = ANY($${params.length}::uuid[])
-         ))`
-      );
-    }
+         )
+         OR (
+           p.clinic_id = ANY($${params.length}::uuid[])
+           AND NOT EXISTS (
+             SELECT 1 FROM professional_units pu2 WHERE pu2.professional_id = pr.id
+           )
+         )
+       )`
+    );
+
     if (specialty_id) {
       params.push(specialty_id);
       where.push(
@@ -86,6 +97,13 @@ router.post("/", async (req, res) => {
     const b = req.body || {};
     if (!b.profile_id) return res.status(400).json({ error: "profile_id obrigatório" });
 
+    const unitId = resolveUnitId(req.profile, b.unit_id || b.clinic_id);
+    if (!unitId) {
+      return res.status(400).json({
+        error: "Selecione a clínica (tenant) antes de cadastrar profissionais. Cada clínica tem os seus.",
+      });
+    }
+
     const { rows } = await query(
       `INSERT INTO professionals (profile_id, specialty_id, registro_profissional, conselho, titulo, duracao_padrao_minutos, bio)
        VALUES ($1,$2,$3,$4,$5,COALESCE($6,30),$7)
@@ -107,6 +125,20 @@ router.post("/", async (req, res) => {
         b.duracao_padrao_minutos,
         b.bio || null,
       ]
+    );
+
+    // Garante vínculo exclusivo à clínica ativa
+    await query(
+      `INSERT INTO professional_units (professional_id, unit_id)
+       VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [rows[0].id, unitId]
+    );
+
+    // Alinha clinic_id do perfil se ainda estiver vazio
+    await query(
+      `UPDATE profiles SET clinic_id = COALESCE(clinic_id, $2), updated_at = now()
+       WHERE id = $1`,
+      [b.profile_id, unitId]
     );
 
     const specialtyIds = Array.isArray(b.specialty_ids)
