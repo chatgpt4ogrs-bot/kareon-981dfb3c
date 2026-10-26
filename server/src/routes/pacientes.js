@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { query } from "../db/pool.js";
 import { requireAuth, requireConfigured } from "../middleware/auth.js";
-import { clinicScope } from "../lib/scope.js";
+import { clinicScope, resolveUnitId, assertClinicAccess } from "../lib/scope.js";
 
 const router = Router();
 router.use(requireConfigured, requireAuth);
@@ -47,6 +47,8 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
   try {
+    const gids = await gestorIds(req);
+    const scope = clinicScope(req.profile, gids);
     const { rows } = await query(`SELECT * FROM pacientes WHERE id = $1`, [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: "Paciente não encontrado" });
 
@@ -56,6 +58,8 @@ router.get("/:id", async (req, res) => {
         [req.params.id, req.profile.id]
       );
       if (!link.rowCount) return res.status(403).json({ error: "Paciente não vinculado" });
+    } else if (!assertClinicAccess(scope, rows[0].clinica_id)) {
+      return res.status(403).json({ error: "Paciente de outra clínica" });
     }
 
     res.json(rows[0]);
@@ -67,8 +71,12 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const body = req.body || {};
-    const clinicaId = body.clinica_id || req.profile.clinic_id;
-    if (!clinicaId) return res.status(400).json({ error: "Sem clínica vinculada" });
+    const clinicaId = resolveUnitId(req.profile, body.clinica_id);
+    if (!clinicaId) {
+      return res.status(400).json({
+        error: "Selecione a clínica (tenant) antes de cadastrar pacientes.",
+      });
+    }
 
     const { rows } = await query(
       `INSERT INTO pacientes (

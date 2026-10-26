@@ -180,7 +180,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const normalized = normalizeAppRole(mapped.cargo);
     const userRoles = normalized ? [normalized] : [];
     setRoles(userRoles);
-    setIsAdmin(userRoles.includes("admin"));
+    const adminNow = userRoles.includes("admin");
+    setIsAdmin(adminNow);
+    // Usuário de clínica não deve herdar X-Clinic-Id de sessão Admin no mesmo browser
+    if (!adminNow && !userRoles.includes("supervisor_plataforma")) {
+      localStorage.removeItem(TENANT_KEY);
+      localStorage.removeItem(TENANT_NAME_KEY);
+      setActiveTenantId(null);
+      setActiveTenantName(null);
+    }
     setGestorClinicIds(payload.gestorClinicIds || []);
     setRolesLoaded(true);
   };

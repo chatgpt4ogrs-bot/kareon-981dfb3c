@@ -35,24 +35,26 @@ function rowToPaciente(row: any): Paciente {
 
 async function resolveClinicaId(preferred?: string | null): Promise<string> {
   if (preferred) return preferred;
-  const clinics = await api<{ id: string }[]>("/clinics");
-  if (!clinics.length) {
-    throw new Error(
-      "Nenhuma clínica cadastrada. Crie uma clínica no painel administrativo antes de cadastrar pacientes."
-    );
-  }
-  return clinics[0].id;
+  throw new Error(
+    "Nenhuma clínica ativa. Entre em um tenant (Admin) ou vincule o usuário a uma clínica antes de cadastrar pacientes."
+  );
 }
 
 export function usePacientes() {
-  const { clinicScope, hasRole, profile } = useAuth();
+  const { clinicScope, hasRole, profile, activeTenantId } = useAuth();
   const isFamiliar = hasRole("familiar");
+  const unitId = profile?.clinica_id || activeTenantId || null;
   return useQuery({
-    queryKey: ["pacientes", clinicScope, isFamiliar ? profile?.id : null],
+    queryKey: ["pacientes", clinicScope, unitId, isFamiliar ? profile?.id : null],
     queryFn: async () => {
       const rows = await api<any[]>("/pacientes");
       return rows.map(rowToPaciente);
     },
+    enabled: isFamiliar
+      ? true
+      : clinicScope === null
+        ? !!unitId
+        : (clinicScope?.length ?? 0) > 0,
   });
 }
 
@@ -71,11 +73,13 @@ export function usePaciente(id: string | undefined) {
 
 export function useSavePaciente() {
   const qc = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, activeTenantId } = useAuth();
 
   return useMutation({
     mutationFn: async (p: Paciente & { existingId?: string; clinica_id?: string }) => {
-      const clinicaId = await resolveClinicaId(p.clinica_id || profile?.clinica_id);
+      const clinicaId = await resolveClinicaId(
+        p.clinica_id || profile?.clinica_id || activeTenantId
+      );
 
       const row = {
         nome: p.nome,
@@ -123,7 +127,7 @@ export type ImportPacientesProgress = {
 /** Importa em lote payloads já mapeados da planilha (evita duplicar por nome+nascimento). */
 export function useImportPacientes() {
   const qc = useQueryClient();
-  const { profile } = useAuth();
+  const { profile, activeTenantId } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -133,7 +137,7 @@ export function useImportPacientes() {
       rows: import("@/lib/import-pacientes-xlsx").PacienteImportPayload[];
       onProgress?: (p: ImportPacientesProgress) => void;
     }) => {
-      const clinicaId = await resolveClinicaId(profile?.clinica_id);
+      const clinicaId = await resolveClinicaId(profile?.clinica_id || activeTenantId);
       const existing = await api<any[]>("/pacientes");
       const keyOf = (nome: string, nasc: string | null | undefined) =>
         `${(nome || "").trim().toLowerCase()}|${nasc || ""}`;

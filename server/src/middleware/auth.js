@@ -28,14 +28,16 @@ export async function requireAuth(req, res, next) {
 
     const profile = mapProfile(rows[0]);
 
-    // Contexto de tenant: Superadmin/Gestor opera dentro de uma clínica
+    // Contexto de tenant: Superadmin/Gestor usa X-Clinic-Id.
+    // Usuários de clínica SEMPRE usam o próprio clinic_id — ignora header residual
+    // de outra sessão (ex.: Admin Master no mesmo browser), que antes gerava 403.
     const headerClinic = String(
       req.headers["x-clinic-id"] || req.headers["x-unit-id"] || ""
     ).trim();
-    if (headerClinic) {
-      if (profile.role === "admin") {
-        profile.active_clinic_id = headerClinic;
-      } else if (profile.role === "supervisor_plataforma") {
+    if (profile.role === "admin") {
+      if (headerClinic) profile.active_clinic_id = headerClinic;
+    } else if (profile.role === "supervisor_plataforma") {
+      if (headerClinic) {
         const link = await query(
           `SELECT 1 FROM gestor_clinicas WHERE profile_id = $1 AND clinic_id = $2`,
           [profile.id, headerClinic]
@@ -44,12 +46,8 @@ export async function requireAuth(req, res, next) {
           return res.status(403).json({ error: "Sem acesso a esta clínica" });
         }
         profile.active_clinic_id = headerClinic;
-      } else if (profile.clinic_id && profile.clinic_id !== headerClinic) {
-        return res.status(403).json({ error: "Clínica diferente do seu vínculo" });
-      } else if (profile.clinic_id) {
-        profile.active_clinic_id = profile.clinic_id;
       }
-    } else if (profile.clinic_id && profile.role !== "admin") {
+    } else if (profile.clinic_id) {
       profile.active_clinic_id = profile.clinic_id;
     }
 
