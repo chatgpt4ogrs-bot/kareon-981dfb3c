@@ -149,14 +149,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setActiveTenantName(null);
   };
 
-  /** Perfil efetivo: Superadmin “dentro” de um tenant herda a clínica ativa */
+  /** Perfil efetivo: Admin/Gestor “dentro” de um tenant herda a clínica ativa */
   const effectiveProfile =
-    profile && isAdmin && activeTenantId
+    profile && (isAdmin || isPlatformSupervisor) && activeTenantId
       ? { ...profile, clinica_id: activeTenantId }
       : profile;
 
   const clinicScope: string[] | null =
-    isAdmin && activeTenantId
+    (isAdmin || isPlatformSupervisor) && activeTenantId
       ? [activeTenantId]
       : isAdmin
       ? null
@@ -181,15 +181,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const userRoles = normalized ? [normalized] : [];
     setRoles(userRoles);
     const adminNow = userRoles.includes("admin");
+    const gestorNow = userRoles.includes("supervisor_plataforma");
     setIsAdmin(adminNow);
+    const linked = payload.gestorClinicIds || [];
+    setGestorClinicIds(linked);
     // Usuário de clínica não deve herdar X-Clinic-Id de sessão Admin no mesmo browser
-    if (!adminNow && !userRoles.includes("supervisor_plataforma")) {
+    if (!adminNow && !gestorNow) {
       localStorage.removeItem(TENANT_KEY);
       localStorage.removeItem(TENANT_NAME_KEY);
       setActiveTenantId(null);
       setActiveTenantName(null);
+    } else if (gestorNow) {
+      const current = localStorage.getItem(TENANT_KEY);
+      if (linked.length === 1) {
+        const only = linked[0];
+        localStorage.setItem(TENANT_KEY, only);
+        if (!localStorage.getItem(TENANT_NAME_KEY)) {
+          localStorage.setItem(TENANT_NAME_KEY, "Unidade atual");
+        }
+        setActiveTenantId(only);
+        setActiveTenantName(localStorage.getItem(TENANT_NAME_KEY));
+      } else if (current && linked.length > 0 && !linked.includes(current)) {
+        localStorage.removeItem(TENANT_KEY);
+        localStorage.removeItem(TENANT_NAME_KEY);
+        setActiveTenantId(null);
+        setActiveTenantName(null);
+      }
     }
-    setGestorClinicIds(payload.gestorClinicIds || []);
     setRolesLoaded(true);
   };
 

@@ -37,7 +37,7 @@ function rowToPaciente(row: any): Paciente {
 async function resolveClinicaId(preferred?: string | null): Promise<string> {
   if (preferred) return preferred;
   throw new Error(
-    "Nenhuma clínica ativa. Entre em um tenant (Admin) ou vincule o usuário a uma clínica antes de cadastrar pacientes."
+    "Nenhuma clínica ativa. Em Minhas clínicas, clique em Entrar na unidade antes de cadastrar pacientes."
   );
 }
 
@@ -74,12 +74,15 @@ export function usePaciente(id: string | undefined) {
 
 export function useSavePaciente() {
   const qc = useQueryClient();
-  const { profile, activeTenantId } = useAuth();
+  const { profile, activeTenantId, gestorClinicIds } = useAuth();
 
   return useMutation({
     mutationFn: async (p: Paciente & { existingId?: string; clinica_id?: string }) => {
       const clinicaId = await resolveClinicaId(
-        p.clinica_id || profile?.clinica_id || activeTenantId
+        p.clinica_id ||
+          profile?.clinica_id ||
+          activeTenantId ||
+          (gestorClinicIds.length === 1 ? gestorClinicIds[0] : null)
       );
 
       const row = {
@@ -128,7 +131,7 @@ export type ImportPacientesProgress = {
 /** Importa em lote payloads já mapeados da planilha (evita duplicar por nome+nascimento). */
 export function useImportPacientes() {
   const qc = useQueryClient();
-  const { profile, activeTenantId } = useAuth();
+  const { profile, activeTenantId, gestorClinicIds } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -138,7 +141,11 @@ export function useImportPacientes() {
       rows: import("@/lib/import-pacientes-xlsx").PacienteImportPayload[];
       onProgress?: (p: ImportPacientesProgress) => void;
     }) => {
-      const clinicaId = await resolveClinicaId(profile?.clinica_id || activeTenantId);
+      const clinicaId = await resolveClinicaId(
+        profile?.clinica_id ||
+          activeTenantId ||
+          (gestorClinicIds.length === 1 ? gestorClinicIds[0] : null)
+      );
       const existing = await api<any[]>("/pacientes");
       const keyOf = (nome: string, nasc: string | null | undefined) =>
         `${(nome || "").trim().toLowerCase()}|${nasc || ""}`;

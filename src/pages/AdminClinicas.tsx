@@ -13,7 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { deleteWithAudit } from "@/lib/audit";
 
 const AdminClinicas = () => {
-  const { isAdmin, isPlatformSupervisor, clinicScope } = useAuth();
+  const { isAdmin, isPlatformSupervisor, clinicScope, enterTenant, activeTenantId } = useAuth();
   const queryClient = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<"view" | "edit" | "create">("view");
@@ -96,7 +96,20 @@ const AdminClinicas = () => {
                     <TableCell className="font-medium">{c.nome}</TableCell>
                     <TableCell className="text-muted-foreground">{format(new Date(c.created_at), "dd/MM/yyyy")}</TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                      <div className="flex gap-1">
+                      <div className="flex gap-1 items-center">
+                        {(isAdmin || isPlatformSupervisor) && (
+                          <Button
+                            variant={activeTenantId === c.id ? "default" : "outline"}
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => {
+                              enterTenant(c.id, c.nome);
+                              toast({ title: `Unidade ativa: ${c.nome}` });
+                            }}
+                          >
+                            {activeTenantId === c.id ? "Ativa" : "Entrar"}
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => openDrawer(c.id, "view")}>
                           <Eye className="w-4 h-4" />
                         </Button>

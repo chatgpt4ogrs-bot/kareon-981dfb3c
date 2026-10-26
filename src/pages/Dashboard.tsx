@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Building2, EyeOff, Users, CalendarDays } from "lucide-react";
 
 const PlatformSupervisorDashboard = () => {
-  const { profile, gestorClinicIds } = useAuth();
+  const { profile, gestorClinicIds, enterTenant, activeTenantId, activeTenantName } = useAuth();
   const firstName = profile?.nome?.split(" ")[0] || "Gestor";
 
   const { data: clinicas = [] } = useQuery({
@@ -34,18 +34,26 @@ const PlatformSupervisorDashboard = () => {
         <p className="text-muted-foreground text-sm leading-relaxed">
           {gestorClinicIds.length === 0
             ? "Nenhuma clínica está vinculada à sua conta ainda. Entre em contato com o suporte para vincular suas clínicas."
-            : `Você faz a gestão de ${gestorClinicIds.length} clínica(s).`}
+            : activeTenantName
+              ? `Unidade ativa: ${activeTenantName}. Você gerencia ${gestorClinicIds.length} clínica(s).`
+              : `Você faz a gestão de ${gestorClinicIds.length} clínica(s). Escolha uma unidade abaixo para operar.`}
         </p>
         {clinicas.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {clinicas.map((c) => (
-              <Link
+              <button
                 key={c.id}
-                to={`/admin/clinicas/${c.id}`}
-                className="text-xs rounded-full border border-border px-2.5 py-1 hover:bg-muted"
+                type="button"
+                onClick={() => enterTenant(c.id, c.nome)}
+                className={`text-xs rounded-full border px-2.5 py-1 hover:bg-muted ${
+                  activeTenantId === c.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border"
+                }`}
               >
                 {c.nome}
-              </Link>
+                {activeTenantId === c.id ? " · ativa" : ""}
+              </button>
             ))}
           </div>
         )}
