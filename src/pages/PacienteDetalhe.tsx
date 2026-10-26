@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePaciente } from "@/hooks/use-pacientes";
+import { useDeletePaciente, usePaciente } from "@/hooks/use-pacientes";
 import { useEncounters } from "@/hooks/use-encounters";
 import { useDocuments } from "@/hooks/use-documents";
 import {
@@ -12,14 +13,17 @@ import {
   FileText,
   Loader2,
   Stethoscope,
-  Clock,
   AlertCircle,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
-import { format, differenceInYears } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { safeAgeYears, safeFormat, safeFormatDateOnly } from "@/lib/dates";
 import { FichaPodologiaView } from "@/components/pacientes/FichaPodologiaView";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 function summaryLine(e: {
   queixa_principal?: string | null;
@@ -44,9 +48,12 @@ function summaryLine(e: {
 const PacienteDetalhe = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { isVisitor } = useAuth();
   const { data: paciente, isLoading } = usePaciente(id);
   const { data: encounters = [], isLoading: loadingEnc } = useEncounters(id);
   const { data: docs = [] } = useDocuments({ patient_id: id });
+  const deletePaciente = useDeletePaciente();
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (isLoading) {
     return (
@@ -66,11 +73,20 @@ const PacienteDetalhe = () => {
     );
   }
 
-  const idade = paciente.dataNascimento
-    ? differenceInYears(new Date(), new Date(paciente.dataNascimento))
-    : null;
+  const idade = safeAgeYears(paciente.dataNascimento);
   const ultimo = encounters[0];
   const finalizados = encounters.filter((e) => e.status === "finalizado");
+
+  async function handleDelete(reason: string) {
+    try {
+      await deletePaciente.mutateAsync({ id: paciente!.id, reason });
+      toast.success("Paciente excluído");
+      navigate("/pacientes");
+    } catch (err: any) {
+      toast.error(err.message || "Não foi possível excluir");
+      throw err;
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -107,6 +123,16 @@ const PacienteDetalhe = () => {
               <FileText className="w-4 h-4" /> Documentos
             </Button>
           </Link>
+          {!isVisitor && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-destructive hover:text-destructive"
+              onClick={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="w-4 h-4" /> Excluir
+            </Button>
+          )}
         </div>
       </div>
 
@@ -126,9 +152,11 @@ const PacienteDetalhe = () => {
               <p className="text-sm">
                 <span className="text-muted-foreground">Último atendimento: </span>
                 <strong>
-                  {format(new Date(ultimo.finalized_at || (ultimo as any).updated_at || (ultimo as any).created_at), "dd/MM/yyyy HH:mm", {
-                    locale: ptBR,
-                  })}
+                  {safeFormat(
+                    ultimo.finalized_at || (ultimo as any).updated_at || (ultimo as any).created_at,
+                    "dd/MM/yyyy HH:mm",
+                    { locale: ptBR }
+                  )}
                 </strong>
                 {ultimo.professional_nome ? ` · ${ultimo.professional_nome}` : ""}
               </p>
@@ -186,7 +214,7 @@ const PacienteDetalhe = () => {
           pessoais={{
             cpf: paciente.cpf,
             dataNascimento: paciente.dataNascimento
-              ? format(new Date(paciente.dataNascimento + "T12:00:00"), "dd/MM/yyyy")
+              ? safeFormatDateOnly(paciente.dataNascimento)
               : undefined,
             telefone: paciente.telefone || paciente.responsavel?.telefone,
             email: paciente.email || paciente.responsavel?.email,
@@ -265,10 +293,8 @@ const PacienteDetalhe = () => {
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-medium">
-                        {format(
-                          new Date(
-                            e.finalized_at || (e as any).updated_at || (e as any).created_at
-                          ),
+                        {safeFormat(
+                          e.finalized_at || (e as any).updated_at || (e as any).created_at,
                           "dd/MM/yyyy · HH:mm",
                           { locale: ptBR }
                         )}
@@ -326,7 +352,7 @@ const PacienteDetalhe = () => {
                 <div>
                   <p className="font-medium text-sm">{d.titulo}</p>
                   <p className="text-xs text-muted-foreground">
-                    {d.tipo} · {format(new Date(d.created_at), "dd/MM/yyyy")}
+                    {d.tipo} · {safeFormat(d.created_at, "dd/MM/yyyy")}
                   </p>
                 </div>
                 <Badge variant="secondary">{d.numero || "—"}</Badge>
@@ -335,6 +361,15 @@ const PacienteDetalhe = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      <ConfirmDeleteDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Excluir paciente?"
+        itemName={paciente.nome}
+        description="O cadastro e os vínculos deste paciente serão removidos. Esta ação não pode ser desfeita."
+        onConfirm={handleDelete}
+      />
     </div>
   );
 };

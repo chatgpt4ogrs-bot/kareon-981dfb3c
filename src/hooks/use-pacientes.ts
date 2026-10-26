@@ -3,14 +3,15 @@ import { api } from "@/lib/api";
 import { Paciente } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { normalizeFichaPodologia } from "@/lib/ficha-podologia";
+import { toDateOnly } from "@/lib/dates";
 
 function rowToPaciente(row: any): Paciente {
   return {
     id: row.id,
-    nome: row.nome,
-    dataNascimento: row.data_nascimento || "",
+    nome: row.nome || "",
+    dataNascimento: toDateOnly(row.data_nascimento),
     diagnostico: row.diagnostico || "",
-    tags: row.tags || [],
+    tags: Array.isArray(row.tags) ? row.tags : [],
     responsavel: {
       nome: row.responsavel_nome || "",
       telefone: row.responsavel_telefone || "",
@@ -19,7 +20,7 @@ function rowToPaciente(row: any): Paciente {
     },
     status: row.status || "ativo",
     terapeutaId: row.terapeuta_id || undefined,
-    criadoEm: row.created_at,
+    criadoEm: row.created_at || "",
     cpf: row.cpf || undefined,
     telefone: row.telefone || row.responsavel_telefone || undefined,
     email: row.email || row.responsavel_email || undefined,

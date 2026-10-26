@@ -190,8 +190,17 @@ router.delete("/:id", async (req, res) => {
     const reason = String(req.body?.reason || "").trim();
     if (reason.length < 3) return res.status(400).json({ error: "Motivo obrigatório" });
 
+    const gids = await gestorIds(req);
+    const scope = clinicScope(req.profile, gids);
     const existing = await query(`SELECT * FROM pacientes WHERE id = $1`, [req.params.id]);
     if (!existing.rows[0]) return res.status(404).json({ error: "Não encontrado" });
+
+    if (req.profile.role === "familiar") {
+      return res.status(403).json({ error: "Familiar não pode excluir pacientes" });
+    }
+    if (!assertClinicAccess(scope, existing.rows[0].clinica_id)) {
+      return res.status(403).json({ error: "Paciente de outra clínica" });
+    }
 
     await query(
       `INSERT INTO audit_logs (action, entity_type, entity_id, entity_label, clinic_id, reason, snapshot, actor_id, actor_name, actor_email, actor_role)

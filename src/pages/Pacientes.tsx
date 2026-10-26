@@ -17,14 +17,17 @@ import {
   usePacientes,
   useSavePaciente,
   useImportPacientes,
+  useDeletePaciente,
   type ImportPacientesProgress,
 } from "@/hooks/use-pacientes";
 import { useSessoes } from "@/hooks/use-sessoes";
-import { Plus, Search, Filter, Loader2, Upload } from "lucide-react";
+import { Plus, Search, Filter, Loader2, Upload, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import VisitExploreNotice from "@/components/VisitExploreNotice";
+import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { toast } from "sonner";
+import type { Paciente } from "@/types";
 import {
   parsePacientesXlsx,
   type PacienteImportPayload,
@@ -62,6 +65,7 @@ const Pacientes = () => {
   const [parsed, setParsed] = useState<ParsePacientesResult | null>(null);
   const [fileName, setFileName] = useState("");
   const [importProgress, setImportProgress] = useState<ImportPacientesProgress | null>(null);
+  const [excluindo, setExcluindo] = useState<Paciente | null>(null);
 
   const { data: pacientes = [], isLoading } = usePacientes();
   const { data: allSessoes = [] } = useSessoes();
@@ -69,12 +73,16 @@ const Pacientes = () => {
   const { useFichaPodologia } = useClinicPodologia();
   const savePaciente = useSavePaciente();
   const importPacientes = useImportPacientes();
+  const deletePaciente = useDeletePaciente();
 
   const filtrados = pacientes.filter((p) => {
+    const nome = (p.nome || "").toLowerCase();
+    const diag = (p.diagnostico || "").toLowerCase();
+    const q = busca.toLowerCase();
     const matchBusca =
-      p.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      (p.diagnostico || "").toLowerCase().includes(busca.toLowerCase()) ||
-      (p.tags || []).some((t) => t.toLowerCase().includes(busca.toLowerCase()));
+      nome.includes(q) ||
+      diag.includes(q) ||
+      (p.tags || []).some((t) => String(t).toLowerCase().includes(q));
     const matchTag = !tagFiltro || (p.tags || []).includes(tagFiltro);
     return matchBusca && matchTag;
   });
@@ -327,11 +335,17 @@ const Pacientes = () => {
           {filtrados.map((p) => {
             const totalSessoes = allSessoes.filter((s) => s.pacienteId === p.id).length;
             return (
-              <Link key={p.id} to={`/pacientes/${p.id}`}>
-                <Card className="hover:shadow-soft-md transition-shadow cursor-pointer border-border/70 shadow-soft">
-                  <CardContent className="p-4 flex items-center gap-4">
+              <Card
+                key={p.id}
+                className="hover:shadow-soft-md transition-shadow border-border/70 shadow-soft"
+              >
+                <CardContent className="p-4 flex items-center gap-4">
+                  <Link
+                    to={`/pacientes/${p.id}`}
+                    className="flex items-center gap-4 flex-1 min-w-0"
+                  >
                     <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0">
-                      {p.nome.charAt(0)}
+                      {(p.nome || "?").charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -357,9 +371,25 @@ const Pacientes = () => {
                         ))}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                  </Link>
+                  {!isVisitor && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label={`Excluir ${p.nome}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setExcluindo(p);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -634,6 +664,27 @@ const Pacientes = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDeleteDialog
+        open={!!excluindo}
+        onOpenChange={(o) => {
+          if (!o) setExcluindo(null);
+        }}
+        title="Excluir paciente?"
+        itemName={excluindo?.nome}
+        description="O cadastro e os vínculos deste paciente serão removidos. Esta ação não pode ser desfeita."
+        onConfirm={async (reason) => {
+          if (!excluindo) return;
+          try {
+            await deletePaciente.mutateAsync({ id: excluindo.id, reason });
+            toast.success("Paciente excluído");
+            setExcluindo(null);
+          } catch (err: any) {
+            toast.error(err.message || "Não foi possível excluir");
+            throw err;
+          }
+        }}
+      />
     </div>
   );
 };
