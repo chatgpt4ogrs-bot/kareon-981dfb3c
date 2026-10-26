@@ -68,8 +68,11 @@ const AdminClinicaDetalhe = () => {
   const { data: pacientes = { total: 0 } } = useQuery({
     queryKey: ["clinica-pacientes", id],
     queryFn: async () => {
-      const list = await api<any[]>(`/pacientes?clinica_id=${id}`);
-      return { total: Array.isArray(list) ? list.length : 0 };
+      const list = await api<any[]>("/pacientes");
+      const total = Array.isArray(list)
+        ? list.filter((p) => p.clinica_id === id || p.unit_id === id).length
+        : 0;
+      return { total };
     },
     enabled: !!id && canAccess,
   });
