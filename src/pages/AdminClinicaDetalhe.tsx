@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,9 +39,7 @@ const AdminClinicaDetalhe = () => {
     queryKey: ["clinica", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await supabase.from("clinics").select("*").eq("id", id).maybeSingle();
-      if (error) throw error;
-      return data;
+      return api<any>(`/clinics/${id}`);
     },
     enabled: !!id && canAccess,
   });
@@ -50,26 +47,29 @@ const AdminClinicaDetalhe = () => {
   const { data: usuarios = [] } = useQuery({
     queryKey: ["clinica-usuarios", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").eq("clinic_id", id);
-      if (error) throw error;
+      const data = await api<any[]>("/profiles");
       return (data || [])
-        .filter((u: any) => isAdmin || !["admin", "supervisor_plataforma"].includes(String(u.role ?? "").toLowerCase()))
+        .filter((u: any) => u.clinic_id === id || u.clinica_id === id)
+        .filter(
+          (u: any) =>
+            isAdmin ||
+            !["admin", "supervisor_plataforma"].includes(String(u.role ?? u.cargo ?? "").toLowerCase())
+        )
         .map((u: any) => ({
-        ...u,
-        nome: u.name,
-        cargo: u.role,
-        clinica_id: u.clinic_id,
-      }));
+          ...u,
+          nome: u.nome || u.name,
+          cargo: u.role || u.cargo,
+          clinica_id: u.clinic_id || u.clinica_id,
+        }));
     },
     enabled: !!id && canAccess,
   });
 
-  const { data: pacientes = [] } = useQuery({
+  const { data: pacientes = { total: 0 } } = useQuery({
     queryKey: ["clinica-pacientes", id],
     queryFn: async () => {
-      const { count, error } = await supabase.from("pacientes").select("*", { count: "exact", head: true }).eq("clinica_id", id);
-      if (error) throw error;
-      return { total: count || 0 };
+      const list = await api<any[]>(`/pacientes?clinica_id=${id}`);
+      return { total: Array.isArray(list) ? list.length : 0 };
     },
     enabled: !!id && canAccess,
   });

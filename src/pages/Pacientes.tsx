@@ -70,7 +70,7 @@ const Pacientes = () => {
   const { data: pacientes = [], isLoading } = usePacientes();
   const { data: allSessoes = [] } = useSessoes();
   const { isVisitor } = useAuth();
-  const { useFichaPodologia } = useClinicPodologia();
+  const { useFichaPodologia, isCurrentUserPodologo } = useClinicPodologia();
   const savePaciente = useSavePaciente();
   const importPacientes = useImportPacientes();
   const deletePaciente = useDeletePaciente();
@@ -238,20 +238,22 @@ const Pacientes = () => {
               className="hidden"
               onChange={(e) => handleFileSelected(e.target.files?.[0])}
             />
-            <Button
-              variant="outline"
-              className="gap-2"
-              type="button"
-              disabled={parsing}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {parsing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
-              )}
-              Importar dados
-            </Button>
+            {isCurrentUserPodologo && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                type="button"
+                disabled={parsing}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {parsing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                Importar dados
+              </Button>
+            )}
             <Button className="gap-2 shadow-sm" type="button" onClick={openCreate}>
               <Plus className="w-4 h-4" /> Novo paciente
             </Button>

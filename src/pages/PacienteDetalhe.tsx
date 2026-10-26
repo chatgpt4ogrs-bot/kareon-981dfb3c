@@ -24,6 +24,7 @@ import { safeAgeYears, safeFormat, safeFormatDateOnly } from "@/lib/dates";
 import { FichaPodologiaView } from "@/components/pacientes/FichaPodologiaView";
 import ConfirmDeleteDialog from "@/components/ConfirmDeleteDialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { useClinicPodologia } from "@/hooks/use-clinic-podologia";
 import { toast } from "sonner";
 
 function summaryLine(e: {
@@ -50,6 +51,7 @@ const PacienteDetalhe = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isVisitor } = useAuth();
+  const { isCurrentUserPodologo } = useClinicPodologia();
   const { data: paciente, isLoading } = usePaciente(id);
   const { data: encounters = [], isLoading: loadingEnc } = useEncounters(id);
   const { data: docs = [] } = useDocuments({ patient_id: id });
@@ -209,7 +211,7 @@ const PacienteDetalhe = () => {
         </Card>
       </div>
 
-      {paciente.fichaPodologia ? (
+      {paciente.fichaPodologia && isCurrentUserPodologo ? (
         <FichaPodologiaView
           ficha={paciente.fichaPodologia}
           pessoais={{
