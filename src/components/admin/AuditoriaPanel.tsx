@@ -37,7 +37,11 @@ const ROLE_LABELS: Record<string, string> = {
   familiar: "Familiar",
 };
 
-const formatDateTime = (iso: string) => format(new Date(iso), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+const formatDateTime = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return format(d, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+};
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined || value === "") return "—";

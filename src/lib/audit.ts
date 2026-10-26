@@ -28,6 +28,8 @@ export async function deleteWithAudit(
     atendimento: `/atendimentos/${entityId}`,
     produto_estoque: `/estoque/${entityId}`,
     objetivo: `/objetivos/${entityId}`,
+    perfil: `/perfis-acesso/${entityId}`,
+    usuario: `/profiles/${entityId}`,
   };
   const path = pathMap[entityType];
   if (!path) {

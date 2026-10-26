@@ -163,7 +163,9 @@ const UsuariosPendentesPanel = ({ clinicas }: Props) => {
                         {u.provider === "google" ? "Google" : "Cadastro do site"}
                       </Badge>
                       <Badge variant="outline" className="text-[10px]">
-                        {format(new Date(u.created_at), "dd/MM/yyyy HH:mm")}
+                        {u.created_at && !Number.isNaN(new Date(u.created_at).getTime())
+                          ? format(new Date(u.created_at), "dd/MM/yyyy HH:mm")
+                          : "—"}
                       </Badge>
                       {!u.email_confirmed && (
                         <Badge variant="secondary" className="text-[10px]">E-mail não confirmado</Badge>

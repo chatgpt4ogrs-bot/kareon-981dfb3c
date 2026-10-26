@@ -136,7 +136,12 @@ const ClinicaDetalheDrawer = ({ clinicaId, mode: initialMode, open, onOpenChange
               {mode !== "create" && clinica && (
                 <SheetDescription className="flex items-center gap-2">
                   <Badge variant={inativa ? "secondary" : "default"} className="text-[10px]">{inativa ? "Inativa" : "Ativa"}</Badge>
-                  <span className="text-xs">Criada em {format(new Date(clinica.created_at), "dd/MM/yyyy")}</span>
+                  <span className="text-xs">
+                    Criada em{" "}
+                    {clinica.created_at && !Number.isNaN(new Date(clinica.created_at).getTime())
+                      ? format(new Date(clinica.created_at), "dd/MM/yyyy")
+                      : "—"}
+                  </span>
                 </SheetDescription>
               )}
             </div>

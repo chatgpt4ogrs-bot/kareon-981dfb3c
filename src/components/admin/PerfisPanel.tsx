@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth, type AppRole } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -77,13 +77,13 @@ const PerfisPanel = () => {
         descricao: form.descricao.trim() || null,
         abas: form.base_role === "admin" ? APP_TABS.map((t) => t.id) : form.abas,
       };
-      const table = supabase.from("perfis_acesso" as any) as any;
       if (editing) {
-        const { error } = await table.update(payload).eq("id", editing.id);
-        if (error) throw new Error(error.message);
+        await api(`/perfis-acesso/${editing.id}`, { method: "PUT", json: payload });
       } else {
-        const { error } = await table.insert({ ...payload, base_role: form.base_role });
-        if (error) throw new Error(error.message);
+        await api("/perfis-acesso", {
+          method: "POST",
+          json: { ...payload, base_role: form.base_role },
+        });
       }
     },
     onSuccess: () => {
@@ -131,8 +131,8 @@ const PerfisPanel = () => {
         <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>
-            Para editar e criar perfis, execute a migration <code>20261009150000_perfis_acesso.sql</code> no SQL Editor do Supabase.
-            Até lá, os perfis padrão abaixo continuam funcionando.
+            Não foi possível carregar os perfis do banco. Os perfis padrão abaixo continuam disponíveis;
+            confira se a API e o PostgreSQL estão no ar.
           </span>
         </div>
       )}

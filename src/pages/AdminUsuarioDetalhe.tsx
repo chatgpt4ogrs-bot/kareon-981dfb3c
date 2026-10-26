@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,28 +50,21 @@ const AdminUsuarioDetalhe = () => {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-profile", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
-      if (error) throw error;
-      if (data) {
-        return {
-          ...data,
-          nome: (data as any).name,
-          cargo: (data as any).role ?? (data as any).cargo,
-          clinica_id: (data as any).clinic_id ?? (data as any).clinica_id,
-        };
-      }
-      return data;
+      const data = await api<any>(`/profiles/${id}`);
+      return {
+        ...data,
+        nome: data.nome || data.name,
+        cargo: data.role || data.cargo,
+        clinica_id: data.clinic_id || data.clinica_id,
+        created_at: data.created_at,
+      };
     },
     enabled: !!id,
   });
 
   const { data: clinicas = [] } = useQuery({
     queryKey: ["admin-clinicas"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("clinics").select("*").order("nome");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => api<any[]>("/clinics"),
   });
 
   // Derive roles locally from profile.role (since user_roles table does not exist)
@@ -181,7 +174,10 @@ const AdminUsuarioDetalhe = () => {
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              Cadastrado em {format(new Date(profile.created_at), "dd/MM/yyyy")}
+              Cadastrado em{" "}
+              {profile.created_at && !Number.isNaN(new Date(profile.created_at).getTime())
+                ? format(new Date(profile.created_at), "dd/MM/yyyy")
+                : "—"}
             </p>
           </div>
         </div>

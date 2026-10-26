@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -63,28 +63,21 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["admin-profile", profileId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", profileId!).maybeSingle();
-      if (error) throw error;
-      if (data) {
-        return {
-          ...data,
-          nome: (data as any).name,
-          cargo: (data as any).role ?? (data as any).cargo,
-          clinica_id: (data as any).clinic_id ?? (data as any).clinica_id,
-        };
-      }
-      return data;
+      const data = await api<any>(`/profiles/${profileId}`);
+      return {
+        ...data,
+        nome: data.nome || data.name,
+        cargo: data.role || data.cargo,
+        clinica_id: data.clinic_id || data.clinica_id,
+        created_at: data.created_at,
+      };
     },
     enabled: !!profileId && open,
   });
 
   const { data: clinicas = [] } = useQuery({
     queryKey: ["admin-clinicas", isAdmin],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("clinics").select("id, nome").order("nome");
-      if (error) throw error;
-      return data;
-    },
+    queryFn: async () => api<{ id: string; nome: string }[]>("/clinics"),
     enabled: open && isAdmin,
   });
 
@@ -92,11 +85,11 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
   const { data: gestorClinicIds = [] } = useQuery({
     queryKey: ["gestor-clinicas", profileId],
     queryFn: async () => {
-      const { data, error } = await (supabase.from("gestor_clinicas" as any) as any)
-        .select("clinic_id")
-        .eq("profile_id", profileId!);
-      if (error) return [];
-      return ((data ?? []) as { clinic_id: string }[]).map((l) => l.clinic_id);
+      try {
+        return await api<string[]>(`/profiles/${profileId}/gestor-clinicas`);
+      } catch {
+        return [];
+      }
     },
     enabled: !!profileId && open && isAdmin && isGestorProfile,
   });
@@ -180,7 +173,12 @@ const UsuarioDetalheDrawer = ({ profileId, open, onOpenChange }: Props) => {
                   <Badge variant={profile.status === "ativo" ? "default" : "secondary"} className="text-[10px]">
                     {statusLabel[profile.status] || profile.status}
                   </Badge>
-                  <span className="text-xs">Cadastrado em {format(new Date(profile.created_at), "dd/MM/yyyy")}</span>
+                  <span className="text-xs">
+                    Cadastrado em{" "}
+                    {profile.created_at && !Number.isNaN(new Date(profile.created_at).getTime())
+                      ? format(new Date(profile.created_at), "dd/MM/yyyy")
+                      : "—"}
+                  </span>
                 </SheetDescription>
               )}
             </div>

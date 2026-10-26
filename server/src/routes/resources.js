@@ -37,6 +37,147 @@ router.get("/profiles", async (req, res) => {
   }
 });
 
+/** Cadastros em modo visita / pendentes de aprovação */
+router.get("/profiles/pending", async (req, res) => {
+  try {
+    if (req.profile.role !== "admin") {
+      return res.status(403).json({ error: "Somente Admin Master" });
+    }
+    const { rows } = await query(
+      `SELECT p.*, u.created_at AS user_created_at
+       FROM profiles p
+       LEFT JOIN users u ON u.id = p.user_id
+       WHERE lower(COALESCE(p.status, '')) NOT IN ('ativo', 'active', 'inativo', 'inactive')
+         AND lower(COALESCE(p.role, '')) NOT IN ('admin', 'supervisor_plataforma')
+       ORDER BY COALESCE(p.created_at, u.created_at) DESC NULLS LAST`
+    );
+    res.json({
+      pending: rows.map((r) => ({
+        ...mapProfile(r),
+        name: r.name,
+        provider: "email",
+        email_confirmed: true,
+        has_profile: true,
+        created_at: r.created_at || r.user_created_at || null,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/profiles/:id", async (req, res) => {
+  try {
+    const { rows } = await query(`SELECT * FROM profiles WHERE id = $1`, [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: "Não encontrado" });
+    res.json(mapProfile(rows[0]));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/profiles/:id/approve", async (req, res) => {
+  try {
+    if (req.profile.role !== "admin") {
+      return res.status(403).json({ error: "Somente Admin Master" });
+    }
+    const b = req.body || {};
+    const role = Array.isArray(b.roles) ? b.roles[0] : b.role;
+    const clinicId = b.clinica_id || b.clinic_id || null;
+    const { rows } = await query(
+      `UPDATE profiles SET
+         status = 'ativo',
+         role = COALESCE($2, role),
+         clinic_id = COALESCE($3, clinic_id),
+         permissions = COALESCE($4, permissions),
+         perfil_id = COALESCE($5, perfil_id),
+         updated_at = now()
+       WHERE id = $1 RETURNING *`,
+      [req.params.id, role || null, clinicId, b.permissions || null, b.perfil_id || null]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Não encontrado" });
+
+    if (role === "supervisor_plataforma" && Array.isArray(b.clinica_ids)) {
+      await query(`DELETE FROM gestor_clinicas WHERE profile_id = $1`, [req.params.id]);
+      for (const cid of b.clinica_ids) {
+        await query(
+          `INSERT INTO gestor_clinicas (profile_id, clinic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [req.params.id, cid]
+        );
+      }
+    }
+    res.json(mapProfile(rows[0]));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/profiles/:id/reject", async (req, res) => {
+  try {
+    if (req.profile.role !== "admin") {
+      return res.status(403).json({ error: "Somente Admin Master" });
+    }
+    const reason = String(req.body?.reason || "Cadastro recusado").trim();
+    const existing = await query(`SELECT * FROM profiles WHERE id = $1`, [req.params.id]);
+    if (!existing.rows[0]) return res.status(404).json({ error: "Não encontrado" });
+
+    await query(
+      `INSERT INTO audit_logs (action, entity_type, entity_id, entity_label, clinic_id, reason, snapshot, actor_id, actor_name, actor_email, actor_role)
+       VALUES ('reject', 'usuario', $1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9)`,
+      [
+        existing.rows[0].id,
+        existing.rows[0].name,
+        existing.rows[0].clinic_id,
+        reason,
+        JSON.stringify(existing.rows[0]),
+        req.profile.id,
+        req.profile.nome,
+        req.profile.email,
+        req.profile.role,
+      ]
+    );
+    if (existing.rows[0].user_id) {
+      await query(`DELETE FROM users WHERE id = $1`, [existing.rows[0].user_id]);
+    } else {
+      await query(`DELETE FROM profiles WHERE id = $1`, [req.params.id]);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/profiles/:id/gestor-clinicas", async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT clinic_id FROM gestor_clinicas WHERE profile_id = $1`,
+      [req.params.id]
+    );
+    res.json(rows.map((r) => r.clinic_id));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/profiles/:id/gestor-clinicas", async (req, res) => {
+  try {
+    if (req.profile.role !== "admin") {
+      return res.status(403).json({ error: "Somente Admin Master" });
+    }
+    const ids = Array.isArray(req.body?.clinica_ids) ? req.body.clinica_ids : [];
+    await query(`DELETE FROM gestor_clinicas WHERE profile_id = $1`, [req.params.id]);
+    for (const cid of ids) {
+      await query(
+        `INSERT INTO gestor_clinicas (profile_id, clinic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [req.params.id, cid]
+      );
+    }
+    res.json({ ok: true, clinica_ids: ids });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post("/profiles", async (req, res) => {
   try {
     const b = req.body || {};
@@ -77,31 +218,61 @@ router.post("/profiles", async (req, res) => {
 router.put("/profiles/:id", async (req, res) => {
   try {
     const b = req.body || {};
+    const role = Array.isArray(b.roles) ? b.roles[0] : b.role;
+    const clinicId =
+      b.clinic_id !== undefined
+        ? b.clinic_id
+        : b.clinica_id !== undefined
+          ? b.clinica_id === "none"
+            ? null
+            : b.clinica_id
+          : undefined;
+
     const { rows } = await query(
       `UPDATE profiles SET
          name = COALESCE($2, name),
          role = COALESCE($3, role),
-         clinic_id = COALESCE($4, clinic_id),
-         status = COALESCE($5, status),
-         telefone = COALESCE($6, telefone),
-         permissions = COALESCE($7, permissions),
-         perfil_id = COALESCE($8, perfil_id),
-         must_change_password = COALESCE($9, must_change_password),
+         clinic_id = CASE WHEN $4::boolean THEN $5::uuid ELSE clinic_id END,
+         status = COALESCE($6, status),
+         telefone = COALESCE($7, telefone),
+         permissions = COALESCE($8, permissions),
+         perfil_id = COALESCE($9, perfil_id),
+         must_change_password = COALESCE($10, must_change_password),
          updated_at = now()
        WHERE id = $1 RETURNING *`,
       [
         req.params.id,
-        b.nome || b.name,
-        b.role,
-        b.clinic_id ?? b.clinica_id,
-        b.status,
-        b.telefone,
-        b.permissions,
-        b.perfil_id,
-        b.must_change_password,
+        b.nome || b.name || null,
+        role || null,
+        clinicId !== undefined,
+        clinicId ?? null,
+        b.status || null,
+        b.telefone !== undefined ? b.telefone : null,
+        b.permissions !== undefined ? b.permissions : null,
+        b.perfil_id || null,
+        b.must_change_password !== undefined ? b.must_change_password : null,
       ]
     );
     if (!rows[0]) return res.status(404).json({ error: "Não encontrado" });
+
+    if (Array.isArray(b.clinica_ids) && req.profile.role === "admin") {
+      await query(`DELETE FROM gestor_clinicas WHERE profile_id = $1`, [req.params.id]);
+      for (const cid of b.clinica_ids) {
+        await query(
+          `INSERT INTO gestor_clinicas (profile_id, clinic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [req.params.id, cid]
+        );
+      }
+    }
+
+    if (b.password) {
+      const hash = await bcrypt.hash(String(b.password), 10);
+      await query(`UPDATE users SET password_hash = $2 WHERE id = $1`, [
+        rows[0].user_id,
+        hash,
+      ]);
+    }
+
     res.json(mapProfile(rows[0]));
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -324,6 +495,92 @@ router.delete("/estoque/:id", async (req, res) => {
 router.get("/perfis-acesso", async (_req, res) => {
   const { rows } = await query(`SELECT * FROM perfis_acesso ORDER BY ordem, nome`);
   res.json(rows);
+});
+
+router.post("/perfis-acesso", async (req, res) => {
+  try {
+    if (req.profile.role !== "admin") {
+      return res.status(403).json({ error: "Somente Admin Master" });
+    }
+    const b = req.body || {};
+    const nome = String(b.nome || "").trim();
+    const baseRole = String(b.base_role || "").trim();
+    if (nome.length < 2) return res.status(400).json({ error: "Informe o nome do perfil" });
+    if (!baseRole) return res.status(400).json({ error: "Escolha o tipo de acesso" });
+
+    const { rows } = await query(
+      `INSERT INTO perfis_acesso (nome, descricao, base_role, abas, is_system, ordem)
+       VALUES ($1, $2, $3, $4::text[], false, COALESCE((SELECT MAX(ordem) + 1 FROM perfis_acesso), 100))
+       RETURNING *`,
+      [nome, b.descricao || null, baseRole, b.abas || []]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put("/perfis-acesso/:id", async (req, res) => {
+  try {
+    if (req.profile.role !== "admin") {
+      return res.status(403).json({ error: "Somente Admin Master" });
+    }
+    const b = req.body || {};
+    const { rows } = await query(
+      `UPDATE perfis_acesso SET
+         nome = COALESCE($2, nome),
+         descricao = COALESCE($3, descricao),
+         abas = COALESCE($4::text[], abas),
+         updated_at = now()
+       WHERE id = $1 RETURNING *`,
+      [
+        req.params.id,
+        b.nome ? String(b.nome).trim() : null,
+        b.descricao !== undefined ? b.descricao : null,
+        b.abas !== undefined ? b.abas : null,
+      ]
+    );
+    if (!rows[0]) return res.status(404).json({ error: "Não encontrado" });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/perfis-acesso/:id", async (req, res) => {
+  try {
+    if (req.profile.role !== "admin") {
+      return res.status(403).json({ error: "Somente Admin Master" });
+    }
+    const reason = String(req.body?.reason || "Exclusão de perfil").trim();
+    const existing = await query(`SELECT * FROM perfis_acesso WHERE id = $1`, [req.params.id]);
+    if (!existing.rows[0]) return res.status(404).json({ error: "Não encontrado" });
+    if (existing.rows[0].is_system) {
+      return res.status(400).json({ error: "Perfis pré-cadastrados não podem ser excluídos" });
+    }
+    const inUse = await query(`SELECT 1 FROM profiles WHERE perfil_id = $1 LIMIT 1`, [req.params.id]);
+    if (inUse.rowCount) {
+      return res.status(400).json({ error: "Perfil em uso por algum usuário" });
+    }
+    await query(
+      `INSERT INTO audit_logs (action, entity_type, entity_id, entity_label, clinic_id, reason, snapshot, actor_id, actor_name, actor_email, actor_role)
+       VALUES ('delete', 'perfil', $1, $2, NULL, $3, $4::jsonb, $5, $6, $7, $8)`,
+      [
+        existing.rows[0].id,
+        existing.rows[0].nome,
+        reason,
+        JSON.stringify(existing.rows[0]),
+        req.profile.id,
+        req.profile.nome,
+        req.profile.email,
+        req.profile.role,
+      ]
+    );
+    await query(`DELETE FROM perfis_acesso WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.get("/audit-logs", async (req, res) => {
