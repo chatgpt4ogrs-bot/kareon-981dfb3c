@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ChevronRight,
   Trash2,
+  Clock,
 } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
